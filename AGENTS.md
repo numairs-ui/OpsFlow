@@ -1,5 +1,7 @@
 # 🤖 OpsFlow Agentic Workspace Directives
 
+> **Note**: This directive file is mirrored across `CLAUDE.md`, `AGENTS.md`, and `GEMINI.md` to ensure consistent instructions load across all agentic and AI environments operating in this workspace.
+
 Welcome to **OpsFlow**, a workspace structured around a robust **3-Layer Agentic Architecture**. This architecture is designed to bridge the gap between probabilistic LLM orchestrators and deterministic execution systems, maximizing reliability, speed, and continuous self-improvement.
 
 All agents operating in this workspace **MUST** strictly adhere to the guidelines, patterns, and principles outlined in this document.
@@ -60,7 +62,7 @@ graph TD
 LLM execution environments are highly dynamic. When a tool or process fails, do not just patch it and move on. Implement the **Self-Annealing Pattern**:
 
 1.  **Isolate & Diagnose**: Run diagnostics to pinpoint the failure (e.g., API rate limits, schema changes, environmental variables missing).
-2.  **Fix the Script**: Update the deterministic script inside `/execution/` to handle the new edge case and verify it locally.
+2.  **Fix the Script**: Update the deterministic script inside `/execution/` to handle the new edge case and verify it locally (check with the user first before running actions that use paid tokens/credits).
 3.  **Update the Directive**: Immediately document the constraint, API quirk, or newly discovered rule inside the relevant Markdown file in `/directives/`.
 4.  **Loop Complete**: The workspace grows smarter with every run, preventing future agents from hitting the same wall.
 
@@ -72,14 +74,19 @@ All resources must be saved in their respective directories to keep the workspac
 
 ```
 OpsFlow/
-├── 📁 .tmp/          # Scratch space for intermediate, uncommitted files
+├── 📁 .tmp/          # Scratch space for intermediate, uncommitted files (regenerated)
 ├── 📁 directives/    # Markdown Standard Operating Procedures (SOPs)
 ├── 📁 execution/     # Deterministic, reusable Python scripts and tools
 ├── 📄 .env           # Dynamic environment variables & API tokens (never committed)
 ├── 📄 .gitignore     # Git exclusion rules
 ├── 📄 AGENTS.md      # This canonical directive file
-└── 📄 CLAUDE.md      # Symlink to AGENTS.md for compatibility
+├── 📄 CLAUDE.md      # Symlink to AGENTS.md for compatibility
+└── 📄 GEMINI.md      # Symlink to AGENTS.md for compatibility
 ```
+
+### 🗝️ Core Operating Principle
+*   **Deliverables vs. Intermediates**: Local files are strictly for intermediate processing. Everything in `.tmp/` can be deleted and regenerated at any time. Permanent deliverables must live in cloud services (Google Sheets, Slides, GitHub, etc.) where the user can access them.
+*   **OAuth Credentials**: Files like `credentials.json` or `token.json` are required for Google integrations and must remain in `.gitignore`.
 
 ---
 

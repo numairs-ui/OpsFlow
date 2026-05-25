@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "OpsFlow",
+    "slug": "opsflow-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F2F2F7"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mealdynamics.opsflow"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F2F2F7"
+      },
+      "package": "com.mealdynamics.opsflow"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "sdkVersion": "52.0.0"
+  }
+}
