@@ -100,6 +100,27 @@ When creating tools inside `/execution/`, keep the following quality standards i
 
 ---
 
+## 🛠️ OpsFlow Angular 17 Coding Standards & AI Guidelines
+
+### 1. Architectural Philosophy: Deep Modules
+*   **Prioritize "Deep Modules"**: Build Angular components and services that hide complex functionality behind extremely simple, well-defined interfaces.
+*   **Avoid "Shallow Modules"**: Do not create dozens of tiny, fragmented files with complex interfaces that are hard to navigate and test.
+
+### 2. Development Workflow: Vertical Slices & Tracer Bullets
+*   **Vertical-Slice Driven**: Never build the app in horizontal layers (e.g., all models, then all services, then all UIs).
+*   **Tracer Bullets**: Always build in "Vertical Slices" (Tracer Bullets). Every feature must be implemented across all necessary layers (UI, routing, service, model) simultaneously so it can be immediately tested and reviewed.
+
+### 3. Test-Driven Development (TDD) as a Speed Limit
+*   **Strict Red-Green-Refactor Loop**: Before writing implementation code for a component or service, write a failing unit test first, confirm it fails, and only then write the code to make it pass.
+*   **Quality Feedback**: Testing is essential for quality feedback loops; without good tests, AI coding quality will degrade rapidly.
+
+### 4. Angular 17 Technical Constraints
+*   **Standalone Components**: Use Standalone Components exclusively (no NgModules).
+*   **Angular Signals**: Utilize Angular Signals for reactive state management.
+*   **Strict Typing**: Enforce strict TypeScript typing across all interfaces and data models.
+
+---
+
 ## 🤝 Commit & Contribution Attribution
 
 When committing your work, help human operators track AI contributions by appending the following metadata to the bottom of every commit message:
