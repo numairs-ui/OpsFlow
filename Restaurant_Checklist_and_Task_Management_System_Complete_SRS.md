@@ -39,6 +39,58 @@ The purpose of the application is to facilitate the restaurant operations team b
 
 ---
 
+## 4.1 Account Structure & Assignment Model
+
+### Account Model
+
+OpsFlow uses one underlying account model. Employee accounts, store accounts, manager accounts, supervisor accounts, auditor accounts, and system admin accounts are differentiated by role/profile permissions, not by separate technical account systems.
+
+The supported role/profile values are:
+
+- **Employee**
+- **Store Account**
+- **Store Manager/GM**
+- **Supervisor/Ops Lead**
+- **Auditor**
+- **System Admin**
+
+### Store Account Definition
+
+A Store Account is a shared-device profile used by store teams on Chromebooks or tablets. Multiple employees may use the same store device during a shift. Because the login identity is shared, every task completion from a Store Account must require the employee's typed name and initials.
+
+Store Account completion records must preserve:
+
+- Assigned target
+- Completed by display name
+- Employee initials
+- Completion timestamp
+- Store/location
+- Role/profile used at completion
+
+### Assignment Targets
+
+Tasks and checklists can be assigned to any account target:
+
+- Store-level shared account
+- Individual employee
+- Store Manager/GM
+- Supervisor/Ops Lead
+- Auditor
+
+Store-level assignment is recommended for high-turnover operational work such as inventory checks, food prep, and basic cleaning. Individual assignment remains available when operations leadership wants person-specific accountability.
+
+### Assignment Target Matrix
+
+| Target | Typical Use | Completion Identity |
+| --- | --- | --- |
+| Store Account | Shared Chromebook work, opening/closing checklists, area cleaning | Typed employee name + initials |
+| Employee | Named individual accountability | Employee account identity |
+| Store Manager/GM | Manager sign-off, cash/till, exception handling | Manager account identity |
+| Supervisor/Ops Lead | Multi-store follow-up or directed work | Supervisor account identity |
+| Auditor | Compliance audit checklist | Auditor account identity |
+
+---
+
 ## 5. Data Model & Entity Structures
 
 ### 5.1 Task Entity Structure
@@ -60,6 +112,8 @@ The purpose of the application is to facilitate the restaurant operations team b
 - **Attachments** - Supporting files, photos, documents
 - **Comments section** - Discussion thread with user tagging capability
 - **Task assignee** - User or store assigned to complete the task
+- **Assignee target type** - Store Account, Employee, Store Manager/GM, Supervisor/Ops Lead, or Auditor
+- **Task family/category** - Inventory check, Food prep, Basic cleaning, Cash/till, Temperature, Audit, Incident, Corrective action, or General operations
 - **Audit trail** - History of all changes and actions
 
 #### Compliance & Quality Control
@@ -92,7 +146,7 @@ When a task is part of a checklist, it inherits by default:
   - Task start time ≥ Checklist start time
   - Task due time ≤ Checklist due time
 
-**Note:** A task is considered a **single unit of work** (no sub-questions).
+**Note:** A task is considered a **single unit of work**. The system uses a two-level model: **Checklist -> Task**. Nested subtasks are not supported. Long operating procedures should be represented as separate tasks or task instructions.
 
 ---
 
@@ -117,6 +171,7 @@ When a task is part of a checklist, it inherits by default:
 
 #### Checklist Composition
 - **Comprised of one or more tasks** - Each checklist contains multiple individual tasks
+- **Two-level structure only** - Checklist items are tasks; tasks do not contain nested tasks or sub-questions
 
 ---
 
@@ -195,6 +250,17 @@ When a task is part of a checklist, it inherits by default:
 
 ## 7. User Roles & Permissions
 
+### Role/Profile Matrix
+
+| Role/Profile | Primary Purpose | Can Complete Work | Can Assign Work | Can Create Store Work | Can Create Personal Work |
+| --- | --- | --- | --- | --- | --- |
+| Employee | Complete assigned operational work | Own tasks and store-level tasks | No | No | No |
+| Store Account | Shared Chromebook/store-device execution | Store-level tasks with typed name + initials | No | No | No |
+| Store Manager/GM | Run one store's operating day | Store work and manager tasks | Employees and Store Account within store | Yes | No from Store Account context |
+| Supervisor/Ops Lead | Multi-store operational assignment | Assigned supervisor tasks | Stores, managers, and employees in supervised scope | Yes | Yes |
+| Auditor | Compliance and field audit execution | Assigned audit checklists | Corrective actions from failed audits | No | No |
+| System Admin | System configuration and access control | Not primary operational user | Full administrative access | Configuration only | No |
+
 ### Role Hierarchy (Lowest to Highest)
 
 #### 7.1 Employee/Staff (Lowest Level)
@@ -204,7 +270,6 @@ When a task is part of a checklist, it inherits by default:
 - View tasks assigned to their store
 - Report incidents
 - Complete assigned tasks
-- Create personal tasks/checklists (visibility only to themselves)
 
 **Scope:** Individual level
 
@@ -220,8 +285,9 @@ When a task is part of a checklist, it inherits by default:
 - View store-level task completion dashboard
 - Report incidents (on behalf of employees)
 - **Cannot** create personal tasks/checklists
+- **Must** capture typed employee name and initials when completing tasks
 
-**Use Case:** Shared tablet/device for entire store team
+**Use Case:** Shared Chromebook/tablet/device for entire store team
 
 **Scope:** Store level (not individual)
 
@@ -231,17 +297,17 @@ When a task is part of a checklist, it inherits by default:
 
 **Permissions:**
 - Create tasks and checklists for the store
-- Assign tasks/checklists to employees within their store
+- Assign tasks/checklists to employees or the Store Account within their store
 - Report incidents
 - View task completion status on dashboard
 - Access detailed analytics from dashboard
 - Access available reports
 - Complete tasks (same as store employees)
-- Create personal tasks/checklists
+- Cannot create personal tasks/checklists while operating from the shared Store Account context
 
 **Scope:** 
 - Single store management
-- Can only assign to employees within their own store
+- Can assign to employees and the Store Account within their own store
 
 **Dashboard Features:**
 - Task completion status overview
@@ -254,7 +320,7 @@ When a task is part of a checklist, it inherits by default:
 
 **Permissions:**
 - Create tasks and checklists for stores under their supervision
-- Assign tasks/checklists to employees and stores within their jurisdiction
+- Assign tasks/checklists to stores, managers, and employees within their jurisdiction
 - Report incidents
 - View task completion status on dashboard (across multiple stores)
 - Access detailed analytics from dashboard (multi-store view)
@@ -278,12 +344,12 @@ When a task is part of a checklist, it inherits by default:
 #### 7.5 Auditor/Inspector
 
 **Permissions:**
-- Create personal tasks/checklists
 - Complete checklists assigned to them
+- Create corrective action assignments from failed audit items
 - Add comments on tasks/checklists with user tagging capability
 - Escalate non-compliance by tagging relevant people in comments
 - View assigned tasks/checklists
-- **Cannot** create and assign tasks/checklists to anyone in the company
+- **Cannot** create general operational tasks/checklists for the company
 
 **Scope:** 
 - Company-wide jurisdiction (can audit any store)
@@ -293,11 +359,13 @@ When a task is part of a checklist, it inherits by default:
 **Key Characteristics:**
 - Audit-focused role - completes assigned audits/inspections
 - Escalation via comments - uses tagging to notify relevant stakeholders
-- No assignment authority - consumes tasks, doesn't create for others
+- Corrective action assignment authority only when tied to audit findings
 
 ---
 
-#### 7.6 HQ/Ops Leadership
+#### 7.6 Future HQ/Ops Leadership (Roadmap Context)
+
+Ops leadership capabilities are represented by **Supervisor/Ops Lead** for this planning pass. A separate HQ/Ops Leadership role can be split out later if enterprise governance requires a distinct company-wide operational role.
 
 **Permissions:**
 - All permissions of roles below them
@@ -383,7 +451,7 @@ When a task is part of a checklist, it inherits by default:
 - Detailed analytics and drill-down capabilities
 
 ### 8.6 Roles & Permissions
-- Seven-tier role-based access (Employee, Store Account, Store Manager, Supervisor, Auditor, Ops Leadership, System Admin)
+- Role/profile-based access (Employee, Store Account, Store Manager/GM, Supervisor/Ops Lead, Auditor, System Admin)
 - Audit logs and secure data handling
 - User tagging in comments for escalation
 
@@ -400,9 +468,10 @@ When a task is part of a checklist, it inherits by default:
 - Progress tracking for checklists
 
 ### 8.9 Personal Task Management
-- All roles except Store Account can create personal tasks/checklists
-- Personal items visible only to creator
-- Use case: personal to-do lists within the application
+- Personal tasks/checklists are not part of the store MVP.
+- Store Account can never create personal tasks/checklists because it is a shared-device role/profile.
+- Store Manager/GM creates store-level custom work in the MVP, not personal work from the shared store context.
+- Supervisor/Ops Lead personal work can be considered later for named individual accounts.
 
 ### 8.10 Incident Reporting
 - Bottom-up reporting from employees and store accounts

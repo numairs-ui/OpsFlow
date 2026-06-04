@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { colors } from '../theme/colors';
 import { Button } from '../components/Button';
+import { StatusBadge } from '../components/StatusBadge';
+import { getAccountCapabilities, getRoleLabel } from '../data/accounts';
 import {
   DataRow,
   MetricTile,
@@ -53,9 +55,11 @@ const TEAM = [
   { name: 'Leo', role: 'Cash', tasks: '2 assigned', status: 'pending' },
 ];
 
-export const DashboardScreen = ({ onNavigate }) => {
+export const DashboardScreen = ({ onNavigate, activeAccount }) => {
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
+  const capabilities = getAccountCapabilities(activeAccount);
+  const isPreviewOnly = activeAccount?.previewOnly;
 
   return (
     <View style={styles.container}>
@@ -84,6 +88,22 @@ export const DashboardScreen = ({ onNavigate }) => {
 
         <View style={[styles.columns, isWide && styles.columnsWide]}>
           <View style={styles.primaryColumn}>
+            <View style={styles.accountPanel}>
+              <View style={styles.accountPanelText}>
+                <Text style={styles.accountKicker}>Active role/profile</Text>
+                <Text style={styles.accountTitle}>{activeAccount?.displayName}</Text>
+                <Text style={styles.accountCopy}>
+                  {getRoleLabel(activeAccount?.role)}
+                  {activeAccount?.role === 'store'
+                    ? ' | Shared device completion requires employee name and initials.'
+                    : capabilities.canCreateStoreWork
+                      ? ' | Can create store work and assign to the Store Account or employees.'
+                      : ' | Can complete assigned operational work.'}
+                </Text>
+              </View>
+              {isPreviewOnly && <StatusBadge status="due_soon" label="Preview stub" />}
+            </View>
+
             <SectionAccordion
               title={CURRENT_WINDOW.title}
               meta={CURRENT_WINDOW.meta}
@@ -116,8 +136,12 @@ export const DashboardScreen = ({ onNavigate }) => {
                 <Text style={styles.quickCopy}>Review blockers before manager sign-off.</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.quickCard} onPress={() => onNavigate('builder')}>
-                <Text style={styles.quickTitle}>Template preview</Text>
-                <Text style={styles.quickCopy}>View the active F0890 operating structure.</Text>
+                <Text style={styles.quickTitle}>{capabilities.canCreateStoreWork ? 'Create work' : 'Template preview'}</Text>
+                <Text style={styles.quickCopy}>
+                  {capabilities.canCreateStoreWork
+                    ? 'Add store-level tasks or checklists and assign to store or people.'
+                    : 'View the active F0890 operating structure and role limits.'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -194,6 +218,40 @@ const styles = StyleSheet.create({
   secondaryColumn: {
     flex: 1,
     gap: 16,
+  },
+  accountPanel: {
+    minHeight: 96,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  accountPanelText: {
+    flex: 1,
+  },
+  accountKicker: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+  },
+  accountTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+    marginTop: 6,
+  },
+  accountCopy: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    marginTop: 6,
   },
   quickGrid: {
     flexDirection: 'row',

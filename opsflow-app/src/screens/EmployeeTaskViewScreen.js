@@ -7,10 +7,14 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
-import { colors, shadows } from '../theme/colors';
+import { colors } from '../theme/colors';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { StatusBadge } from '../components/StatusBadge';
+import {
+  getRoleLabel,
+  requiresTypedCompletionIdentity,
+} from '../data/accounts';
 
 const MY_TASKS = [
   {
@@ -23,6 +27,8 @@ const MY_TASKS = [
     instructions: 'Ensure all sizes are stocked. Check expiration dates. Rotate older products to front.',
     priority: 'medium',
     status: 'pending',
+    targetAccountId: 'store-f0890',
+    targetLabel: 'Store Account',
   },
   {
     id: '2',
@@ -34,6 +40,8 @@ const MY_TASKS = [
     instructions: 'Clean sink, toilet, floor. Restock paper products. Check supplies.',
     priority: 'high',
     status: 'pending',
+    targetAccountId: 'employee-sam',
+    targetLabel: 'Sam P.',
   },
   {
     id: '3',
@@ -45,6 +53,8 @@ const MY_TASKS = [
     instructions: 'Sweep floor, mop with sanitizer. Organize boxes. Move older items to front.',
     priority: 'medium',
     status: 'in_progress',
+    targetAccountId: 'store-f0890',
+    targetLabel: 'Store Account',
   },
 ];
 
@@ -65,15 +75,27 @@ const COMPLETED_HISTORY = [
   },
 ];
 
-export const EmployeeTaskViewScreen = () => {
+export const EmployeeTaskViewScreen = ({ activeAccount }) => {
   const [tasks, setTasks] = useState(MY_TASKS);
   const [selectedTask, setSelectedTask] = useState(null);
   const [notes, setNotes] = useState('');
+  const [completionName, setCompletionName] = useState('');
+  const [completionInitials, setCompletionInitials] = useState('');
   const [managerPingedTaskId, setManagerPingedTaskId] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
 
-  const pendingTasks = tasks.filter(t => t.status !== 'completed');
-  const inProgressTasks = tasks.filter(t => t.status === 'in_progress');
+  const needsTypedIdentity = requiresTypedCompletionIdentity(activeAccount);
+  const visibleTasks = tasks.filter((task) => {
+    if (activeAccount?.role === 'store') return task.targetAccountId === activeAccount.id;
+    if (activeAccount?.role === 'employee') {
+      return task.targetAccountId === activeAccount.id || task.targetAccountId === 'store-f0890';
+    }
+    return task.targetAccountId === activeAccount?.id || task.targetAccountId === 'store-f0890';
+  });
+  const pendingTasks = visibleTasks.filter(t => t.status !== 'completed');
+  const inProgressTasks = visibleTasks.filter(t => t.status === 'in_progress');
+  const completedVisible = visibleTasks.filter(t => t.status === 'completed');
+  const identityComplete = !needsTypedIdentity || (completionName.trim().length > 0 && completionInitials.trim().length > 0);
 
   const startTask = (taskId) => {
     setTasks(tasks.map(t => 
@@ -82,10 +104,20 @@ export const EmployeeTaskViewScreen = () => {
   };
 
   const completeTask = (taskId) => {
+    if (!identityComplete) return;
     setTasks(tasks.map(t => 
-      t.id === taskId ? { ...t, status: 'completed', completionNotes: notes } : t
+      t.id === taskId ? {
+        ...t,
+        status: 'completed',
+        completionNotes: notes,
+        completedByDisplayName: needsTypedIdentity ? completionName : activeAccount?.displayName,
+        completedByInitials: needsTypedIdentity ? completionInitials : activeAccount?.shortName?.slice(0, 2).toUpperCase(),
+        completionRole: getRoleLabel(activeAccount?.role),
+      } : t
     ));
     setNotes('');
+    setCompletionName('');
+    setCompletionInitials('');
     setSelectedTask(null);
   };
 
@@ -100,8 +132,10 @@ export const EmployeeTaskViewScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Tasks</Text>
-        <Text style={styles.headerSubtitle}>Your assigned duties</Text>
+        <Text style={styles.headerTitle}>{activeAccount?.role === 'store' ? 'Store Work' : 'My Tasks'}</Text>
+        <Text style={styles.headerSubtitle}>
+          {activeAccount?.displayName} | {getRoleLabel(activeAccount?.role)}
+        </Text>
       </View>
 
       <View style={styles.statsBar}>
@@ -115,7 +149,7 @@ export const EmployeeTaskViewScreen = () => {
         </View>
         <View style={styles.statItem}>
           <Text style={[styles.statValue, { color: colors.success }]}>
-            {tasks.filter(t => t.status === 'completed').length}
+            {completedVisible.length}
           </Text>
           <Text style={styles.statLabel}>Done Today</Text>
         </View>
@@ -177,6 +211,10 @@ export const EmployeeTaskViewScreen = () => {
                       <Text style={styles.metaLabel}>Assigned By</Text>
                       <Text style={styles.metaValue}>{task.assignedBy}</Text>
                     </View>
+                    <View style={styles.metaItem}>
+                      <Text style={styles.metaLabel}>Target</Text>
+                      <Text style={styles.metaValue}>{task.targetLabel}</Text>
+                    </View>
                   </View>
 
                   {selectedTask?.id === task.id && (
@@ -197,6 +235,30 @@ export const EmployeeTaskViewScreen = () => {
                         />
                       </View>
 
+                      {needsTypedIdentity && (
+                        <View style={styles.identityBox}>
+                          <Text style={styles.instructionsLabel}>Shared device completion</Text>
+                          <Text style={styles.identityHelp}>
+                            Store Account submissions require the employee name and initials for the audit trail.
+                          </Text>
+                          <TextInput
+                            style={styles.notesInput}
+                            value={completionName}
+                            onChangeText={setCompletionName}
+                            placeholder="Employee name"
+                            placeholderTextColor={colors.textMuted}
+                          />
+                          <TextInput
+                            style={styles.notesInput}
+                            value={completionInitials}
+                            onChangeText={setCompletionInitials}
+                            placeholder="Initials"
+                            placeholderTextColor={colors.textMuted}
+                            autoCapitalize="characters"
+                          />
+                        </View>
+                      )}
+
                       <View style={styles.taskActions}>
                         {task.status !== 'in_progress' ? (
                           <Button 
@@ -211,6 +273,7 @@ export const EmployeeTaskViewScreen = () => {
                             onPress={() => completeTask(task.id)}
                             variant="primary"
                             size="medium"
+                            disabled={!identityComplete}
                           />
                         )}
                         <Button 
@@ -375,6 +438,7 @@ const styles = StyleSheet.create({
   },
   taskMeta: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 16,
   },
   metaItem: {},
@@ -424,6 +488,20 @@ const styles = StyleSheet.create({
     minHeight: 60,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  identityBox: {
+    marginTop: 16,
+    gap: 10,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    padding: 12,
+  },
+  identityHelp: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textSecondary,
   },
   taskActions: {
     flexDirection: 'row',
