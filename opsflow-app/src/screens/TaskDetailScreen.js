@@ -12,6 +12,10 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { StatusBadge } from '../components/StatusBadge';
 import {
+  getRoleLabel,
+  requiresTypedCompletionIdentity,
+} from '../data/accounts';
+import {
   DataRow,
   ScreenHeader,
   StickyActionBar,
@@ -21,20 +25,15 @@ const TASK = {
   title: 'Set Up Make Line',
   section: 'Opening Manager',
   deadline: '11:00 AM',
-  assignee: 'Marcus R.',
+  assignee: 'F0890 Shared Chromebook',
   status: 'in_progress',
   requiredData: ['Temperature reading', 'Dough batch number'],
 };
 
-const INITIAL_SUBTASKS = [
-  { id: 'labels', title: 'Date all products with label system', done: true },
-  { id: 'mdog', title: 'Prep products according to MDOG', done: true },
-  { id: 'cups', title: 'Place portion cups in each product', done: false },
-  { id: 'print', title: 'Print fresh MDOG for station', done: false },
-  { id: 'dough', title: 'Pull dough for lunch usage', done: false },
-  { id: 'proof', title: 'Confirm all dough sizes are properly proofed', done: false },
-  { id: 'expiry', title: 'Check expiration dates and discard if needed', done: false },
-  { id: 'thermo', title: 'Place working thermometers in dough sizes', done: false },
+const TASK_REQUIREMENTS = [
+  'Verify labels, MDOG prep, portion cups, dough pulls, proofing, expiration checks, and working thermometers.',
+  'Record the required temperature and dough batch number before submitting.',
+  'If product is missing, mislabeled, expired, or out of range, add a note and flag the manager.',
 ];
 
 const AUDIT_TRAIL = [
@@ -44,26 +43,22 @@ const AUDIT_TRAIL = [
   { label: 'Last completed', value: 'May 1 by Marcus R.' },
 ];
 
-export const TaskDetailScreen = () => {
-  const [subtasks, setSubtasks] = useState(INITIAL_SUBTASKS);
+export const TaskDetailScreen = ({ activeAccount }) => {
   const [temperature, setTemperature] = useState('');
   const [batch, setBatch] = useState('');
   const [notes, setNotes] = useState('');
   const [unableReason, setUnableReason] = useState('');
+  const [completionName, setCompletionName] = useState('');
+  const [completionInitials, setCompletionInitials] = useState('');
+  const [acknowledged, setAcknowledged] = useState(false);
   const [status, setStatus] = useState(TASK.status);
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
+  const needsTypedIdentity = requiresTypedCompletionIdentity(activeAccount);
 
-  const completedCount = subtasks.filter((task) => task.done).length;
-  const allSubtasksDone = completedCount === subtasks.length;
   const requiredDataDone = temperature.trim().length > 0 && batch.trim().length > 0;
-  const canComplete = allSubtasksDone && requiredDataDone;
-
-  const toggleSubtask = (id) => {
-    setSubtasks((current) => current.map((task) => (
-      task.id === id ? { ...task, done: !task.done } : task
-    )));
-  };
+  const identityDone = !needsTypedIdentity || (completionName.trim().length > 0 && completionInitials.trim().length > 0);
+  const canComplete = acknowledged && requiredDataDone && identityDone;
 
   const markUnable = () => {
     setStatus('unable');
@@ -96,8 +91,12 @@ export const TaskDetailScreen = () => {
               </View>
               <DataRow label="Deadline" value={TASK.deadline} />
               <DataRow label="Assignee" value={TASK.assignee} />
-              <DataRow label="Progress" value={`${completedCount}/${subtasks.length} subtasks`} />
+              <DataRow label="Active role/profile" value={getRoleLabel(activeAccount?.role)} />
               <DataRow label="Required data" value={TASK.requiredData.join(', ')} />
+              <DataRow
+                label="Completion identity"
+                value={needsTypedIdentity ? 'Typed name + initials required' : activeAccount?.displayName}
+              />
             </View>
 
             <View style={styles.panel}>
@@ -111,22 +110,25 @@ export const TaskDetailScreen = () => {
             </View>
 
             <View style={styles.panel}>
-              <Text style={styles.panelTitle}>Subtasks</Text>
-              {subtasks.map((task) => (
-                <TouchableOpacity
-                  key={task.id}
-                  style={styles.subtaskRow}
-                  onPress={() => toggleSubtask(task.id)}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.checkbox, task.done && styles.checkboxDone]}>
-                    {task.done && <Text style={styles.checkmark}>OK</Text>}
-                  </View>
-                  <Text style={[styles.subtaskText, task.done && styles.subtaskTextDone]}>
-                    {task.title}
-                  </Text>
-                </TouchableOpacity>
+              <Text style={styles.panelTitle}>Task Instructions</Text>
+              {TASK_REQUIREMENTS.map((requirement) => (
+                <View key={requirement} style={styles.requirementRow}>
+                  <Text style={styles.requirementMarker}>-</Text>
+                  <Text style={styles.requirementText}>{requirement}</Text>
+                </View>
               ))}
+              <TouchableOpacity
+                style={styles.ackRow}
+                onPress={() => setAcknowledged((current) => !current)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.checkbox, acknowledged && styles.checkboxDone]}>
+                  {acknowledged && <Text style={styles.checkmark}>OK</Text>}
+                </View>
+                <Text style={styles.ackText}>
+                  I verified the task instructions and required observations.
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -158,6 +160,28 @@ export const TaskDetailScreen = () => {
               />
             </View>
 
+            {needsTypedIdentity && (
+              <View style={styles.panel}>
+                <Text style={styles.panelTitle}>Shared Device Completion</Text>
+                <Text style={styles.identityCopy}>
+                  Store Account submissions require the employee name and initials because the Chromebook login is shared.
+                </Text>
+                <Input
+                  label="Employee name"
+                  value={completionName}
+                  onChangeText={setCompletionName}
+                  placeholder="Who completed this task?"
+                />
+                <Input
+                  label="Initials"
+                  value={completionInitials}
+                  onChangeText={setCompletionInitials}
+                  placeholder="Example: SP"
+                  autoCapitalize="characters"
+                />
+              </View>
+            )}
+
             {status === 'unable' && (
               <View style={styles.panel}>
                 <Text style={styles.panelTitle}>Unable to Complete</Text>
@@ -177,6 +201,7 @@ export const TaskDetailScreen = () => {
               {AUDIT_TRAIL.map((item) => (
                 <DataRow key={item.label} label={item.label} value={item.value} />
               ))}
+              <DataRow label="Completion mode" value={needsTypedIdentity ? 'Shared device' : 'Named account'} />
             </View>
           </View>
         </View>
@@ -187,7 +212,9 @@ export const TaskDetailScreen = () => {
       <StickyActionBar>
         {status === 'completed' ? (
           <View style={styles.completedBanner}>
-            <Text style={styles.completedText}>Completed with timestamp and assignee captured.</Text>
+            <Text style={styles.completedText}>
+              Completed with timestamp, role/profile, and {needsTypedIdentity ? 'typed name + initials' : 'account identity'} captured.
+            </Text>
           </View>
         ) : (
           <View style={[styles.actions, isWide && styles.actionsWide]}>
@@ -266,7 +293,24 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: colors.text,
   },
-  subtaskRow: {
+  requirementRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  requirementMarker: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.accent,
+    fontWeight: '800',
+  },
+  requirementText: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.text,
+  },
+  ackRow: {
     minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
@@ -294,15 +338,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.textInverse,
   },
-  subtaskText: {
+  ackText: {
     flex: 1,
     fontSize: 15,
     lineHeight: 20,
     color: colors.text,
   },
-  subtaskTextDone: {
+  identityCopy: {
+    fontSize: 13,
+    lineHeight: 18,
     color: colors.textSecondary,
-    textDecorationLine: 'line-through',
   },
   actions: {
     flexDirection: 'row',

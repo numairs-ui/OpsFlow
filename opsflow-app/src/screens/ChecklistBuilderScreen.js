@@ -12,13 +12,18 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { StatusBadge } from '../components/StatusBadge';
 import {
+  ASSIGNMENT_TARGETS,
+  TASK_FAMILIES,
+  getAccountCapabilities,
+  getRoleLabel,
+} from '../data/accounts';
+import {
   DataRow,
   ScreenHeader,
   SectionAccordion,
   TaskRow,
 } from '../components/OperationalPrimitives';
 
-const STAFF = ['Sam', 'Maya', 'Leo', 'Marcus', 'Unassigned'];
 const TASK_TYPES = ['Simple task', 'Temperature', 'Inventory count', 'Cash/till', 'Manager sign-off'];
 
 const ACTIVE_CHECKLIST = [
@@ -44,27 +49,36 @@ const ACTIVE_CHECKLIST = [
   },
 ];
 
-export const ChecklistBuilderScreen = ({ onNavigate }) => {
+export const ChecklistBuilderScreen = ({ onNavigate, activeAccount }) => {
   const [mode, setMode] = useState('task');
   const [taskTitle, setTaskTitle] = useState('');
   const [checklistName, setChecklistName] = useState('');
   const [sectionName, setSectionName] = useState('Pre-Rush Walk Through');
   const [deadline, setDeadline] = useState('3:30 PM');
-  const [assignee, setAssignee] = useState('Sam');
+  const [assigneeId, setAssigneeId] = useState('store-f0890');
   const [taskType, setTaskType] = useState('Simple task');
+  const [taskFamily, setTaskFamily] = useState('Basic cleaning');
   const [instructions, setInstructions] = useState('');
   const [createdItems, setCreatedItems] = useState([]);
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
+  const capabilities = getAccountCapabilities(activeAccount);
+  const canCreateStoreWork = Boolean(capabilities.canCreateStoreWork && !activeAccount?.previewOnly);
+  const availableTargets = ASSIGNMENT_TARGETS.filter((target) => (
+    activeAccount?.role === 'supervisor'
+      ? true
+      : target.storeId === activeAccount?.storeId && ['store', 'employee', 'manager'].includes(target.role)
+  ));
+  const selectedAssignee = ASSIGNMENT_TARGETS.find((target) => target.id === assigneeId);
 
   const saveTask = () => {
-    if (!taskTitle.trim()) return;
+    if (!canCreateStoreWork || !taskTitle.trim()) return;
     setCreatedItems((items) => [
       {
         id: Date.now().toString(),
         kind: 'Task',
         title: taskTitle,
-        meta: `${sectionName} | ${deadline} | ${assignee} | ${taskType}`,
+        meta: `${sectionName} | ${deadline} | ${selectedAssignee?.label || 'Unassigned'} | ${taskFamily}`,
       },
       ...items,
     ]);
@@ -73,13 +87,13 @@ export const ChecklistBuilderScreen = ({ onNavigate }) => {
   };
 
   const saveChecklist = () => {
-    if (!checklistName.trim()) return;
+    if (!canCreateStoreWork || !checklistName.trim()) return;
     setCreatedItems((items) => [
       {
         id: Date.now().toString(),
         kind: 'Checklist',
         title: checklistName,
-        meta: `${sectionName || 'New section'} | ${deadline || 'No deadline'} | assigned to ${assignee}`,
+        meta: `${sectionName || 'New section'} | ${deadline || 'No deadline'} | assigned to ${selectedAssignee?.label || 'Unassigned'}`,
       },
       ...items,
     ]);
@@ -91,7 +105,7 @@ export const ChecklistBuilderScreen = ({ onNavigate }) => {
       <ScreenHeader
         eyebrow="Templates and new work"
         title="Create work for the store"
-        subtitle="Managers can add one-off tasks or start a new checklist for employees without entering the full admin builder."
+        subtitle="Store managers create store-level tasks/checklists and assign them to the shared store account or people."
         action={isWide ? <Button title="View Timeline" size="small" variant="secondary" onPress={() => onNavigate?.('timeline')} /> : null}
       />
 
@@ -102,6 +116,17 @@ export const ChecklistBuilderScreen = ({ onNavigate }) => {
       >
         <View style={[styles.layout, isWide && styles.layoutWide]}>
           <View style={styles.formColumn}>
+            <View style={styles.permissionPanel}>
+              <Text style={styles.permissionTitle}>
+                Active role: {activeAccount?.displayName} | {getRoleLabel(activeAccount?.role)}
+              </Text>
+              <Text style={styles.permissionCopy}>
+                {canCreateStoreWork
+                  ? 'You can create store-level work. Personal tasks are intentionally out of scope for the store MVP.'
+                  : 'This role cannot create store work here. Store Account users can complete assigned work but cannot create personal tasks/checklists.'}
+              </Text>
+            </View>
+
             <View style={styles.modeSwitch}>
               <TouchableOpacity
                 style={[styles.modeButton, mode === 'task' && styles.modeButtonActive]}
@@ -154,13 +179,19 @@ export const ChecklistBuilderScreen = ({ onNavigate }) => {
 
               <Text style={styles.fieldLabel}>Assign to</Text>
               <View style={styles.chipRow}>
-                {STAFF.map((name) => (
+                {availableTargets.map((target) => (
                   <TouchableOpacity
-                    key={name}
-                    style={[styles.chip, assignee === name && styles.chipActive]}
-                    onPress={() => setAssignee(name)}
+                    key={target.id}
+                    style={[styles.chip, assigneeId === target.id && styles.chipActive]}
+                    onPress={() => setAssigneeId(target.id)}
+                    disabled={!canCreateStoreWork}
                   >
-                    <Text style={[styles.chipText, assignee === name && styles.chipTextActive]}>{name}</Text>
+                    <Text style={[styles.chipText, assigneeId === target.id && styles.chipTextActive]}>
+                      {target.shortName}
+                    </Text>
+                    <Text style={[styles.chipSubText, assigneeId === target.id && styles.chipTextActive]}>
+                      {target.targetType === 'store' ? 'Store' : target.roleLabel}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -178,6 +209,20 @@ export const ChecklistBuilderScreen = ({ onNavigate }) => {
                 ))}
               </View>
 
+              <Text style={styles.fieldLabel}>Task family</Text>
+              <View style={styles.chipRow}>
+                {TASK_FAMILIES.map((family) => (
+                  <TouchableOpacity
+                    key={family}
+                    style={[styles.chip, taskFamily === family && styles.chipActive]}
+                    onPress={() => setTaskFamily(family)}
+                    disabled={!canCreateStoreWork}
+                  >
+                    <Text style={[styles.chipText, taskFamily === family && styles.chipTextActive]}>{family}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               <Input
                 label="Instructions"
                 value={instructions}
@@ -190,7 +235,7 @@ export const ChecklistBuilderScreen = ({ onNavigate }) => {
               <Button
                 title={mode === 'task' ? 'Add Task to Today' : 'Create Checklist'}
                 onPress={mode === 'task' ? saveTask : saveChecklist}
-                disabled={mode === 'task' ? !taskTitle.trim() : !checklistName.trim()}
+                disabled={!canCreateStoreWork || (mode === 'task' ? !taskTitle.trim() : !checklistName.trim())}
               />
             </View>
 
@@ -218,6 +263,7 @@ export const ChecklistBuilderScreen = ({ onNavigate }) => {
               <DataRow label="Sections" value="4" />
               <DataRow label="Tasks" value="28" />
               <DataRow label="Current window" value="Pre-Rush" />
+              <DataRow label="Structure" value="Checklist -> Task" />
             </View>
 
             {ACTIVE_CHECKLIST.map((section) => (
@@ -279,6 +325,24 @@ const styles = StyleSheet.create({
   previewColumn: {
     flex: 1,
     gap: 12,
+  },
+  permissionPanel: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    padding: 16,
+    gap: 6,
+  },
+  permissionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  permissionCopy: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textSecondary,
   },
   modeSwitch: {
     flexDirection: 'row',
@@ -350,6 +414,12 @@ const styles = StyleSheet.create({
   },
   chipTextActive: {
     color: colors.accent,
+  },
+  chipSubText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textMuted,
+    marginTop: 2,
   },
   createdRow: {
     borderTopWidth: 1,

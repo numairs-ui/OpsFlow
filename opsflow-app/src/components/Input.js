@@ -13,6 +13,7 @@ export const Input = ({
   numberOfLines = 1,
   error,
   helper,
+  ...textInputProps
 }) => {
   return (
     <View style={styles.container}>
@@ -30,6 +31,7 @@ export const Input = ({
         keyboardType={keyboardType}
         multiline={multiline}
         numberOfLines={numberOfLines}
+        {...textInputProps}
       />
       {error && <Text style={styles.error}>{error}</Text>}
       {helper && <Text style={styles.helper}>{helper}</Text>}

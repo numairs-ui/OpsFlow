@@ -5,19 +5,16 @@ import {
   StyleSheet, 
   ScrollView, 
   TouchableOpacity,
-  TextInput,
 } from 'react-native';
-import { colors, shadows } from '../theme/colors';
+import { colors } from '../theme/colors';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { StatusBadge } from '../components/StatusBadge';
-
-const STAFF_MEMBERS = [
-  { id: '1', name: 'Marcus R.', role: 'Shift Lead', avatar: 'M' },
-  { id: '2', name: 'Sarah L.', role: 'Crew', avatar: 'S' },
-  { id: '3', name: 'Jake T.', role: 'Crew', avatar: 'J' },
-  { id: '4', name: 'Emily K.', role: 'Crew', avatar: 'E' },
-];
+import {
+  ASSIGNMENT_TARGETS,
+  getAccountCapabilities,
+  getRoleLabel,
+} from '../data/accounts';
 
 const INITIAL_TASKS = [
   {
@@ -76,16 +73,24 @@ const INITIAL_TASKS = [
   },
 ];
 
-export const StaffAssignmentScreen = () => {
+export const StaffAssignmentScreen = ({ activeAccount }) => {
   const [tasks, setTasks] = useState(INITIAL_TASKS);
   const [selectedTask, setSelectedTask] = useState(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [sent, setSent] = useState(false);
+  const capabilities = getAccountCapabilities(activeAccount);
+  const canAssign = Boolean(capabilities.canAssign && !activeAccount?.previewOnly);
+  const availableTargets = ASSIGNMENT_TARGETS.filter((target) => (
+    activeAccount?.role === 'supervisor'
+      ? true
+      : target.storeId === activeAccount?.storeId && ['store', 'employee', 'manager'].includes(target.role)
+  ));
 
-  const assignTask = (taskId, staffId) => {
+  const assignTask = (taskId, targetId) => {
+    if (!canAssign) return;
     setTasks(tasks.map(task => 
       task.id === taskId 
-        ? { ...task, assignedTo: staffId, status: 'assigned' } 
+        ? { ...task, assignedTo: targetId, status: 'assigned' } 
         : task
     ));
     setSent(false);
@@ -102,7 +107,7 @@ export const StaffAssignmentScreen = () => {
     setSent(false);
   };
 
-  const getStaffById = (id) => STAFF_MEMBERS.find(s => s.id === id);
+  const getTargetById = (id) => ASSIGNMENT_TARGETS.find(target => target.id === id);
 
   const assignedTasks = tasks.filter(t => t.assignedTo);
   const unassignedTasks = tasks.filter(t => !t.assignedTo);
@@ -111,7 +116,20 @@ export const StaffAssignmentScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Deployment Guide</Text>
-        <Text style={styles.headerSubtitle}>Assign closing tasks to staff</Text>
+        <Text style={styles.headerSubtitle}>
+          Assign closing tasks to the Store Account or individual employees.
+        </Text>
+      </View>
+
+      <View style={styles.permissionBar}>
+        <Text style={styles.permissionTitle}>
+          Active role: {activeAccount?.displayName} | {getRoleLabel(activeAccount?.role)}
+        </Text>
+        <Text style={styles.permissionCopy}>
+          {canAssign
+            ? 'Assignment targets include the shared store account and person accounts in this store.'
+            : 'This role can review assignment state, but cannot assign or reassign operational work in the MVP.'}
+        </Text>
       </View>
 
       <View style={styles.statsBar}>
@@ -138,13 +156,14 @@ export const StaffAssignmentScreen = () => {
                 <View style={styles.taskHeader}>
                   <Text style={styles.taskTitle}>{task.title}</Text>
                   <TouchableOpacity 
-                    style={styles.assignButton}
+                    style={[styles.assignButton, !canAssign && styles.assignButtonDisabled]}
                     onPress={() => {
                       setSelectedTask(task);
                       setShowAssignModal(true);
                     }}
+                    disabled={!canAssign}
                   >
-                    <Text style={styles.assignButtonText}>Assign</Text>
+                    <Text style={styles.assignButtonText}>{canAssign ? 'Assign' : 'View only'}</Text>
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.taskInstructions}>{task.instructions}</Text>
@@ -167,22 +186,25 @@ export const StaffAssignmentScreen = () => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Assigned Tasks</Text>
             {assignedTasks.map((task) => {
-              const staff = getStaffById(task.assignedTo);
+              const target = getTargetById(task.assignedTo);
               return (
                 <Card key={task.id} style={styles.taskCard}>
                   <View style={styles.assignedHeader}>
                     <View style={styles.staffInfo}>
                       <View style={styles.staffAvatar}>
-                        <Text style={styles.staffAvatarText}>{staff.avatar}</Text>
+                        <Text style={styles.staffAvatarText}>{target?.shortName?.slice(0, 1) || '?'}</Text>
                       </View>
                       <View>
-                        <Text style={styles.staffName}>{staff.name}</Text>
-                        <Text style={styles.staffRole}>{staff.role}</Text>
+                        <Text style={styles.staffName}>{target?.label || 'Unknown target'}</Text>
+                        <Text style={styles.staffRole}>
+                          {target?.targetType === 'store' ? 'Store-level assignment' : getRoleLabel(target?.role)}
+                        </Text>
                       </View>
                     </View>
                     <TouchableOpacity 
-                      style={styles.unassignButton}
+                      style={[styles.unassignButton, !canAssign && styles.assignButtonDisabled]}
                       onPress={() => unassignTask(task.id)}
+                      disabled={!canAssign}
                     >
                       <Text style={styles.unassignButtonText}>Reassign</Text>
                     </TouchableOpacity>
@@ -215,20 +237,22 @@ export const StaffAssignmentScreen = () => {
             <Text style={styles.modalTitle}>Assign Task</Text>
             <Text style={styles.modalTaskName}>{selectedTask.title}</Text>
             
-            <Text style={styles.modalSubtitle}>Select Staff Member</Text>
+            <Text style={styles.modalSubtitle}>Select Assignment Target</Text>
             
-            {STAFF_MEMBERS.map((staff) => (
+            {availableTargets.map((target) => (
               <TouchableOpacity
-                key={staff.id}
+                key={target.id}
                 style={styles.staffOption}
-                onPress={() => assignTask(selectedTask.id, staff.id)}
+                onPress={() => assignTask(selectedTask.id, target.id)}
               >
                 <View style={styles.staffAvatarLarge}>
-                  <Text style={styles.staffAvatarTextLarge}>{staff.avatar}</Text>
+                  <Text style={styles.staffAvatarTextLarge}>{target.shortName.slice(0, 1)}</Text>
                 </View>
                 <View style={styles.staffOptionInfo}>
-                  <Text style={styles.staffOptionName}>{staff.name}</Text>
-                  <Text style={styles.staffOptionRole}>{staff.role}</Text>
+                  <Text style={styles.staffOptionName}>{target.label}</Text>
+                  <Text style={styles.staffOptionRole}>
+                    {target.targetType === 'store' ? 'Store Account | shared device' : target.roleLabel}
+                  </Text>
                 </View>
                 <View style={styles.staffCheckmark}>
                   <Text style={styles.staffCheckmarkText}>→</Text>
@@ -257,7 +281,7 @@ export const StaffAssignmentScreen = () => {
           variant="primary"
           size="large"
           style={styles.sendButton}
-          disabled={sent || tasks.every(task => !task.assignedTo)}
+          disabled={!canAssign || sent || tasks.every(task => !task.assignedTo)}
         />
       </View>
     </View>
@@ -296,6 +320,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     gap: 24,
+  },
+  permissionBar: {
+    backgroundColor: colors.surfaceElevated,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  permissionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  permissionCopy: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   statItem: {
     alignItems: 'center',
@@ -347,6 +389,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
+  },
+  assignButtonDisabled: {
+    opacity: 0.45,
   },
   assignButtonText: {
     fontSize: 14,
