@@ -1,0 +1,115 @@
+<div class="kiosk">
+  <!-- Overlay: name entry -->
+  @if (claimStep() === 'name' && selectedTask(); as task) {
+    <div class="kiosk-overlay">
+      <div class="kiosk-modal">
+        <h2 class="modal-title">Claim Task</h2>
+        <p class="modal-subtitle">{{ selectedGroupName() }}</p>
+        <p class="modal-hint">Enter your name to claim this task (optional):</p>
+        <input
+          class="input-name"
+          type="text"
+          placeholder="Your name"
+          [value]="volunteerName()"
+          (input)="volunteerName.set($any($event.target).value)"
+          autofocus
+        />
+        <div class="modal-actions">
+          <button class="btn btn--large btn--primary" [disabled]="claiming()" (click)="submitClaim()">
+            {{ claiming() ? 'Claiming…' : 'Claim & Start' }}
+          </button>
+          <button class="btn btn--large btn--ghost" (click)="cancelClaim()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Overlay: success -->
+  @if (claimStep() === 'done') {
+    <div class="kiosk-overlay">
+      <div class="kiosk-modal kiosk-modal--success">
+        <div class="success-icon">&#10003;</div>
+        <h2 class="modal-title">Task Started!</h2>
+        @if (volunteerName()) {
+          <p class="modal-subtitle">Thanks, {{ volunteerName() }}!</p>
+        }
+        <button class="btn btn--large btn--primary" (click)="resetFlow()">Back to Board</button>
+      </div>
+    </div>
+  }
+
+  <header class="kiosk-header">
+    <div>
+      <h1 class="kiosk-title">Task Board</h1>
+      @if (board(); as b) {
+        <p class="kiosk-store">{{ b.storeName }}</p>
+      }
+    </div>
+    <div class="kiosk-header-right">
+      @if (board(); as b) {
+        <span class="kiosk-date">{{ b.date | date:'EEEE, MMMM d' }}</span>
+      }
+      <button class="btn btn--exit" (click)="exitKiosk()">Exit Kiosk</button>
+    </div>
+  </header>
+
+  @if (loading() && !board()) {
+    <div class="state-loading">Loading tasks...</div>
+  }
+
+  @if (error(); as err) {
+    <div class="state-error">{{ err }}</div>
+  }
+
+  @if (board(); as b) {
+    <div class="kiosk-summary">
+      <span class="summary-available">{{ pendingCount() }} tasks available</span>
+      <span class="summary-completed">{{ b.completedCount }} completed today</span>
+    </div>
+
+    <div class="kiosk-groups">
+      @for (group of filteredGroups(); track group.checklistId) {
+        <div class="kiosk-group">
+          <div class="kiosk-group-header">
+            <span class="kiosk-group-name">{{ group.checklistName }}</span>
+            <div class="progress-bar">
+              <div class="progress-bar__fill" [style.width.%]="progressPct(group)"></div>
+            </div>
+            <span class="kiosk-group-count">{{ group.completedCount }}/{{ group.totalCount }}</span>
+          </div>
+
+          <div class="kiosk-tasks">
+            @for (task of group.tasks; track task.id) {
+              <button
+                class="kiosk-task kiosk-task--{{ task.status.toLowerCase() }}"
+                [disabled]="!isAvailable(task)"
+                (click)="selectTask(task, group.checklistName)"
+              >
+                <span class="kiosk-task-dot"></span>
+                <div class="kiosk-task-info">
+                  @if (task.recurringAssignmentName) {
+                    <span class="kiosk-task-name">{{ task.recurringAssignmentName }}</span>
+                  } @else {
+                    <span class="kiosk-task-name kiosk-task-name--adhoc">Ad Hoc</span>
+                  }
+                  <span class="kiosk-task-due">{{ task.dueAt | date:'h:mm a' }}</span>
+                </div>
+                @if (task.status === 'Completed') {
+                  <span class="kiosk-task-done">Done</span>
+                } @else if (task.assignedToUserId) {
+                  <span class="kiosk-task-taken">In Progress</span>
+                } @else {
+                  <span class="kiosk-task-tap">Tap to claim</span>
+                }
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      @if (filteredGroups().length === 0) {
+        <div class="state-empty">All tasks complete for today!</div>
+      }
+    </div>
+  }
+</div>

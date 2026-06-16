@@ -1,10 +1,10 @@
 # OpsFlow — Product Requirements Document (V1)
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Status:** Draft  
-**Date:** 2026-06-02  
+**Date:** 2026-06-09 (Architecture Update — Grilling Phase 2)  
 **Authors:** numairs-ui + Claude Sonnet 4.6  
-**Shared Design Concept reached:** 2026-06-02 via Grilling Phase  
+**Shared Design Concept reached:** 2026-06-02 (Phase 1) + 2026-06-09 (Phase 2 — infrastructure adapters, Forms domain, unified template architecture)  
 **Reference:** OpsFlow Angular 17 Architecture & Agentic Implementation Guide  
 **Prior art:** React Native prototype in `opsflow-app/` — treated as reference only, not migrated
 
@@ -30,10 +30,12 @@
    - [FD-11 Manager Walk](#fd-11-manager-walk)
    - [FD-12 MDOG & Inventory](#fd-12-mdog--inventory)
    - [FD-13 Safe, Till & Deposit Log](#fd-13-safe-till--deposit-log)
-   - [FD-14 Red Book](#fd-14-red-book-placeholder)
+   - [FD-14 Red Book (Retired)](#fd-14-red-book--retired)
    - [FD-15 Notification System](#fd-15-notification-system)
    - [FD-16 Dashboards](#fd-16-dashboards)
    - [FD-17 Admin Panel](#fd-17-admin-panel)
+   - [FD-18 Form Templates](#fd-18-form-templates)
+   - [FD-19 Form Submissions & Approval Engine](#fd-19-form-submissions--approval-engine)
 6. [Data Model — Key Entities](#6-data-model--key-entities)
 7. [Non-Functional Requirements](#7-non-functional-requirements)
 8. [V1 Out-of-Scope (Hard Boundary)](#8-v1-out-of-scope-hard-boundary)
@@ -71,7 +73,13 @@ All human and agent participants — including AI coding agents — must use thi
 | **Manager Walk** | A live, session-based audit of store performance standards using a Walk Template. Produces a scored report and auto-generates corrective Tasks. |
 | **MDOG** | Master Daily Operational Guide — the source of truth for production needs and inventory prep |
 | **Corrective Action** | A pre-authored remediation step embedded in a Task Template. Automatically surfaced when a completion value falls outside the defined range. |
-| **Red Book** | The structured asynchronous communication log for manager-to-manager shift handovers |
+| **Red Book** | The physical Papa Johns operations manual — a collection of SOPs, compliance procedures, and operational guidelines. In OpsFlow, Red Book content is represented as System-scope Form Templates, Checklist Templates, and Task Templates preloaded at tenant provisioning. Not a standalone feature domain. |
+| **Form** | A structured data submission routed through one or more review steps before reaching a terminal state. Unlike a Task, a Form is submitted by a user and follows a defined approval workflow rather than being assigned and completed. |
+| **Form Template** | A reusable blueprint defining a Form's fields, `propagationType`, and ordered `ApprovalSteps[]`. Follows the same 3-tier scope as Task Templates. Stored in the unified `Templates` table with `TemplateType = Form`. |
+| **Form Submission** | A concrete instance created when a user executes a Form Template. State machine: `Draft → Submitted → PendingApproval[N] → Approved / Rejected (terminal) / Returned → Draft`. |
+| **Approval Step** | One step in a Form's approval workflow, specifying a target `role`. Any user with that role in the relevant store or region can act on the step. |
+| **Propagation Type** | The routing model for a Form Template: `Sequential` (steps ordered, re-entry at returning step on Return), `Parallel` (all steps active simultaneously, first action wins), or `NotificationOnly` (recorded and stakeholders notified, no approval required). |
+| **Returned Submission** | A Form Submission sent back to the submitter by a reviewer with written comments. The submitter revises and re-submits; for Sequential forms, re-entry is at the returning step, not step 1. Appears in the submitter's "Returned" pile. |
 | **Deposit Log** | The immutable, timestamped financial compliance record for daily bank deposits |
 | **Inventory Snapshot** | A persisted daily record of on-hand inventory counts per item per store, used to pre-populate MDOG task forms |
 | **Store Kiosk** | The shared store-level device profile (permanently logged in) from which any employee or volunteer can claim and complete store-assigned tasks |
@@ -109,18 +117,35 @@ These decisions are fixed. They may not be reopened during V1 implementation wit
 | Auth | ASP.NET Core Identity + JWT | Role claims: `store_employee`, `store_manager`, `supervisor`, `admin` |
 | Real-time | SignalR, store-scoped groups | `store-{storeId}`, `region-{regionId}` group targeting |
 | Background jobs | .NET `IHostedService` + Quartz.NET | Evaluates cron expressions on `RecurringAssignments` |
-| ORM | Entity Framework Core 9 | Code-first migrations |
+| ORM | Entity Framework Core 9 | Code-first migrations; supports `UseNpgsql()` (Supabase dev) and `UseSqlServer()` (Azure prod) via `DATABASE_PROVIDER` env var |
+| Data access | Repository Pattern + `IUnitOfWork` | All DB access through repositories; EF Core 9 as the concrete implementation; swappable at the infrastructure layer |
 
 ### Infrastructure
-| Decision | Choice |
-|----------|--------|
-| Hosting | Azure App Service (.NET API) |
-| Database | Azure SQL (SQL Server) |
-| Frontend hosting | Azure Static Web Apps |
-| File storage | Azure Blob Storage, pre-signed SAS URLs |
-| Push messaging | Firebase Cloud Messaging (FCM) |
-| Multi-tenancy | Database-per-tenant; connection string resolved from JWT tenant claim |
-| Migrations | Orchestrator runs EF Core migrations across all tenant databases on deploy |
+
+| Stack | Dev | Production |
+|-------|-----|------------|
+| API hosting | Vercel (serverless) | Azure App Service (.NET 9) |
+| Database | Supabase (Postgres) | Azure SQL (SQL Server) |
+| Frontend hosting | Vercel | Azure Static Web Apps |
+| File storage | Supabase Storage | Azure Blob Storage (pre-signed SAS URLs) |
+| Real-time | Supabase Realtime | Azure SignalR Service |
+| Auth service | Supabase Auth | ASP.NET Core Identity |
+
+| Cross-Environment Decision | Choice |
+|---------------------------|--------|
+| Push messaging | Firebase Cloud Messaging (FCM) — same in dev and prod |
+| Multi-tenancy | Database-per-tenant; connection string resolved from JWT `tenantId` claim |
+| Migrations | Orchestrator CLI applies EF Core migrations across all tenant DBs on deploy |
+
+### Adapter Interfaces (Swappable via Dependency Injection)
+
+Three interfaces abstract provider differences. Swapping infrastructure requires only a new concrete class — no interface changes.
+
+| Interface | Dev Concrete | Production Concrete |
+|-----------|-------------|---------------------|
+| `IAuthProvider` | `SupabaseAuthProvider` | `AspNetIdentityAuthProvider` |
+| `IStorageProvider` | `SupabaseStorageProvider` | `AzureBlobStorageProvider` |
+| `IRealtimeService` | `SupabaseRealtimeService` | `AzureSignalRService` |
 
 ### Testing
 | Layer | Tooling |
@@ -178,6 +203,13 @@ Multiple Admin accounts are supported per tenant. A tenant may have one or many 
 | View store dashboard | ✓ | ✓ | ✓ | ✓ |
 | View regional dashboard | — | — | ✓ | ✓ |
 | View system-wide dashboard | — | — | — | ✓ |
+| Submit a Form | ✓ | ✓ | ✓ | ✓ |
+| Save a Form as Draft | ✓ | ✓ | ✓ | ✓ |
+| Review / Approve / Reject / Return a Form Submission | — | ✓ | ✓ | ✓ |
+| Create Form Template (Store scope) | — | ✓ | ✓ | ✓ |
+| Create Form Template (Regional scope) | — | — | ✓ | ✓ |
+| Create Form Template (System scope) | — | — | — | ✓ |
+| Import Templates from JSON | — | — | — | ✓ |
 | Manage users (create/edit/deactivate) | — | — | — | ✓ |
 | Manage stores & regions | — | — | — | ✓ |
 | Manage tenant settings | — | — | — | ✓ |
@@ -616,23 +648,19 @@ The MDOG template includes numeric fields for each dough size (10", 12", 14", 16
 
 ---
 
-### FD-14: Red Book [PLACEHOLDER]
+### FD-14: Red Book — RETIRED
 
-**Summary:** The Red Book is the structured asynchronous communication log for manager-to-manager shift handovers. Full specification to be provided by the product owner.
+**Status: Retired 2026-06-09.**
 
-**Known constraints from Shared Design Concept:**
-- Each entry is tied to a shift (Morning / Afternoon / Evening)
-- Mandatory `category` field: `Staffing | Equipment | Customer | Operational | Other`
-- Entries can optionally reference a Task Instance or Corrective Action
-- Scoped to a store; Supervisors can read Red Book entries across all stores in their region
-- Store Employees do not have access to the Red Book
-- In-app reply threads are out of scope for V1
+The Red Book is not a feature domain — it is content. The Bajco Group operational PDFs (Opening/Closing Checklists, MDOG, Bad Order Log, Vacation Request, Store Visit Report, Shift Handover, and others) are converted to structured JSON via an internal execution script (`execution/pdf_to_template_json.py`) and loaded into the system as `System`-scope templates using the Admin JSON Template Import feature (FD-17 addition, TB-74).
 
-**Acceptance Criteria:** _To be defined when full Red Book specification is received._
+The operational SOPs and procedures that previously defined the "Red Book" live as preloaded Form Templates, Checklist Templates, and Task Templates accessible to all users of the Bajco Group tenant through the standard Templates module.
 
-**Key Entities:** `RedBookEntries` (structure TBD)  
-**API Surface:** TBD  
-**Tracer Bullet note:** Red Book is an independently deployable domain. Its absence does not block any other Feature Domain. It should be scheduled as a later Tracer Bullet once the spec is complete.
+**Shift handover:** Manager-to-manager shift handovers are implemented as a `NotificationOnly` Form Template ("Shift Handover") in FD-18. Outgoing managers submit the form; incoming managers are notified automatically.
+
+**Impact on other domains:** None. FD-14's retirement does not block any other Feature Domain. References to `RedBookEntries` in the Data Model and other FDs are removed.
+
+**No TBs are assigned to this domain.**
 
 ---
 
@@ -765,7 +793,8 @@ The MDOG template includes numeric fields for each dough size (10", 12", 14", 16
 | User Management | Create, edit, deactivate users; assign roles; assign to stores/regions |
 | Store Management | Create, edit, deactivate stores; assign to regions |
 | Region Management | Create, edit, deactivate regions |
-| System Templates | Author and manage System-scope Task Templates and Walk Templates |
+| System Templates | Author and manage System-scope Task Templates, Walk Templates, and Form Templates |
+| Template Import | Bulk-import templates from a structured JSON file; supports Task, Checklist, and Form types |
 | Store Settings | Configure Till base amounts, dough need targets, tenant timezone |
 | Tenant Settings | Tenant name, logo, primary contact |
 
@@ -774,12 +803,105 @@ The MDOG template includes numeric fields for each dough size (10", 12", 14", 16
 - [ ] User creation form enforces role-appropriate assignment (store_employee requires storeId, etc.)
 - [ ] Deactivating a store deactivates all active Recurring Assignments for that store; historical data retained
 - [ ] Store Settings: Till base amount (A and B), dough need targets per size (10/12/14/16"), tenant timezone
-- [ ] System Templates authoring uses the same template builder as FD-04 (shared `libs/ui` component)
+- [ ] System Templates authoring uses the same template builder as FD-04/FD-18 (shared `libs/ui/template-builder` component)
 - [ ] Admin can create additional Admin accounts — no limit enforced
+- [ ] `POST /admin/templates/import` accepts a JSON payload containing an array of template definitions (`TaskTemplate | ChecklistTemplate | FormTemplate`); validates each against the schema; creates valid templates and returns errors for invalid ones
+- [ ] Partial import allowed: valid templates created, invalid ones returned with field-level error details
+- [ ] Import preview: Admin sees a count and summary of templates before confirming the import
+- [ ] Internal PDF-to-JSON converter script (`execution/pdf_to_template_json.py`) converts Bajco Group operational PDFs to the import JSON format — developer/operator tool, not user-facing
 
 **Key Entities:** All entities (Admin has full read/write)  
-**API Surface:** Admin-scoped endpoints on all existing resource routes; `GET /admin/audit-log` (V2)  
+**API Surface:** Admin-scoped endpoints on all existing resource routes; `POST /admin/templates/import`; `GET /admin/audit-log` (V2)  
 **Out of scope:** Billing management, multi-tenant admin console (super-admin), audit log UI (V2)
+
+---
+
+### FD-18: Form Templates
+
+**Summary:** Form Templates are reusable blueprints that define what a Form collects, how submissions are routed, and who approves them. Each template defines a `propagationType` (`Sequential | Parallel | NotificationOnly`), an ordered `ApprovalSteps[]` specifying target roles, and the same dynamic field array as Task Templates. Form Templates follow the same 3-tier scope system (System / Regional / Store) with identical role-based creation permissions.
+
+Form Templates are stored in the unified `Templates` table alongside Task and Checklist Templates, using a `TemplateType` discriminator and a `TypeConfig` JSONB column for type-specific structured data (TPH pattern).
+
+**Propagation Types:**
+
+| Type | Behaviour | Example |
+|------|-----------|---------|
+| `Sequential` | Steps processed in order. Step N+1 locked until step N resolved. Return re-enters at the returning step. | Vacation Request: Store Manager → Supervisor |
+| `Parallel` | All steps active simultaneously. First reviewer to act (Approve / Reject / Return) resolves the submission. | Co-sign report: two reviewers act independently |
+| `NotificationOnly` | No approval required. Submission records and all ApprovalStep roles are notified. Transitions directly to `Recorded`. | Bad Order Log, Shift Handover |
+
+**User Stories:**
+- As an **Admin**, I need to create a System-scope "Vacation Request" Form Template with Sequential approval (Store Manager → Supervisor) so all stores have a standardised leave request process.
+- As a **Supervisor**, I need to create a "Store Visit Report" Form Template (top-down, NotificationOnly) so visit records are captured and my admin is notified.
+- As a **Store Manager**, I need to create a "Bad Order Log" Form Template (NotificationOnly) to record transactions and notify the supervisor.
+- As any user, I need to access a "Create" entry point that lets me choose a Form, pick from available templates, and either submit immediately or save as a template.
+
+**Acceptance Criteria:**
+- [ ] `Templates` table (TPH): `{ id, tenantId, templateType (Task|Checklist|Form), scope, regionId (nullable), storeId (nullable), name, description, fieldSchema (JSON), typeConfig (JSON), isActive, createdByUserId, createdAt }`
+- [ ] For Form type, `typeConfig` stores: `{ "propagationType": "Sequential|Parallel|NotificationOnly", "approvalSteps": [{ "role": "store_manager|supervisor|admin", "order": 1 }] }`
+- [ ] `POST /form-templates` validates: valid `propagationType`; `approvalSteps` non-empty (at least one step required even for NotificationOnly — defines notification targets)
+- [ ] Scope/role enforcement identical to Task Templates: System → `admin`; Regional → `supervisor`+; Store → `store_manager`+
+- [ ] Form Template builder UI: shared `FieldBuilderComponent` (`libs/ui/field-builder`) + `PropagationTypePicker` + `ApprovalStepsBuilder` (role selector + drag-to-reorder for Sequential)
+- [ ] Form Templates appear in the Templates module list with a `propagationType` badge
+- [ ] System Form Templates are read-only to Store Managers and Supervisors
+- [ ] Deactivation blocked if active `FormSubmissions` reference the template
+- [ ] Available in the `TemplatePicker` dropdown in the unified Create flow
+
+**Key Entities:** `Templates` (TPH, `TemplateType = Form`)  
+**API Surface:** `GET /form-templates`, `POST /form-templates`, `PUT /form-templates/{id}`, `POST /form-templates/{id}/deactivate`  
+**Out of scope:** Form Template versioning (V2); cross-domain Form → Task trigger on approval (V2)
+
+---
+
+### FD-19: Form Submissions & Approval Engine
+
+**Summary:** A Form Submission is created when a user executes a Form Template. The submission passes through its defined approval workflow. Reviewers can Approve (routes to next step or terminal Approved), Reject (terminal with reason), or Return (rework loop with comments). Submitters can save a Draft before sending. Submissions surface in role-appropriate piles: "Pending My Review" for reviewers, "My Submissions" for submitters (with sub-states: Draft, Returned, Rejected, Approved).
+
+**Form Submission State Machine:**
+```
+Draft ──────────────────── (submitter saves without submitting)
+  │
+  └── Submitted
+        │
+        └── PendingApproval[Step N]
+              ├── Approved → PendingApproval[Step N+1] → ... → Approved ✓ (terminal)
+              ├── Rejected  (terminal) → submitter notified → Rejected pile
+              └── Returned  → submitter notified with comments → Returned pile
+                               └── Draft → Submitted (re-enters at returning step for Sequential)
+```
+
+For `NotificationOnly` forms: `Draft → Submitted → Recorded ✓` (terminal, all ApprovalStep roles notified).
+
+**Resolution Rules:**
+- **Sequential:** Step N+1 locked until step N is resolved. Return re-enters at the returning step, not step 1.
+- **Parallel:** All steps active simultaneously. First reviewer to act resolves the submission; remaining pending steps are auto-closed.
+- **NotificationOnly:** No approval evaluated. Submission transitions directly to `Recorded`.
+
+**User Stories:**
+- As a **Store Employee**, I need to submit a Vacation Request and track its approval status so I know the outcome.
+- As a **Store Manager**, I need to see all Form Submissions pending my review so I can Approve, Return with comments, or Reject.
+- As a **Store Manager**, I need to fill out and submit a Shift Handover form that notifies the incoming manager.
+- As any user, I need to save a form as Draft before submitting so I can complete it across multiple sessions.
+
+**Acceptance Criteria:**
+- [ ] `FormSubmissions` table: `{ id, tenantId, formTemplateId (nullable for one-off), storeId, submittedByUserId, status (Draft|Submitted|PendingApproval|Approved|Rejected|Returned|Recorded), currentStepOrder (nullable), fieldValues (JSON), createdAt, submittedAt (nullable), resolvedAt (nullable) }`
+- [ ] `FormSubmissionApprovalSteps` table: `{ id, submissionId, stepOrder, role, actionByUserId (nullable), action (Pending|Approved|Rejected|Returned), comments (nullable), actionAt (nullable) }`
+- [ ] `POST /form-submissions` creates a submission in `Draft` state
+- [ ] `POST /form-submissions/{id}/submit` transitions Draft → Submitted → `PendingApproval[step 1]`; notifies all users with the step 1 role in the relevant store/region via FCM Standard + SignalR
+- [ ] `POST /form-submissions/{id}/approve` available to authenticated users whose role matches the current `PendingApproval` step and who are scoped to the submission's store/region; advances to next step or `Approved`
+- [ ] `POST /form-submissions/{id}/reject` body: `{ reason: string }`; terminal; notifies submitter via FCM Standard
+- [ ] `POST /form-submissions/{id}/return` body: `{ comments: string }`; transitions to `Returned`; notifies submitter with reviewer comments via FCM Standard; on re-submit, Sequential forms re-enter at the returning step
+- [ ] Parallel resolution: first action closes the submission; remaining `FormSubmissionApprovalSteps` records are marked auto-closed
+- [ ] `NotificationOnly` submit: transitions directly to `Recorded`; all ApprovalStep role users notified via FCM Standard
+- [ ] `GET /form-submissions/pending-review` returns submissions where the authenticated user's role matches the current step and the submission is within their store/region scope
+- [ ] `GET /form-submissions/my-submissions` returns all submissions created by the authenticated user, newest first
+- [ ] UI piles: "Pending Review" queue (reviewer), "My Submissions" list with state badges (Draft, Returned, Rejected, Approved, Recorded)
+- [ ] All submission state changes broadcast via SignalR to the store group (Standard priority)
+- [ ] Integration tests: full Sequential flow; Return → revise → re-submit flow; Reject terminal; Parallel first-action-wins; NotificationOnly direct-to-Recorded
+
+**Key Entities:** `FormSubmissions`, `FormSubmissionApprovalSteps`  
+**API Surface:** `POST /form-submissions`, `POST /form-submissions/{id}/submit`, `POST /form-submissions/{id}/approve`, `POST /form-submissions/{id}/reject`, `POST /form-submissions/{id}/return`, `GET /form-submissions/pending-review`, `GET /form-submissions/my-submissions`, `GET /form-submissions/{id}`  
+**Out of scope:** Cross-domain Form → Task automation on approval (V2); escalation timers for unanswered review steps (V2)
 
 ---
 
@@ -796,9 +918,10 @@ Regions
         └── Users (store_employee: StoreId FK)
         └── UserStoreAssignments (store_manager multi-store)
 
-TaskTemplates [scope: System|Regional|Store]
-  └── TaskTemplateFields (JSON or child table)
-        └── rangeMin, rangeMax, correctiveActionText, fieldType
+Templates [unified TPH: TemplateType = Task|Checklist|Form; scope: System|Regional|Store]
+  └── fieldSchema (JSON) — dynamic fields array (Numeric, Boolean, Text, Photo, Checklist sub-items)
+  └── typeConfig (JSON) — Form: { propagationType, approvalSteps[] }; Checklist: { taskDefinitions[] }; Task: null
+  └── (replaces and extends prior TaskTemplates entity; Walk Templates remain separate)
 
 Checklists [scope: System|Regional|Store]
   └── ChecklistTemplateItems (ordered: checklistId + templateId + order)
@@ -835,8 +958,15 @@ WalkSessions
   └── templateId, storeId, conductedByUserId, startedAt, completedAt, compositeScore
   └── WalkSessionItems (auditItemId, status, score, notes, photoBlobUrl)
 
-RedBookEntries [PLACEHOLDER]
-  └── storeId, shift, category, body, taskId (nullable), authorId, createdAt
+FormSubmissions
+  └── tenantId, formTemplateId (nullable FK), storeId, submittedByUserId
+  └── status: Draft|Submitted|PendingApproval|Approved|Rejected|Returned|Recorded
+  └── currentStepOrder (nullable), fieldValues (JSON), createdAt, submittedAt, resolvedAt
+
+FormSubmissionApprovalSteps
+  └── submissionId (FK), stepOrder, role
+  └── actionByUserId (nullable), action (Pending|Approved|Rejected|Returned)
+  └── comments (nullable), actionAt (nullable)
 
 FcmDeviceTokens
   └── userId, token, deviceType, lastRefreshedAt
@@ -913,6 +1043,9 @@ The following are explicitly excluded from V1. Any agent or developer who identi
 | Timezone per-store scheduling (V1 uses tenant timezone) | V2 |
 | Notification retry mechanism | V2 |
 | Self-serve tenant onboarding | V2 |
+| Cross-domain Form → Task automation (approved Form spawns a Task) | V2 |
+| Form approval step escalation timers (unanswered review steps auto-escalate) | V2 |
+| Notification-only Form replies / threaded comments | V2 |
 
 ---
 
@@ -921,8 +1054,8 @@ The following are explicitly excluded from V1. Any agent or developer who identi
 V1 is considered **shipped** when all of the following are true:
 
 ### Functional
-- [ ] All Feature Domains FD-01 through FD-13 and FD-15 through FD-17 have passing integration tests
-- [ ] Red Book (FD-14) spec received, implemented, and tested
+- [ ] All Feature Domains FD-01 through FD-13 and FD-15 through FD-19 have passing integration tests
+- [ ] FD-14 retired — no implementation required
 - [ ] All acceptance criteria in Section 5 are verifiable via automated test or documented manual QA step
 - [ ] The 10:00 AM deposit escalation fires correctly in a staging environment with a real Quartz.NET job
 - [ ] The 56-Degree Rule corrective action surfaces correctly on the Task Board after a temperature field breach

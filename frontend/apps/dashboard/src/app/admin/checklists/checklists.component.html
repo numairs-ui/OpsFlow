@@ -1,0 +1,171 @@
+<div class="page">
+  <div class="page__header">
+    <h1 class="page__title">Checklists</h1>
+    <button class="btn btn--primary" (click)="openCreate()">+ New Checklist</button>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert--error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Loading...</div>
+  } @else if (checklists().length === 0) {
+    <div class="empty">No checklists found. Create one to get started.</div>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Scope</th>
+            <th>Items</th>
+            <th>Preview</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (c of checklists(); track c.id) {
+            <tr [class.table__row--inactive]="!c.isActive">
+              <td>
+                <div class="cell-primary">{{ c.name }}</div>
+                @if (c.description) {
+                  <div class="cell-sub">{{ c.description }}</div>
+                }
+              </td>
+              <td>
+                <span class="badge" [class]="'badge--' + c.scope.toLowerCase()">{{ c.scope }}</span>
+                @if (c.regionName) { <span class="cell-sub">{{ c.regionName }}</span> }
+                @if (c.storeName) { <span class="cell-sub">{{ c.storeName }}</span> }
+              </td>
+              <td>{{ c.itemCount }}</td>
+              <td class="cell-preview">
+                @for (name of c.firstThreeTemplateNames; track name) {
+                  <span class="preview-pill">{{ name }}</span>
+                }
+                @if (c.itemCount > 3) {
+                  <span class="preview-more">+{{ c.itemCount - 3 }} more</span>
+                }
+              </td>
+              <td>
+                <span class="badge" [class]="c.isActive ? 'badge--active' : 'badge--inactive'">
+                  {{ c.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td class="table__actions">
+                <button class="btn btn--sm btn--ghost" (click)="openEdit(c)">Edit Items</button>
+                <button
+                  class="btn btn--sm"
+                  [class]="c.isActive ? 'btn--danger' : 'btn--success'"
+                  (click)="toggleActive(c)"
+                >
+                  {{ c.isActive ? 'Deactivate' : 'Activate' }}
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+@if (showForm()) {
+  <div class="overlay" (click)="closeForm()"></div>
+  <aside class="slide-over">
+    <div class="slide-over__header">
+      <h2 class="slide-over__title">
+        {{ editingChecklist() ? 'Edit Checklist Items — ' + editingChecklist()!.name : 'New Checklist' }}
+      </h2>
+      <button class="slide-over__close" (click)="closeForm()">&times;</button>
+    </div>
+
+    <form class="slide-over__body" [formGroup]="form" (ngSubmit)="onSubmit()">
+      @if (!editingChecklist()) {
+        <div class="field">
+          <label class="label" for="name">Name</label>
+          <input id="name" class="input" formControlName="name" placeholder="e.g. Opening Checklist" />
+        </div>
+        <div class="field">
+          <label class="label" for="description">Description</label>
+          <input id="description" class="input" formControlName="description" placeholder="Optional" />
+        </div>
+        <div class="field">
+          <label class="label" for="scope">Scope</label>
+          <select id="scope" class="input" formControlName="scope">
+            @for (s of allowedScopes(); track s) {
+              <option [value]="s">{{ s }}</option>
+            }
+          </select>
+        </div>
+
+        @if (selectedScope() === 'Regional') {
+          <div class="field">
+            <label class="label" for="regionId">Region</label>
+            <select id="regionId" class="input" formControlName="regionId">
+              <option value="">— select region —</option>
+              @for (r of regions(); track r.id) {
+                <option [value]="r.id">{{ r.name }}</option>
+              }
+            </select>
+          </div>
+        }
+
+        @if (selectedScope() === 'Store') {
+          <div class="field">
+            <label class="label" for="storeId">Store</label>
+            <select id="storeId" class="input" formControlName="storeId">
+              <option value="">— select store —</option>
+              @for (s of stores(); track s.id) {
+                <option [value]="s.id">{{ s.name }}</option>
+              }
+            </select>
+          </div>
+        }
+      }
+
+      <div class="field">
+        <label class="label">Template Items</label>
+        <div class="item-picker">
+          <select
+            class="input item-picker__select"
+            [value]="selectedTemplateId()"
+            (change)="selectedTemplateId.set($any($event.target).value)"
+          >
+            <option value="">— add a template —</option>
+            @for (t of availableTemplates(); track t.id) {
+              <option [value]="t.id">{{ t.name }} ({{ t.scope }})</option>
+            }
+          </select>
+          <button type="button" class="btn btn--primary btn--sm" (click)="addItem()">Add</button>
+        </div>
+
+        @if (items().length === 0) {
+          <div class="item-list__empty">No items added yet.</div>
+        } @else {
+          <ol class="item-list">
+            @for (item of items(); track item.templateId; let i = $index) {
+              <li class="item-list__row">
+                <span class="item-list__order">{{ i + 1 }}</span>
+                <span class="item-list__name">{{ item.templateName }}</span>
+                <div class="item-list__controls">
+                  <button type="button" class="btn btn--icon" [disabled]="i === 0" (click)="moveItemUp(i)" title="Move up">&#8593;</button>
+                  <button type="button" class="btn btn--icon" [disabled]="i === items().length - 1" (click)="moveItemDown(i)" title="Move down">&#8595;</button>
+                  <button type="button" class="btn btn--icon btn--danger-ghost" (click)="removeItem(item.templateId)" title="Remove">&times;</button>
+                </div>
+              </li>
+            }
+          </ol>
+        }
+      </div>
+
+      <div class="slide-over__footer">
+        <button type="button" class="btn btn--ghost" (click)="closeForm()">Cancel</button>
+        <button type="submit" class="btn btn--primary" [disabled]="form.invalid || saving()">
+          {{ saving() ? 'Saving…' : (editingChecklist() ? 'Save Items' : 'Create Checklist') }}
+        </button>
+      </div>
+    </form>
+  </aside>
+}

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(NX_IGNORE_UNSUPPORTED_TS_SETUP=true node node_modules/.bin/nx generate @nx/js:library --name=util-models --directory=libs/util/models --bundler=tsc --no-interactive)",
+      "Bash(chmod +x /tmp/dotnet-install.sh)",
+      "Bash(/tmp/dotnet-install.sh --channel 9.0 --install-dir /Users/numair/.dotnet)"
+    ]
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/field-pwa-e2e"
+    },
+    {
+      "path": "./apps/dashboard-e2e"
+    },
+    {
+      "path": "./libs/util/models"
+    },
+    {
+      "path": "./libs/data-access/auth"
+    },
+    {
+      "path": "./libs/data-access/core"
+    },
+    {
+      "path": "./libs/util/guards"
+    },
+    {
+      "path": "./apps/dashboard"
+    },
+    {
+      "path": "./apps/field-pwa"
+    },
+    {
+      "path": "./libs/ui/core"
+    },
+    {
+      "path": "./libs/data-access/org"
+    },
+    {
+      "path": "./libs/data-access/templates"
+    },
+    {
+      "path": "./libs/ui/field-builder"
+    },
+    {
+      "path": "./libs/data-access/tasks"
+    },
+    {
+      "path": "./libs/ui/cron-picker"
+    },
+    {
+      "path": "./libs/ui/template-builder"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "@org/field-pwa-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "name": "field-pwa-e2e"
+  }
+}

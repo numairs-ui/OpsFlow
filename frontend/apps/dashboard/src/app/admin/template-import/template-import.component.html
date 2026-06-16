@@ -1,0 +1,96 @@
+<div class="page">
+  <div class="page-header">
+    <h1 class="page-title">Template Import</h1>
+    <p class="page-subtitle">Bulk-import Task or Checklist templates from a JSON file.</p>
+  </div>
+
+  @if (!result()) {
+    <div class="import-card">
+      <section class="settings-section">
+        <h2 class="section-title">1. Load JSON</h2>
+        <div class="field-group">
+          <label class="field-label">Upload JSON File</label>
+          <input class="input" type="file" accept=".json,application/json" (change)="onFileChange($event)" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Or paste JSON directly</label>
+          <textarea class="textarea" rows="10" placeholder='[{ "type": "Task", "name": "...", ... }]'
+            [value]="jsonText()" (input)="onTextChange($event)"></textarea>
+        </div>
+
+        @if (parseError(); as err) {
+          <div class="state-error">{{ err }}</div>
+        }
+      </section>
+
+      @if (preview(); as p) {
+        <section class="settings-section">
+          <h2 class="section-title">2. Import Preview</h2>
+          <div class="preview-counts">
+            <div class="preview-chip">
+              <span class="preview-chip__label">Task Templates</span>
+              <span class="preview-chip__count">{{ p.task }}</span>
+            </div>
+            <div class="preview-chip">
+              <span class="preview-chip__label">Checklist Templates</span>
+              <span class="preview-chip__count">{{ p.checklist }}</span>
+            </div>
+            <div class="preview-chip preview-chip--total">
+              <span class="preview-chip__label">Total</span>
+              <span class="preview-chip__count">{{ p.total }}</span>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            @if (importError(); as err) {
+              <span class="state-error">{{ err }}</span>
+            }
+            <button class="btn btn--secondary" type="button" (click)="reset()">Clear</button>
+            <button class="btn btn--primary" type="button" [disabled]="importing() || p.total === 0"
+              (click)="confirm()">
+              {{ importing() ? 'Importing...' : 'Confirm Import (' + p.total + ')' }}
+            </button>
+          </div>
+        </section>
+      }
+    </div>
+  }
+
+  @if (result(); as r) {
+    <div class="result-card">
+      <div class="result-summary">
+        <div class="result-stat result-stat--success">
+          <span class="result-stat__value">{{ r.created }}</span>
+          <span class="result-stat__label">Created</span>
+        </div>
+        <div class="result-stat" [class.result-stat--error]="r.failed.length > 0">
+          <span class="result-stat__value">{{ r.failed.length }}</span>
+          <span class="result-stat__label">Failed</span>
+        </div>
+      </div>
+
+      @if (r.failed.length > 0) {
+        <section class="settings-section">
+          <h2 class="section-title">Failures</h2>
+          <table class="data-table">
+            <thead>
+              <tr><th>#</th><th>Errors</th></tr>
+            </thead>
+            <tbody>
+              @for (f of r.failed; track f.index) {
+                <tr>
+                  <td>{{ f.index + 1 }}</td>
+                  <td>{{ f.errors.join(' | ') }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+      }
+
+      <div class="form-actions">
+        <button class="btn btn--secondary" type="button" (click)="reset()">Import More</button>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,14 @@
+@use '../shared/admin.scss' as *;
+
+.region-group {
+  margin-bottom: 32px;
+
+  &__title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748b;
+    margin: 0 0 8px;
+  }
+}

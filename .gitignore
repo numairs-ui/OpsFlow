@@ -31,3 +31,8 @@ pnpm-debug.log*
 .vscode/
 *.swp
 
+# .NET build artifacts
+backend/**/bin/
+backend/**/obj/
+*.user
+

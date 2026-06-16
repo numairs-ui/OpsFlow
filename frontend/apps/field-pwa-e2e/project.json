@@ -1,0 +1,9 @@
+{
+  "name": "field-pwa-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/field-pwa-e2e/src",
+  "implicitDependencies": ["field-pwa"],
+  "// targets": "to see all targets run: nx show project field-pwa-e2e --web",
+  "targets": {}
+}

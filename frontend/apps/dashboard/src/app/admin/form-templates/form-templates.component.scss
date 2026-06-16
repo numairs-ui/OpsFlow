@@ -1,0 +1,38 @@
+@use '../shared/admin.scss' as *;
+
+.filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+
+  &__search { flex: 1; }
+  &__scope, &__active { width: 160px; }
+}
+
+.template-name {
+  font-weight: 500;
+}
+
+.scope-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+
+  &--system { background: #ede9fe; color: #7c3aed; }
+  &--regional { background: #dbeafe; color: #1d4ed8; }
+  &--store { background: #dcfce7; color: #15803d; }
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+
+  .field { flex: 1; }
+}
+
+// Wider slide-over for the field builder + approval steps builder
+.slide-over--wide {
+  width: 560px;
+}

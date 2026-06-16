@@ -1,0 +1,111 @@
+<div class="fb">
+  <!-- Field list -->
+  <div class="fb__fields">
+    @for (field of fields(); track field.id; let i = $index) {
+      <div class="fb__field" [class.fb__field--expanded]="expandedFieldId() === field.id">
+
+        <!-- Field header row -->
+        <div class="fb__field-header" (click)="toggleExpand(field.id)">
+          <span class="fb__field-type-badge fb__field-type-badge--{{ field.type.toLowerCase() }}">
+            {{ field.type }}
+          </span>
+          <span class="fb__field-label">{{ field.label || '(untitled field)' }}</span>
+          <div class="fb__field-actions" (click)="$event.stopPropagation()">
+            <button class="fb__icon-btn" [disabled]="i === 0" (click)="moveUp(i)" title="Move up">&#8593;</button>
+            <button class="fb__icon-btn" [disabled]="i === fields().length - 1" (click)="moveDown(i)" title="Move down">&#8595;</button>
+            <button class="fb__icon-btn fb__icon-btn--danger" (click)="removeField(field.id)" title="Remove">&#10005;</button>
+          </div>
+        </div>
+
+        <!-- Expanded config panel -->
+        @if (expandedFieldId() === field.id) {
+          <div class="fb__config">
+            <div class="fb__config-row">
+              <div class="fb__form-field">
+                <label class="fb__label">Label *</label>
+                <input class="fb__input" [ngModel]="field.label"
+                  (ngModelChange)="updateField(field.id, { label: $event })"
+                  placeholder="e.g. Walk-in Temperature" />
+              </div>
+              <div class="fb__form-field fb__form-field--checkbox">
+                <label class="fb__checkbox-label">
+                  <input type="checkbox" [ngModel]="field.required"
+                    (ngModelChange)="updateField(field.id, { required: $event })" />
+                  Required
+                </label>
+              </div>
+            </div>
+
+            @if (field.type === 'Numeric') {
+              <div class="fb__config-row">
+                <div class="fb__form-field">
+                  <label class="fb__label">Range Min</label>
+                  <input class="fb__input" type="number" [ngModel]="field.rangeMin"
+                    (ngModelChange)="updateField(field.id, { rangeMin: $event ?? undefined })"
+                    placeholder="No minimum" />
+                </div>
+                <div class="fb__form-field">
+                  <label class="fb__label">Range Max</label>
+                  <input class="fb__input" type="number" [ngModel]="field.rangeMax"
+                    (ngModelChange)="updateField(field.id, { rangeMax: $event ?? undefined })"
+                    placeholder="No maximum" />
+                </div>
+              </div>
+            }
+
+            @if (field.type === 'Numeric' || field.type === 'Boolean') {
+              <div class="fb__form-field">
+                <label class="fb__label">Corrective Action Text
+                  <span class="fb__label-hint">
+                    {{ field.type === 'Boolean' ? '(shown when answer is No)' : '(shown when out of range)' }}
+                  </span>
+                </label>
+                <textarea class="fb__input" rows="2" [ngModel]="field.correctiveActionText"
+                  (ngModelChange)="updateField(field.id, { correctiveActionText: $event || undefined })"
+                  placeholder="Optional — describe the corrective action to take"></textarea>
+              </div>
+            }
+
+            @if (field.type === 'Checklist') {
+              <div class="fb__sub-items">
+                <label class="fb__label">Sub-items</label>
+                @for (sub of field.subItems ?? []; track sub.id) {
+                  <div class="fb__sub-item">
+                    <input class="fb__input fb__input--flex" [ngModel]="sub.label"
+                      (ngModelChange)="updateSubItem(field.id, sub.id, { label: $event })"
+                      placeholder="Sub-item label" />
+                    <label class="fb__checkbox-label">
+                      <input type="checkbox" [ngModel]="sub.required"
+                        (ngModelChange)="updateSubItem(field.id, sub.id, { required: $event })" />
+                      Req
+                    </label>
+                    <button class="fb__icon-btn fb__icon-btn--danger"
+                      (click)="removeSubItem(field.id, sub.id)">&#10005;</button>
+                  </div>
+                }
+                <button class="fb__add-sub-btn" (click)="addSubItem(field.id)">+ Add sub-item</button>
+              </div>
+            }
+
+            @if (field.type === 'Photo') {
+              <p class="fb__hint">Photo fields prompt the user to capture an image from their device camera.</p>
+            }
+            @if (field.type === 'Text') {
+              <p class="fb__hint">Text fields render a single-line or multi-line text input.</p>
+            }
+          </div>
+        }
+      </div>
+    } @empty {
+      <div class="fb__empty">No fields yet. Add one below.</div>
+    }
+  </div>
+
+  <!-- Add field toolbar -->
+  <div class="fb__toolbar">
+    <span class="fb__toolbar-label">Add field:</span>
+    @for (type of fieldTypes; track type) {
+      <button class="fb__add-btn" (click)="addField(type)">+ {{ type }}</button>
+    }
+  </div>
+</div>

@@ -1,0 +1,94 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Store Dashboard</h1>
+      <p class="page-subtitle">Today's operational snapshot — refreshes every 60 seconds.</p>
+    </div>
+  </div>
+
+  @if (loading()) { <div class="state-loading">Loading...</div> }
+  @if (error(); as err) { <div class="state-error">{{ err }}</div> }
+
+  @if (data(); as d) {
+    <!-- Stat cards row -->
+    <div class="stat-row">
+      <!-- Completion ring -->
+      <div class="stat-card stat-card--ring">
+        <svg class="ring" viewBox="0 0 100 100">
+          <circle class="ring__bg" cx="50" cy="50" r="40" />
+          <circle class="ring__fill"
+            cx="50" cy="50" r="40"
+            [attr.stroke]="scoreColor(d.completionRate)"
+            [attr.stroke-dasharray]="ringDasharray(d.completionRate)"
+            stroke-dashoffset="0"
+            transform="rotate(-90 50 50)" />
+        </svg>
+        <div class="ring-label">
+          <div class="ring-pct" [style.color]="scoreColor(d.completionRate)">{{ d.completionRate | percent }}</div>
+          <div class="ring-sub">Completion</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-value">{{ d.openCount }}</div>
+        <div class="stat-label">Open</div>
+      </div>
+
+      <div class="stat-card" [class.stat-card--warn]="d.overdueCount > 0">
+        <div class="stat-value" [class.stat-value--warn]="d.overdueCount > 0">{{ d.overdueCount }}</div>
+        <div class="stat-label">Overdue</div>
+      </div>
+
+      <div class="stat-card" [class.stat-card--danger]="d.activeCorrectiveActionCount > 0">
+        <div class="stat-value" [class.stat-value--danger]="d.activeCorrectiveActionCount > 0">{{ d.activeCorrectiveActionCount }}</div>
+        <div class="stat-label">Corrective</div>
+      </div>
+
+      <div class="stat-card" [class.stat-card--success]="d.depositLoggedToday" [class.stat-card--danger]="!d.depositLoggedToday">
+        <div class="stat-value">{{ d.depositLoggedToday ? '&#10003;' : '&#33;' }}</div>
+        <div class="stat-label">Deposit</div>
+        @if (d.depositLoggedToday && d.depositAmount) {
+          <div class="stat-sub">{{ d.depositAmount | currency }}</div>
+        }
+      </div>
+    </div>
+
+    <!-- Overdue tasks list -->
+    @if (d.overdueTasks.length > 0) {
+      <section class="section">
+        <h2 class="section-title">Overdue &amp; Corrective Tasks</h2>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Due At</th>
+                <th>Elapsed</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (t of d.overdueTasks; track t.id) {
+                <tr>
+                  <td>{{ t.name }}</td>
+                  <td>{{ t.dueAt | date:'h:mm a' }}</td>
+                  <td class="elapsed-cell">{{ t.elapsedMinutes }} min ago</td>
+                  <td>
+                    <span class="badge" [class.badge--danger]="t.status === 'CorrectiveActionRaised'" [class.badge--warn]="t.status === 'Overdue'">
+                      {{ t.status }}
+                    </span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    } @else {
+      <div class="all-good">
+        <span class="all-good__icon">&#10003;</span>
+        No overdue tasks right now.
+      </div>
+    }
+  }
+</div>

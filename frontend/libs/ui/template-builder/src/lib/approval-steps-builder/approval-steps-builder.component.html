@@ -1,0 +1,31 @@
+<div class="steps-builder">
+  <div
+    class="steps-list"
+    cdkDropList
+    [cdkDropListDisabled]="reorderDisabled"
+    (cdkDropListDropped)="drop($event)"
+  >
+    @for (step of steps(); track step.order; let i = $index) {
+      <div class="step-row" cdkDrag [cdkDragDisabled]="reorderDisabled">
+        <span class="step-row__handle" [class.step-row__handle--disabled]="reorderDisabled" cdkDragHandle>&#8942;&#8942;</span>
+        <span class="step-row__order">{{ i + 1 }}</span>
+        <select class="step-row__select" [value]="step.role" (change)="updateRole(i, $any($event.target).value)">
+          @for (role of roles; track role) {
+            <option [value]="role">{{ role }}</option>
+          }
+        </select>
+        <button type="button" class="step-row__remove" (click)="removeStep(i)">&times;</button>
+      </div>
+    }
+  </div>
+
+  @if (steps().length === 0) {
+    <p class="steps-empty">No approval steps yet. Add at least one reviewer role.</p>
+  }
+
+  <button type="button" class="steps-add" (click)="addStep()">+ Add Approval Step</button>
+
+  @if (reorderDisabled && steps().length > 1) {
+    <p class="steps-hint">Order is not used for {{ propagationType() }} — all reviewers act simultaneously.</p>
+  }
+</div>

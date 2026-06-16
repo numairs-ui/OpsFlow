@@ -1,0 +1,118 @@
+<div class="page">
+  <div class="page__header">
+    <h1 class="page__title">Recurring Assignments</h1>
+    <button class="btn btn--primary" (click)="openCreate()">+ New Assignment</button>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert--error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Loading...</div>
+  } @else if (assignments().length === 0) {
+    <div class="empty">No recurring assignments yet. Create one to automate task generation.</div>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Checklist</th>
+            <th>Store</th>
+            <th>Schedule</th>
+            <th>Starts</th>
+            <th>Ends</th>
+            <th>Tasks</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (a of assignments(); track a.id) {
+            <tr [class.row--paused]="a.isPaused">
+              <td class="cell-name">{{ a.name }}</td>
+              <td>{{ a.checklistName }}</td>
+              <td>{{ a.storeName }}</td>
+              <td><code class="cron-badge">{{ a.cronExpression }}</code></td>
+              <td>{{ a.startsAt | date:'mediumDate' }}</td>
+              <td>{{ a.endsAt ? (a.endsAt | date:'mediumDate') : '—' }}</td>
+              <td>{{ a.taskInstanceCount }}</td>
+              <td>
+                <span class="badge" [class]="a.isPaused ? 'badge--paused' : 'badge--active'">
+                  {{ a.isPaused ? 'Paused' : 'Active' }}
+                </span>
+              </td>
+              <td class="table__actions">
+                <button class="btn btn--sm btn--ghost" (click)="togglePause(a)">
+                  {{ a.isPaused ? 'Resume' : 'Pause' }}
+                </button>
+                <button class="btn btn--sm btn--danger" (click)="deleteAssignment(a)">Delete</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+@if (showForm()) {
+  <div class="overlay" (click)="closeForm()"></div>
+  <aside class="slide-over">
+    <div class="slide-over__header">
+      <h2 class="slide-over__title">New Recurring Assignment</h2>
+      <button class="slide-over__close" (click)="closeForm()">&times;</button>
+    </div>
+
+    <form class="slide-over__body" [formGroup]="form" (ngSubmit)="onSubmit()">
+      <div class="field">
+        <label class="label" for="name">Assignment Name</label>
+        <input id="name" class="input" formControlName="name" placeholder="e.g. Daily Opening Check" />
+      </div>
+
+      <div class="field">
+        <label class="label" for="checklistId">Checklist</label>
+        <select id="checklistId" class="input" formControlName="checklistId">
+          <option value="">— select checklist —</option>
+          @for (c of checklists(); track c.id) {
+            <option [value]="c.id">{{ c.name }} ({{ c.scope }})</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="label" for="storeId">Store</label>
+        <select id="storeId" class="input" formControlName="storeId">
+          <option value="">— select store —</option>
+          @for (s of stores(); track s.id) {
+            <option [value]="s.id">{{ s.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="label">Schedule</label>
+        <lib-cron-picker [value]="cronExpression()" (valueChange)="onCronChange($event)" />
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="label" for="startsAt">Starts</label>
+          <input id="startsAt" type="date" class="input" formControlName="startsAt" />
+        </div>
+        <div class="field">
+          <label class="label" for="endsAt">Ends (optional)</label>
+          <input id="endsAt" type="date" class="input" formControlName="endsAt" />
+        </div>
+      </div>
+
+      <div class="slide-over__footer">
+        <button type="button" class="btn btn--ghost" (click)="closeForm()">Cancel</button>
+        <button type="submit" class="btn btn--primary" [disabled]="form.invalid || saving()">
+          {{ saving() ? 'Saving…' : 'Create Assignment' }}
+        </button>
+      </div>
+    </form>
+  </aside>
+}

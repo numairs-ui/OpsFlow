@@ -1,0 +1,76 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Regional Dashboard</h1>
+      <p class="page-subtitle">Store leaderboard &amp; critical alerts — refreshes every 60 seconds.</p>
+    </div>
+  </div>
+
+  @if (loading()) { <div class="state-loading">Loading...</div> }
+  @if (error(); as err) { <div class="state-error">{{ err }}</div> }
+
+  @if (data(); as d) {
+    <!-- Critical alerts -->
+    @if (criticalAlerts(d.stores).length > 0) {
+      <section class="alerts-panel">
+        <div class="alerts-header">
+          <span class="alerts-icon">&#9888;</span>
+          <span class="alerts-title">Critical Alerts</span>
+        </div>
+        <ul class="alerts-list">
+          @for (s of criticalAlerts(d.stores); track s.storeId) {
+            <li class="alert-item">
+              <strong>{{ s.name }}</strong>
+              @if (!s.depositLoggedToday) { <span class="alert-tag">No Deposit</span> }
+              @if (s.correctiveActionCount > 0) { <span class="alert-tag alert-tag--corrective">{{ s.correctiveActionCount }} Corrective</span> }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    <!-- Leaderboard -->
+    <section class="section">
+      <h2 class="section-title">Store Leaderboard</h2>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Store</th>
+              <th>Score</th>
+              <th>Completion</th>
+              <th>Open</th>
+              <th>Overdue</th>
+              <th>Deposit</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (s of d.stores; track s.storeId; let i = $index) {
+              <tr>
+                <td class="rank-cell">{{ i + 1 }}</td>
+                <td>{{ s.name }}</td>
+                <td>
+                  <span class="score-badge {{ scoreColor(s.compositeScore) }}">{{ s.compositeScore }}</span>
+                </td>
+                <td>{{ s.completionRate | percent }}</td>
+                <td>{{ s.openCount }}</td>
+                <td [class.text-danger]="s.overdueCount > 0">{{ s.overdueCount }}</td>
+                <td>
+                  @if (s.depositLoggedToday) {
+                    <span class="deposit-ok">&#10003;</span>
+                  } @else {
+                    <span class="deposit-miss">&#33;</span>
+                  }
+                </td>
+              </tr>
+            }
+            @if (d.stores.length === 0) {
+              <tr><td colspan="7" class="empty">No stores in this region.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+</div>

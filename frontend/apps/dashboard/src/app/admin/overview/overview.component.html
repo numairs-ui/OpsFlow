@@ -1,0 +1,79 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">System Dashboard</h1>
+      <p class="page-subtitle">System-wide health across all regions and stores.</p>
+    </div>
+  </div>
+
+  @if (loading()) { <div class="state-loading">Loading...</div> }
+  @if (error(); as err) { <div class="state-error">{{ err }}</div> }
+
+  @if (data(); as d) {
+    <!-- System stat cards -->
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-value {{ scoreColor(d.systemCompletionRate) }}">{{ d.systemCompletionRate | percent }}</div>
+        <div class="stat-label">System Completion</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ d.totalOpenCount }}</div>
+        <div class="stat-label">Open Tasks</div>
+      </div>
+      <div class="stat-card" [class.stat-card--warn]="d.totalOverdueCount > 0">
+        <div class="stat-value" [class.text-warn]="d.totalOverdueCount > 0">{{ d.totalOverdueCount }}</div>
+        <div class="stat-label">Overdue</div>
+      </div>
+      <div class="stat-card" [class.stat-card--danger]="d.storesWithMissedDeposits.length > 0">
+        <div class="stat-value" [class.text-danger]="d.storesWithMissedDeposits.length > 0">{{ d.storesWithMissedDeposits.length }}</div>
+        <div class="stat-label">Missed Deposits</div>
+      </div>
+    </div>
+
+    <!-- Missed deposits -->
+    @if (d.storesWithMissedDeposits.length > 0) {
+      <section class="alerts-panel">
+        <div class="alerts-header">
+          <span class="alerts-title">&#9888; Stores Without Today's Deposit</span>
+        </div>
+        <div class="tag-list">
+          @for (s of d.storesWithMissedDeposits; track s.storeId) {
+            <span class="store-tag">{{ s.storeName }}</span>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Regional summary -->
+    <section class="section">
+      <h2 class="section-title">Regional Summary</h2>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Region</th>
+              <th>Stores</th>
+              <th>Avg Completion</th>
+              <th>Critical Alerts</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of d.regionalSummary; track r.regionId) {
+              <tr>
+                <td>{{ r.regionName }}</td>
+                <td>{{ r.storeCount }}</td>
+                <td>
+                  <span class="score-inline {{ scoreColor(r.averageCompletionRate) }}">{{ r.averageCompletionRate | percent }}</span>
+                </td>
+                <td [class.text-danger]="r.criticalAlertCount > 0">{{ r.criticalAlertCount }}</td>
+              </tr>
+            }
+            @if (d.regionalSummary.length === 0) {
+              <tr><td colspan="4" class="empty">No regions configured.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+</div>

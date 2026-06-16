@@ -1,0 +1,90 @@
+<div class="cron-picker">
+  <div class="cron-picker__tabs">
+    @for (p of [['hourly','Hourly'],['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['custom','Custom']]; track p[0]) {
+      <button
+        type="button"
+        class="cron-picker__tab"
+        [class.cron-picker__tab--active]="activePreset() === p[0]"
+        (click)="selectPreset($any(p[0]))"
+      >{{ p[1] }}</button>
+    }
+  </div>
+
+  <div class="cron-picker__body">
+    @if (activePreset() === 'hourly') {
+      <div class="cron-picker__row">
+        <label class="cron-picker__label">At minute</label>
+        <input
+          type="number" class="cron-picker__input cron-picker__input--sm"
+          [ngModel]="minute()" (ngModelChange)="minute.set($event); emit()"
+          min="0" max="59"
+        />
+      </div>
+    }
+
+    @if (activePreset() === 'daily') {
+      <div class="cron-picker__row">
+        <label class="cron-picker__label">At time</label>
+        <input
+          type="time" class="cron-picker__input"
+          [ngModel]="timeValue()" (ngModelChange)="onTimeInput($event)"
+        />
+      </div>
+    }
+
+    @if (activePreset() === 'weekly') {
+      <div class="cron-picker__row">
+        <label class="cron-picker__label">Day</label>
+        <select
+          class="cron-picker__input"
+          [ngModel]="dayOfWeek()" (ngModelChange)="dayOfWeek.set($event); emit()"
+        >
+          @for (opt of dowOptions; track opt.quartz; let i = $index) {
+            <option [ngValue]="i">{{ opt.label }}</option>
+          }
+        </select>
+      </div>
+      <div class="cron-picker__row">
+        <label class="cron-picker__label">At time</label>
+        <input
+          type="time" class="cron-picker__input"
+          [ngModel]="timeValue()" (ngModelChange)="onTimeInput($event)"
+        />
+      </div>
+    }
+
+    @if (activePreset() === 'monthly') {
+      <div class="cron-picker__row">
+        <label class="cron-picker__label">Day of month</label>
+        <input
+          type="number" class="cron-picker__input cron-picker__input--sm"
+          [ngModel]="dayOfMonth()" (ngModelChange)="dayOfMonth.set($event); emit()"
+          min="1" max="28"
+        />
+      </div>
+      <div class="cron-picker__row">
+        <label class="cron-picker__label">At time</label>
+        <input
+          type="time" class="cron-picker__input"
+          [ngModel]="timeValue()" (ngModelChange)="onTimeInput($event)"
+        />
+      </div>
+    }
+
+    @if (activePreset() === 'custom') {
+      <div class="cron-picker__row">
+        <label class="cron-picker__label">Cron (Quartz 6-field)</label>
+        <input
+          type="text" class="cron-picker__input cron-picker__input--wide"
+          placeholder="0 0 9 * * ?"
+          [ngModel]="customCron()" (ngModelChange)="customCron.set($event); emit()"
+        />
+      </div>
+    }
+  </div>
+
+  <div class="cron-picker__preview">
+    <span class="cron-picker__preview-label">Schedule:</span>
+    {{ humanReadable() }}
+  </div>
+</div>

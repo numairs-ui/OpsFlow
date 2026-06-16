@@ -1,0 +1,142 @@
+@use '../shared/admin.scss' as *;
+
+.state-loading {
+  padding: 24px;
+  color: #888;
+  font-size: 14px;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 680px;
+}
+
+.settings-section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px 24px;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 4px;
+}
+
+.section-hint {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0 0 16px;
+}
+
+.dough-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  td {
+    padding: 8px;
+    border-bottom: 1px solid #f5f5f5;
+
+    &:last-child { border-bottom: none; }
+  }
+}
+
+.dough-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #222;
+}
+
+.input-num {
+  width: 80px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+
+  &:focus { outline: none; border-color: #3b82f6; }
+}
+
+.field-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.input-text {
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+
+  &:focus { outline: none; border-color: #3b82f6; }
+}
+
+.select {
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+
+  &:focus { outline: none; border-color: #3b82f6; }
+}
+
+.store-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 320px;
+  margin-bottom: 8px;
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.saved-badge {
+  font-size: 13px;
+  font-weight: 600;
+  color: #15803d;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &--primary { background: #3b82f6; color: #fff; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}

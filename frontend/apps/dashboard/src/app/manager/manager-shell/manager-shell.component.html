@@ -1,0 +1,43 @@
+<div class="shell">
+  <nav class="sidebar">
+    <div class="sidebar__brand">
+      <span class="sidebar__logo">OpsFlow</span>
+      <span class="sidebar__role">Manager</span>
+    </div>
+
+    <ul class="sidebar__nav">
+      <li class="sidebar__section-label">My Store</li>
+      <li>
+        <a routerLink="overview" routerLinkActive="active" class="sidebar__link">
+          <span class="sidebar__icon">&#9679;</span> Dashboard
+        </a>
+      </li>
+      <li>
+        <a routerLink="roster" routerLinkActive="active" class="sidebar__link">
+          <span class="sidebar__icon">&#9679;</span> Employee Roster
+        </a>
+      </li>
+      <li class="sidebar__section-label">Financial</li>
+      <li>
+        <a routerLink="deposit" routerLinkActive="active" class="sidebar__link">
+          <span class="sidebar__icon">&#9679;</span> Safe &amp; Deposit
+        </a>
+      </li>
+      <li class="sidebar__section-label">Forms</li>
+      <li>
+        <a routerLink="submissions" routerLinkActive="active" class="sidebar__link">
+          <span class="sidebar__icon">&#9679;</span> Form Submissions
+        </a>
+      </li>
+    </ul>
+
+    <div class="sidebar__footer">
+      <span class="sidebar__user-email">{{ user()?.role }}</span>
+      <button class="sidebar__logout" (click)="onLogout()">Sign out</button>
+    </div>
+  </nav>
+
+  <main class="shell__content">
+    <router-outlet />
+  </main>
+</div>

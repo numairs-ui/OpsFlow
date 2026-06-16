@@ -1,0 +1,99 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Safe &amp; Bank Deposit</h1>
+      <p class="page-subtitle">Record today's bank deposit and view deposit history.</p>
+    </div>
+  </div>
+
+  <!-- Today's deposit status -->
+  <div class="today-card" [class.today-card--done]="todayDeposit()">
+    @if (todayDeposit(); as dep) {
+      <div class="today-card__icon">&#10003;</div>
+      <div class="today-card__content">
+        <div class="today-card__label">Today's Deposit Recorded</div>
+        <div class="today-card__amount">{{ dep.amount | currency }}</div>
+        <div class="today-card__meta">Submitted {{ dep.submittedAt | date:'h:mm a' }} by {{ dep.submittedByManagerId }}</div>
+      </div>
+    } @else {
+      <div class="today-card__icon today-card__icon--warn">!</div>
+      <div class="today-card__content">
+        <div class="today-card__label">No Deposit Recorded Yet</div>
+        <div class="today-card__meta">Record today's bank deposit below before close of business.</div>
+      </div>
+    }
+  </div>
+
+  <!-- Record form — only shown if no deposit today -->
+  @if (!todayDeposit()) {
+    <div class="record-card">
+      <h2 class="record-title">Record Bank Deposit</h2>
+
+      @if (error(); as err) {
+        <div class="state-error">{{ err }}</div>
+      }
+
+      <div class="amount-row">
+        <div class="amount-prefix">$</div>
+        <input
+          class="amount-input"
+          type="number"
+          min="0.01"
+          step="0.01"
+          placeholder="0.00"
+          [ngModel]="amount()"
+          (ngModelChange)="amount.set($event)" />
+      </div>
+
+      <button
+        class="btn btn--primary btn--submit"
+        [disabled]="submitting() || !amount() || +amount() <= 0"
+        (click)="submit()">
+        {{ submitting() ? 'Recording…' : 'Record Deposit' }}
+      </button>
+    </div>
+  }
+
+  <!-- History table -->
+  <div class="section">
+    <h2 class="section-title">Deposit History</h2>
+
+    @if (loadingHistory()) {
+      <div class="state-loading">Loading history...</div>
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Submitted At</th>
+              <th>Manager ID</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (dep of history(); track dep.id) {
+              <tr>
+                <td>{{ dep.submittedAt | date:'MMM d, y' }}</td>
+                <td class="amount-cell">{{ dep.amount | currency }}</td>
+                <td>{{ dep.submittedAt | date:'h:mm a' }}</td>
+                <td class="meta-cell">{{ dep.submittedByManagerId }}</td>
+              </tr>
+            }
+            @if (history().length === 0) {
+              <tr><td colspan="4" class="empty">No deposits recorded yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalCount() > 14) {
+        <div class="pagination">
+          <button class="btn btn--ghost btn--sm" [disabled]="page() <= 1" (click)="prevPage()">&#8592; Prev</button>
+          <span class="page-info">Page {{ page() }}</span>
+          <button class="btn btn--ghost btn--sm" [disabled]="!hasNextPage()" (click)="nextPage()">Next &#8594;</button>
+        </div>
+      }
+    }
+  </div>
+</div>

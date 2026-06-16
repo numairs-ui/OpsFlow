@@ -1,0 +1,82 @@
+<div class="page">
+  <div class="page__header">
+    <div>
+      <h1 class="page__title">Regions</h1>
+      <p class="page__subtitle">Manage geographic regions for your franchise network.</p>
+    </div>
+    <button class="btn btn--primary" (click)="openCreate()">+ New Region</button>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert--error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Loading...</div>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th class="table__actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (region of regions(); track region.id) {
+            <tr [class.table__row--inactive]="!region.isActive">
+              <td>{{ region.name }}</td>
+              <td class="text-muted">{{ region.description || '—' }}</td>
+              <td>
+                <span class="badge" [class.badge--active]="region.isActive" [class.badge--inactive]="!region.isActive">
+                  {{ region.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td class="text-muted">{{ region.createdAt | slice:0:10 }}</td>
+              <td class="table__actions">
+                <button class="btn btn--sm btn--ghost" (click)="openEdit(region)">Edit</button>
+                @if (region.isActive) {
+                  <button class="btn btn--sm btn--danger-ghost" (click)="deactivate(region)">Deactivate</button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5" class="empty">No regions found.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+@if (showForm()) {
+  <div class="overlay" (click)="closeForm()"></div>
+  <div class="slide-over">
+    <div class="slide-over__header">
+      <h2>{{ editingRegion() ? 'Edit Region' : 'New Region' }}</h2>
+      <button class="slide-over__close" (click)="closeForm()">&#10005;</button>
+    </div>
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="slide-over__body">
+      <div class="field">
+        <label class="label" for="name">Name *</label>
+        <input id="name" class="input" formControlName="name" placeholder="e.g. Greater Toronto Area" />
+        @if (form.controls['name'].invalid && form.controls['name'].touched) {
+          <span class="field__error">Name is required.</span>
+        }
+      </div>
+      <div class="field">
+        <label class="label" for="desc">Description</label>
+        <textarea id="desc" class="input" formControlName="description" rows="3" placeholder="Optional description"></textarea>
+      </div>
+      <div class="slide-over__footer">
+        <button type="button" class="btn btn--ghost" (click)="closeForm()">Cancel</button>
+        <button type="submit" class="btn btn--primary" [disabled]="form.invalid || saving()">
+          {{ saving() ? 'Saving…' : (editingRegion() ? 'Save Changes' : 'Create Region') }}
+        </button>
+      </div>
+    </form>
+  </div>
+}

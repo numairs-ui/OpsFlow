@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "importHelpers": true,
+    "isolatedModules": true,
+    "lib": ["es2022"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "noEmitOnError": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "es2022",
+    "customConditions": ["@org/source"],
+    "paths": {
+      "@org/core": ["./libs/data-access/core/src/index.ts"],
+      "@org/ui-core": ["./libs/ui/core/src/index.ts"],
+      "@org/data-access-auth": ["./libs/data-access/auth/src/index.ts"],
+      "@org/util-guards": ["./libs/util/guards/src/index.ts"],
+      "@org/data-access-org": ["./libs/data-access/org/src/index.ts"],
+      "@org/ui-field-builder": ["./libs/ui/field-builder/src/index.ts"],
+      "@org/data-access-templates": [
+        "./libs/data-access/templates/src/index.ts"
+      ],
+      "@org/ui-cron-picker": ["./libs/ui/cron-picker/src/index.ts"],
+      "@org/data-access-tasks": ["./libs/data-access/tasks/src/index.ts"],
+      "@org/ui-template-builder": ["./libs/ui/template-builder/src/index.ts"]
+    }
+  }
+}

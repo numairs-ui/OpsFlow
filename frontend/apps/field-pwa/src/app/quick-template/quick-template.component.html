@@ -1,0 +1,40 @@
+<div class="qtemplate">
+  <div class="qtemplate__header">
+    <h1 class="qtemplate__title">Quick Template</h1>
+    <p class="qtemplate__subtitle">Create a store task template (max 5 fields: Numeric, Boolean, Text).</p>
+  </div>
+
+  @if (error()) {
+    <div class="alert">{{ error() }}</div>
+  }
+
+  @if (fieldCountWarning()) {
+    <div class="alert alert--warn">Only Numeric, Boolean, and Text fields are allowed. Limited to 5 fields.</div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" class="qtemplate__form">
+    <div class="field">
+      <label class="label" for="tname">Template Name *</label>
+      <input id="tname" class="input" formControlName="name" placeholder="e.g. Evening Prep Check" />
+    </div>
+    <div class="field">
+      <label class="label" for="cat">Category *</label>
+      <select id="cat" class="input" formControlName="category">
+        <option value="">Select…</option>
+        @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+      </select>
+    </div>
+
+    <div class="field">
+      <label class="label">Fields ({{ fields().length }}/5)</label>
+      <lib-field-builder (fieldsChange)="onFieldsChange($event)" />
+    </div>
+
+    <div class="qtemplate__actions">
+      <button type="button" class="btn btn--ghost" (click)="cancel()">Cancel</button>
+      <button type="submit" class="btn btn--primary" [disabled]="form.invalid || fields().length === 0 || saving()">
+        {{ saving() ? 'Creating…' : 'Create Template' }}
+      </button>
+    </div>
+  </form>
+</div>

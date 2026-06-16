@@ -1,0 +1,98 @@
+<div class="task-board">
+  <header class="board-header">
+    <div class="board-title">
+      <h1>Today's Tasks</h1>
+      @if (board(); as b) {
+        <span class="board-date">{{ b.date | date:'EEEE, MMMM d' }}</span>
+      }
+    </div>
+    <div class="board-actions">
+      @if (isManager()) {
+        <button class="btn btn--kiosk" (click)="openSubmissions()">Forms</button>
+      }
+      <button class="btn btn--kiosk" (click)="openKiosk()">Kiosk Mode</button>
+    </div>
+  </header>
+
+  @if (loading() && !board()) {
+    <div class="state-loading">Loading tasks...</div>
+  }
+
+  @if (error(); as err) {
+    <div class="state-error">{{ err }}</div>
+  }
+
+  @if (board(); as b) {
+    <div class="board-summary">
+      <span class="summary-label">Overall Progress</span>
+      <div class="progress-bar">
+        <div class="progress-bar__fill" [style.width.%]="b.totalCount ? (b.completedCount / b.totalCount) * 100 : 0"></div>
+      </div>
+      <span class="summary-count">{{ b.completedCount }} / {{ b.totalCount }}</span>
+    </div>
+
+    <div class="checklist-groups">
+      @for (group of b.taskGroups; track group.checklistId) {
+        <section class="checklist-group">
+          <div class="group-header">
+            <div class="group-meta">
+              <span class="group-name">{{ group.checklistName }}</span>
+              <span class="group-count">{{ group.completedCount }}/{{ group.totalCount }}</span>
+            </div>
+            <div class="group-progress">
+              <div class="progress-bar progress-bar--sm">
+                <div class="progress-bar__fill" [style.width.%]="progressPct(group)"></div>
+              </div>
+            </div>
+          </div>
+
+          <ul class="task-list">
+            @for (task of sortedTasks(group.tasks); track task.id) {
+              <li class="task-item task-item--{{ task.status.toLowerCase() }}" (click)="openTask(task.id)">
+                <span class="task-status-dot"></span>
+                <div class="task-info">
+                  @if (task.recurringAssignmentName) {
+                    <span class="task-name">{{ task.recurringAssignmentName }}</span>
+                  } @else {
+                    <span class="task-name task-name--adhoc">Ad Hoc Task</span>
+                  }
+                  <span class="task-due">Due {{ task.dueAt | date:'h:mm a' }}</span>
+                </div>
+                <span class="task-badge">{{ task.status }}</span>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+
+      @if (b.taskGroups.length === 0) {
+        <div class="state-empty">No tasks scheduled for today.</div>
+      }
+    </div>
+  }
+
+  <!-- Recent Activity (TB-65) -->
+  <div class="history-section">
+    <button class="history-toggle" (click)="toggleHistory()">
+      <span>My Recent Activity (7 days)</span>
+      <span class="history-chevron" [class.history-chevron--open]="historyOpen()">&#8250;</span>
+    </button>
+    @if (historyOpen()) {
+      <ul class="history-list">
+        @for (item of history(); track item.taskId) {
+          <li class="history-item">
+            <span class="history-dot history-dot--{{ item.status.toLowerCase() }}"></span>
+            <div class="history-info">
+              <span class="history-name">{{ item.taskName }}</span>
+              <span class="history-time">{{ item.completedAt | date:'EEE, MMM d · h:mm a' }}</span>
+            </div>
+            <span class="history-status">{{ item.status }}</span>
+          </li>
+        }
+        @if (history().length === 0) {
+          <li class="history-empty">No completed tasks in the last 7 days.</li>
+        }
+      </ul>
+    }
+  </div>
+</div>

@@ -1,0 +1,106 @@
+<div class="page">
+  <div class="page-header">
+    <h1 class="page-title">Store Settings</h1>
+    <p class="page-subtitle">Configure dough need targets, till base amounts, and operational settings per store.</p>
+  </div>
+
+  <div class="store-selector">
+    <label class="field-label">Select Store</label>
+    <select class="select" (change)="selectStore($any($event.target).value)">
+      <option value="">— Choose a store —</option>
+      @for (store of stores(); track store.id) {
+        <option [value]="store.id">{{ store.name }}</option>
+      }
+    </select>
+  </div>
+
+  @if (loading()) {
+    <div class="state-loading">Loading settings...</div>
+  }
+
+  @if (error(); as err) {
+    <div class="state-error">{{ err }}</div>
+  }
+
+  @if (selectedStoreId() && !loading()) {
+    <form class="settings-form" (ngSubmit)="save()">
+
+      <!-- Dough Need Targets -->
+      <section class="settings-section">
+        <h2 class="section-title">Dough Need Targets</h2>
+        <p class="section-hint">Day 2 and Day 3 need quantities per dough size. Used to compute surplus/deficit in the MDOG task form.</p>
+        <table class="dough-table">
+          <thead>
+            <tr>
+              <th>Size</th>
+              <th>Day 2 Need</th>
+              <th>Day 3 Need</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of doughRows(); track row.key) {
+              <tr>
+                <td class="dough-label">{{ row.label }}</td>
+                <td>
+                  <input class="input-num" type="number" min="0"
+                    [value]="row.day2"
+                    (input)="updateDoughRow(row.key, 'day2', +$any($event.target).value)" />
+                </td>
+                <td>
+                  <input class="input-num" type="number" min="0"
+                    [value]="row.day3"
+                    (input)="updateDoughRow(row.key, 'day3', +$any($event.target).value)" />
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Till Base Amounts -->
+      <section class="settings-section" [formGroup]="form">
+        <h2 class="section-title">Till Base Amounts</h2>
+        <p class="section-hint">Base float amounts for Till A and Till B. Used for variance detection in till count tasks.</p>
+        <div class="field-row">
+          <div class="field-group">
+            <label class="field-label">Till A Base ($)</label>
+            <input class="input-text" type="number" min="0" step="0.01" formControlName="tillABase" placeholder="e.g. 200.00" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Till B Base ($)</label>
+            <input class="input-text" type="number" min="0" step="0.01" formControlName="tillBBase" placeholder="e.g. 200.00" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Operational Settings -->
+      <section class="settings-section" [formGroup]="form">
+        <h2 class="section-title">Operational Settings</h2>
+        <div class="field-row">
+          <div class="field-group">
+            <label class="field-label">Timezone</label>
+            <select class="select" formControlName="timezoneId">
+              @for (tz of timezones; track tz) {
+                <option [value]="tz">{{ tz }}</option>
+              }
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Overdue Grace Period (minutes)</label>
+            <input class="input-text" type="number" min="0" max="480" formControlName="overdueGraceMinutes" />
+          </div>
+        </div>
+      </section>
+
+      <div class="form-actions">
+        @if (saved()) {
+          <span class="saved-badge">&#10003; Saved</span>
+        }
+        <button class="btn btn--primary" type="submit" [disabled]="saving() || form.invalid">
+          {{ saving() ? 'Saving…' : 'Save Settings' }}
+        </button>
+      </div>
+
+    </form>
+  }
+</div>

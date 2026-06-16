@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: opsflow-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: INFRASTRUCTURE_PROVIDER
+        value: supabase
+      - key: DATABASE_PROVIDER
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: task-photos
+      - key: MASTER_DB_CONNECTION_STRING
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_ISSUER
+        value: OpsFlow
+      - key: JWT_AUDIENCE
+        value: OpsFlow.API

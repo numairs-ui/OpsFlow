@@ -1,0 +1,103 @@
+<div class="page">
+  <div class="page__header">
+    <div>
+      <h1 class="page__title">Stores</h1>
+      <p class="page__subtitle">Manage store locations grouped by region.</p>
+    </div>
+    <button class="btn btn--primary" (click)="openCreate()">+ New Store</button>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert--error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Loading...</div>
+  } @else {
+    @for (group of storesByRegion(); track group.region?.id) {
+      <div class="region-group">
+        <h3 class="region-group__title">{{ group.region?.name ?? 'Unknown Region' }}</h3>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Address</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th class="table__actions-col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (store of group.stores; track store.id) {
+                <tr [class.table__row--inactive]="!store.isActive">
+                  <td>{{ store.name }}</td>
+                  <td class="text-muted">{{ store.address || '—' }}</td>
+                  <td>
+                    <span class="badge" [class.badge--active]="store.isActive" [class.badge--inactive]="!store.isActive">
+                      {{ store.isActive ? 'Active' : 'Inactive' }}
+                    </span>
+                  </td>
+                  <td class="text-muted">{{ store.createdAt | slice:0:10 }}</td>
+                  <td class="table__actions">
+                    <button class="btn btn--sm btn--ghost" (click)="openEdit(store)">Edit</button>
+                    @if (store.isActive) {
+                      <button class="btn btn--sm btn--danger-ghost" (click)="deactivate(store)">Deactivate</button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    } @empty {
+      <div class="table-wrap">
+        <table class="table"><tbody>
+          <tr><td class="empty">No stores found.</td></tr>
+        </tbody></table>
+      </div>
+    }
+  }
+</div>
+
+@if (showForm()) {
+  <div class="overlay" (click)="closeForm()"></div>
+  <div class="slide-over">
+    <div class="slide-over__header">
+      <h2>{{ editingStore() ? 'Edit Store' : 'New Store' }}</h2>
+      <button class="slide-over__close" (click)="closeForm()">&#10005;</button>
+    </div>
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="slide-over__body">
+      <div class="field">
+        <label class="label" for="region">Region *</label>
+        <select id="region" class="input" formControlName="regionId">
+          <option value="">Select a region</option>
+          @for (r of regions(); track r.id) {
+            <option [value]="r.id">{{ r.name }}</option>
+          }
+        </select>
+        @if (form.controls['regionId'].invalid && form.controls['regionId'].touched) {
+          <span class="field__error">Region is required.</span>
+        }
+      </div>
+      <div class="field">
+        <label class="label" for="name">Store Name *</label>
+        <input id="name" class="input" formControlName="name" placeholder="e.g. Downtown Hamilton" />
+        @if (form.controls['name'].invalid && form.controls['name'].touched) {
+          <span class="field__error">Store name is required.</span>
+        }
+      </div>
+      <div class="field">
+        <label class="label" for="address">Address</label>
+        <input id="address" class="input" formControlName="address" placeholder="e.g. 123 Main St" />
+      </div>
+      <div class="slide-over__footer">
+        <button type="button" class="btn btn--ghost" (click)="closeForm()">Cancel</button>
+        <button type="submit" class="btn btn--primary" [disabled]="form.invalid || saving()">
+          {{ saving() ? 'Saving…' : (editingStore() ? 'Save Changes' : 'Create Store') }}
+        </button>
+      </div>
+    </form>
+  </div>
+}

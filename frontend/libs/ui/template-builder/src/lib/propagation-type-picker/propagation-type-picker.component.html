@@ -1,0 +1,17 @@
+<div class="propagation-picker">
+  @for (opt of options; track opt.value) {
+    <label class="propagation-option" [class.propagation-option--selected]="value() === opt.value">
+      <input
+        type="radio"
+        name="propagationType"
+        [value]="opt.value"
+        [checked]="value() === opt.value"
+        (change)="select(opt.value)"
+      />
+      <div class="propagation-option__body">
+        <span class="propagation-option__label">{{ opt.label }}</span>
+        <span class="propagation-option__description">{{ opt.description }}</span>
+      </div>
+    </label>
+  }
+</div>

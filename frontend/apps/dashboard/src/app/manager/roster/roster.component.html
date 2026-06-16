@@ -1,0 +1,55 @@
+<div class="page">
+  <div class="page__header">
+    <div>
+      <h1 class="page__title">Employee Roster</h1>
+      <p class="page__subtitle">Active employees assigned to this store.</p>
+    </div>
+    @if (stores().length > 1) {
+      <select class="input store-select" [value]="selectedStoreId()" (change)="selectStore($any($event.target).value)">
+        @for (s of stores(); track s.id) {
+          <option [value]="s.id">{{ s.name }}</option>
+        }
+      </select>
+    }
+  </div>
+
+  @if (error()) {
+    <div class="alert alert--error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Loading...</div>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Member Since</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (emp of employees(); track emp.userId) {
+            <tr>
+              <td>{{ emp.displayName }}</td>
+              <td class="text-muted">{{ emp.email }}</td>
+              <td><span class="role-badge role-badge--{{ emp.role }}">{{ emp.role }}</span></td>
+              <td>
+                <span class="badge" [class.badge--active]="emp.isActive" [class.badge--inactive]="!emp.isActive">
+                  {{ emp.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td class="text-muted">{{ emp.createdAt | slice:0:10 }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5" class="empty">No employees found for this store.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="roster-count">{{ employees().length }} employee{{ employees().length === 1 ? '' : 's' }}</p>
+  }
+</div>

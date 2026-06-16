@@ -1,0 +1,132 @@
+@use '../../admin/shared/admin.scss' as *;
+
+.stat-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px 20px;
+  min-width: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+
+  &--warn { border-color: #fcd34d; background: #fffbeb; }
+  &--danger { border-color: #fca5a5; background: #fef2f2; }
+  &--success { border-color: #86efac; background: #f0fdf4; }
+  &--ring { flex-direction: row; gap: 14px; align-items: center; min-width: 160px; }
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #111;
+  line-height: 1;
+
+  &--warn { color: #d97706; }
+  &--danger { color: #dc2626; }
+}
+
+.stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stat-sub {
+  font-size: 12px;
+  color: #15803d;
+  font-weight: 600;
+}
+
+// Ring chart
+.ring {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+
+  &__bg {
+    fill: none;
+    stroke: #e5e7eb;
+    stroke-width: 10;
+  }
+
+  &__fill {
+    fill: none;
+    stroke-width: 10;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.4s;
+  }
+}
+
+.ring-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ring-pct {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.ring-sub {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.section { margin-top: 4px; }
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 10px;
+}
+
+.elapsed-cell { color: #ef4444; font-size: 13px; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+
+  &--warn { background: #fef3c7; color: #92400e; }
+  &--danger { background: #fef2f2; color: #b91c1c; }
+}
+
+.all-good {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #15803d;
+}
+
+.all-good__icon {
+  font-size: 18px;
+}
+
+.state-loading { color: #888; font-size: 14px; padding: 24px 0; }
+.state-error { background: #fef2f2; color: #b91c1c; padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }

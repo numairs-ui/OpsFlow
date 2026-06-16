@@ -1,0 +1,220 @@
+<div class="task-detail">
+  <!-- Cancel modal -->
+  @if (activeModal() === 'cancel') {
+    <div class="modal-overlay">
+      <div class="modal">
+        <h3 class="modal-title">Cancel Task</h3>
+        <p class="modal-hint">Provide a reason for cancellation:</p>
+        <textarea class="input-textarea" rows="3" placeholder="Reason..."
+          [value]="cancelReason()"
+          (input)="cancelReason.set($any($event.target).value)"></textarea>
+        <div class="modal-actions">
+          <button class="btn btn--danger" [disabled]="!cancelReason().trim() || actionBusy()" (click)="submitCancel()">
+            {{ actionBusy() ? 'Cancelling…' : 'Cancel Task' }}
+          </button>
+          <button class="btn btn--ghost" (click)="activeModal.set(null)">Dismiss</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Defer modal -->
+  @if (activeModal() === 'defer') {
+    <div class="modal-overlay">
+      <div class="modal">
+        <h3 class="modal-title">Defer Task</h3>
+        <p class="modal-hint">Defer to a future date:</p>
+        <input class="input-text" type="date" [min]="minDeferDate()"
+          [value]="deferDate()"
+          (input)="deferDate.set($any($event.target).value)" />
+        <textarea class="input-textarea" rows="2" placeholder="Reason..."
+          [value]="deferReason()"
+          (input)="deferReason.set($any($event.target).value)"></textarea>
+        <div class="modal-actions">
+          <button class="btn btn--secondary" [disabled]="!deferReason().trim() || !deferDate() || actionBusy()" (click)="submitDefer()">
+            {{ actionBusy() ? 'Deferring…' : 'Defer Task' }}
+          </button>
+          <button class="btn btn--ghost" (click)="activeModal.set(null)">Dismiss</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <header class="detail-header">
+    <button class="btn-back" (click)="goBack()">&#8592; Back</button>
+    @if (task(); as t) {
+      <span class="status-badge status-badge--{{ t.status.toLowerCase() }}">{{ t.status }}</span>
+    }
+  </header>
+
+  @if (loading() && !task()) {
+    <div class="state-loading">Loading task...</div>
+  }
+
+  @if (error(); as err) {
+    <div class="state-error">{{ err }}</div>
+  }
+
+  <!-- Corrective actions panel -->
+  @if (completionResult(); as res) {
+    @if (res.triggeredCorrectiveActions.length > 0) {
+      <div class="corrective-panel">
+        <div class="corrective-panel__header">
+          <span class="corrective-panel__icon">&#9888;</span>
+          <span class="corrective-panel__title">Corrective Action Required</span>
+        </div>
+        <ul class="corrective-list">
+          @for (action of res.triggeredCorrectiveActions; track action.fieldLabel) {
+            <li class="corrective-item">
+              <strong>{{ action.fieldLabel }}</strong>: {{ action.text }}
+            </li>
+          }
+        </ul>
+      </div>
+    }
+  }
+
+  @if (task(); as t) {
+    <section class="detail-card">
+      <h2 class="detail-title">
+        @if (t.recurringAssignmentName) { {{ t.recurringAssignmentName }} }
+        @else { Ad Hoc Task }
+      </h2>
+      <div class="detail-meta">
+        <div class="meta-row"><span class="meta-label">Checklist</span><span class="meta-value">{{ t.checklistName }}</span></div>
+        <div class="meta-row"><span class="meta-label">Store</span><span class="meta-value">{{ t.storeName }}</span></div>
+        <div class="meta-row"><span class="meta-label">Due</span><span class="meta-value">{{ t.dueAt | date:'h:mm a, MMM d' }}</span></div>
+        @if (t.assignedToUserId) {
+          <div class="meta-row"><span class="meta-label">Assigned</span><span class="meta-value">{{ t.assignedToUserId }}</span></div>
+        }
+        @if (t.isAdHoc) {
+          <div class="meta-row"><span class="meta-label">Type</span><span class="meta-value">Ad Hoc</span></div>
+        }
+      </div>
+      @if (t.notes) {
+        <div class="detail-notes">
+          <p class="notes-label">Notes</p>
+          <p class="notes-text">{{ t.notes }}</p>
+        </div>
+      }
+    </section>
+
+    <!-- Completion form -->
+    @if (canComplete()) {
+      <section class="complete-section">
+        <h3 class="section-title">Complete Task</h3>
+
+        @if (completedByVolunteer() !== undefined) {
+          <input class="input-text" type="text" placeholder="Your name (optional)"
+            [value]="completedByVolunteer()"
+            (input)="completedByVolunteer.set($any($event.target).value)" />
+        }
+
+        @for (group of parsedTemplates(); track group.template.templateId) {
+          <div class="template-block">
+            <div class="template-block__header">
+              <span class="template-order">{{ group.template.order }}</span>
+              <span class="template-name">{{ group.template.templateName }}</span>
+            </div>
+            @for (field of group.fields; track field.id) {
+              <div class="field-item">
+                <label class="field-label">
+                  {{ field.label }}
+                  @if (field.required) { <span class="field-required-mark">*</span> }
+                  @if (field.rangeMin != null || field.rangeMax != null) {
+                    <span class="field-range-hint">
+                      ({{ field.rangeMin ?? '—' }}–{{ field.rangeMax ?? '—' }}
+                      @if (field.type === 'Numeric') { numeric })
+                    </span>
+                  }
+                </label>
+
+                @if (field.type === 'Numeric' || field.type === 'Text') {
+                  <div class="input-wrapper">
+                    <input
+                      class="input-text"
+                      [class.input-text--prepopulated]="isPrepopulated(field.id)"
+                      [type]="field.type === 'Numeric' ? 'number' : 'text'"
+                      [placeholder]="field.label"
+                      [value]="getFieldValue(group.template.templateId, field.id)"
+                      (input)="setFieldValue(group.template.templateId, field.id, $any($event.target).value)"
+                    />
+                    @if (isPrepopulated(field.id) && previousValue(field.id) !== null) {
+                      <span class="hint-yesterday">Yesterday: {{ previousValue(field.id) }}</span>
+                    }
+                  </div>
+                  @if (surplusDeficit(group.template.templateId, field.id); as sd) {
+                    <div class="mdog-needs">
+                      @if (needTarget(field.id); as target) {
+                        <span class="need-badge" [class.need-badge--surplus]="sd.day2 >= 0" [class.need-badge--deficit]="sd.day2 < 0">
+                          Day 2: {{ target.day2Need }} need · {{ sd.day2 >= 0 ? '+' : '' }}{{ sd.day2 | number:'1.0-0' }}
+                        </span>
+                        <span class="need-badge" [class.need-badge--surplus]="sd.day3 >= 0" [class.need-badge--deficit]="sd.day3 < 0">
+                          Day 3: {{ target.day3Need }} need · {{ sd.day3 >= 0 ? '+' : '' }}{{ sd.day3 | number:'1.0-0' }}
+                        </span>
+                      }
+                    </div>
+                  }
+                }
+
+                @if (field.type === 'Boolean') {
+                  <div class="bool-toggle">
+                    <button
+                      class="bool-btn"
+                      [class.bool-btn--active]="getFieldValue(group.template.templateId, field.id) === 'true'"
+                      (click)="setFieldValue(group.template.templateId, field.id, 'true')"
+                    >Yes</button>
+                    <button
+                      class="bool-btn"
+                      [class.bool-btn--no]="getFieldValue(group.template.templateId, field.id) === 'false'"
+                      (click)="setFieldValue(group.template.templateId, field.id, 'false')"
+                    >No</button>
+                  </div>
+                }
+
+                @if (field.type === 'Checklist' && field.subItems) {
+                  <div class="checklist-items">
+                    @for (sub of field.subItems; track sub.id) {
+                      <label class="checklist-item">
+                        <input
+                          type="checkbox"
+                          [checked]="isSubItemChecked(group.template.templateId, field.id, sub.id)"
+                          (change)="toggleSubItem(group.template.templateId, field.id, sub.id)"
+                        />
+                        {{ sub.label }}
+                        @if (sub.required) { <span class="field-required-mark">*</span> }
+                      </label>
+                    }
+                  </div>
+                }
+
+                @if (field.type === 'Photo') {
+                  <div class="photo-placeholder">Photo upload coming soon</div>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <button class="btn btn--primary btn--full" [disabled]="actionBusy()" (click)="submitCompletion()">
+          {{ actionBusy() ? 'Submitting…' : 'Submit Completion' }}
+        </button>
+      </section>
+    }
+
+    <!-- Manager actions -->
+    <div class="action-row">
+      @if (canVerify()) {
+        <button class="btn btn--verify" [disabled]="actionBusy()" (click)="verify()">
+          {{ actionBusy() ? 'Verifying…' : 'Verify Task' }}
+        </button>
+      }
+      @if (canDefer()) {
+        <button class="btn btn--secondary" (click)="openModal('defer')">Defer</button>
+      }
+      @if (canCancel()) {
+        <button class="btn btn--danger" (click)="openModal('cancel')">Cancel Task</button>
+      }
+    </div>
+  }
+</div>

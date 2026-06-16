@@ -1,0 +1,55 @@
+<div class="page">
+  <div class="page-header">
+    <h1 class="page-title">Tenant Settings</h1>
+    <p class="page-subtitle">Configure your organisation's name, branding, and primary contact.</p>
+  </div>
+
+  @if (loading()) {
+    <div class="state-loading">Loading settings...</div>
+  }
+
+  @if (error(); as err) {
+    <div class="state-error">{{ err }}</div>
+  }
+
+  @if (!loading()) {
+    <form class="settings-form" [formGroup]="form" (ngSubmit)="save()">
+      <section class="settings-section">
+        <h2 class="section-title">Organisation</h2>
+
+        <div class="field-group">
+          <label class="field-label" for="name">Organisation Name <span class="required">*</span></label>
+          <input id="name" class="input" type="text" formControlName="name" placeholder="Bajco Group" />
+          @if (form.controls['name'].invalid && form.controls['name'].touched) {
+            <span class="field-error">Name is required (max 200 chars).</span>
+          }
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="logoUrl">Logo URL</label>
+          <input id="logoUrl" class="input" type="url" formControlName="logoUrl"
+            placeholder="https://cdn.example.com/logo.png" />
+          <span class="field-hint">Direct link to your logo image. Azure Blob upload coming soon.</span>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="email">Primary Contact Email</label>
+          <input id="email" class="input" type="email" formControlName="primaryContactEmail"
+            placeholder="admin@example.com" />
+          @if (form.controls['primaryContactEmail'].invalid && form.controls['primaryContactEmail'].touched) {
+            <span class="field-error">Enter a valid email address.</span>
+          }
+        </div>
+      </section>
+
+      <div class="form-actions">
+        @if (saved()) {
+          <span class="save-success">Saved successfully.</span>
+        }
+        <button class="btn btn--primary" type="submit" [disabled]="saving() || form.invalid">
+          {{ saving() ? 'Saving...' : 'Save Changes' }}
+        </button>
+      </div>
+    </form>
+  }
+</div>

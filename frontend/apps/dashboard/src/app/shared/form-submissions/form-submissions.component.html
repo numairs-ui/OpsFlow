@@ -1,0 +1,209 @@
+<div class="page">
+  <div class="page__header">
+    <div>
+      <h1 class="page__title">Form Submissions</h1>
+      <p class="page__subtitle">Submit forms and review pending approvals.</p>
+    </div>
+    <button class="btn btn--primary" (click)="openCreatePicker()">+ New Submission</button>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert--error">{{ error() }}</div>
+  }
+
+  <div class="tabs">
+    <button class="tab" [class.tab--active]="activeTab() === 'mine'" (click)="switchTab('mine')">My Submissions</button>
+    <button class="tab" [class.tab--active]="activeTab() === 'review'" (click)="switchTab('review')">
+      Pending Review
+      @if (pendingReview().length > 0) { <span class="tab-badge">{{ pendingReview().length }}</span> }
+    </button>
+  </div>
+
+  @if (activeTab() === 'mine') {
+    <div class="piles">
+      @for (p of piles; track p) {
+        <button class="pile" [class.pile--active]="pile() === p" (click)="pile.set(p)">{{ pileLabel(p) }}</button>
+      }
+    </div>
+
+    @if (loading()) {
+      <div class="loading">Loading...</div>
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Form</th><th>Status</th><th>Created</th><th>Submitted</th><th>Resolved</th></tr>
+          </thead>
+          <tbody>
+            @for (s of filteredMine(); track s.id) {
+              <tr class="clickable-row" (click)="openMine(s)">
+                <td>{{ s.formTemplateName ?? '—' }}</td>
+                <td><span class="status-badge status-badge--{{ s.status.toLowerCase() }}">{{ pileLabel(s.status) }}</span></td>
+                <td class="text-muted">{{ s.createdAt | date:'short' }}</td>
+                <td class="text-muted">{{ s.submittedAt ? (s.submittedAt | date:'short') : '—' }}</td>
+                <td class="text-muted">{{ s.resolvedAt ? (s.resolvedAt | date:'short') : '—' }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="empty">No submissions found.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  @if (activeTab() === 'review') {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>Form</th><th>Store</th><th>Step</th><th>Submitted</th></tr>
+        </thead>
+        <tbody>
+          @for (p of pendingReview(); track p.id) {
+            <tr class="clickable-row" (click)="openReview(p)">
+              <td>{{ p.formTemplateName ?? '—' }}</td>
+              <td class="text-muted">{{ p.storeName ?? '—' }}</td>
+              <td class="text-muted">Step {{ p.stepOrder }}</td>
+              <td class="text-muted">{{ p.submittedAt ? (p.submittedAt | date:'short') : '—' }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="4" class="empty">Nothing pending your review.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<!-- Create: template picker -->
+@if (showCreatePicker()) {
+  <div class="overlay" (click)="closeCreatePicker()"></div>
+  <div class="slide-over">
+    <div class="slide-over__header">
+      <h2>Choose a Form Template</h2>
+      <button class="slide-over__close" (click)="closeCreatePicker()">&#10005;</button>
+    </div>
+    <div class="slide-over__body">
+      @for (t of formTemplates(); track t.id) {
+        <button class="template-pick" (click)="startNewSubmission(t)">
+          <span class="template-pick__name">{{ t.name }}</span>
+          <span class="template-pick__meta">{{ t.propagationType }} · {{ t.fieldCount }} fields</span>
+        </button>
+      } @empty {
+        <p class="empty">No active form templates available.</p>
+      }
+    </div>
+  </div>
+}
+
+<!-- Detail / fill / review slide-over -->
+@if (detailMode() === 'fill' || detail()) {
+  <div class="overlay" (click)="closeDetail()"></div>
+  <div class="slide-over slide-over--wide">
+    <div class="slide-over__header">
+      <h2>
+        @if (detailMode() === 'fill') { Fill Out Form }
+        @if (detailMode() === 'review') { Review Submission }
+        @if (detailMode() === 'view') { Submission Detail }
+      </h2>
+      <button class="slide-over__close" (click)="closeDetail()">&#10005;</button>
+    </div>
+    <div class="slide-over__body">
+      @if (detailError()) {
+        <div class="alert alert--error">{{ detailError() }}</div>
+      }
+
+      @if (detail(); as d) {
+        @if (d.status === 'Returned') {
+          <div class="returned-banner">
+            <strong>Returned for revision.</strong>
+            @for (step of d.approvalSteps; track step.stepOrder) {
+              @if (step.action === 'Returned' && step.comments) {
+                <p>{{ step.comments }}</p>
+              }
+            }
+          </div>
+        }
+        @if (d.status === 'Rejected') {
+          <div class="rejected-banner">
+            <strong>Rejected.</strong>
+            @for (step of d.approvalSteps; track step.stepOrder) {
+              @if (step.action === 'Rejected' && step.comments) {
+                <p>{{ step.comments }}</p>
+              }
+            }
+          </div>
+        }
+      }
+
+      @for (field of draftTemplateFields(); track field.id) {
+        <div class="field">
+          <label class="label">
+            {{ field.label }}
+            @if (field.required) { <span class="required-mark">*</span> }
+          </label>
+
+          @if (detailMode() === 'fill') {
+            @if (field.type === 'Numeric' || field.type === 'Text') {
+              <input class="input" [type]="field.type === 'Numeric' ? 'number' : 'text'"
+                [value]="getFieldValue(field.id)" (input)="setFieldValue(field.id, $any($event.target).value)" />
+            }
+            @if (field.type === 'Boolean') {
+              <div class="bool-toggle">
+                <button type="button" class="bool-btn" [class.bool-btn--active]="getFieldValue(field.id) === 'true'"
+                  (click)="setFieldValue(field.id, 'true')">Yes</button>
+                <button type="button" class="bool-btn bool-btn--no" [class.bool-btn--active]="getFieldValue(field.id) === 'false'"
+                  (click)="setFieldValue(field.id, 'false')">No</button>
+              </div>
+            }
+          } @else {
+            <p class="readonly-value">{{ getFieldValue(field.id) || '—' }}</p>
+          }
+        </div>
+      }
+
+      @if (detail(); as d) {
+        <div class="approval-trail">
+          <h3 class="section-title">Approval Trail</h3>
+          @for (step of d.approvalSteps; track step.stepOrder) {
+            <div class="trail-step">
+              <span class="trail-step__order">Step {{ step.stepOrder }}</span>
+              <span class="trail-step__role">{{ step.role }}</span>
+              <span class="trail-step__action trail-step__action--{{ step.action.toLowerCase() }}">{{ step.action }}</span>
+              @if (step.actionAt) { <span class="trail-step__date">{{ step.actionAt | date:'short' }}</span> }
+            </div>
+          }
+        </div>
+      }
+
+      @if (actionModal()) {
+        <div class="action-modal">
+          <label class="label">{{ actionModal() === 'reject' ? 'Rejection reason' : 'Return comments' }} *</label>
+          <textarea class="input" rows="3" [value]="actionComment()" (input)="actionComment.set($any($event.target).value)"></textarea>
+          <div class="form-actions">
+            <button class="btn btn--ghost" (click)="actionModal.set(null)">Cancel</button>
+            <button class="btn btn--danger" [disabled]="!actionComment().trim() || detailBusy()" (click)="confirmAction()">
+              Confirm {{ actionModal() === 'reject' ? 'Reject' : 'Return' }}
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="slide-over__footer">
+      @if (detailMode() === 'fill') {
+        <button class="btn btn--ghost" (click)="closeDetail()">Cancel</button>
+        <button class="btn btn--primary" [disabled]="detailBusy()" (click)="submitFill()">
+          {{ detailBusy() ? 'Submitting…' : 'Submit' }}
+        </button>
+      }
+      @if (detailMode() === 'review' && !actionModal()) {
+        <button class="btn btn--danger" [disabled]="detailBusy()" (click)="openActionModal('reject')">Reject</button>
+        <button class="btn btn--secondary" [disabled]="detailBusy()" (click)="openActionModal('return')">Return</button>
+        <button class="btn btn--primary" [disabled]="detailBusy()" (click)="approve()">
+          {{ detailBusy() ? 'Approving…' : 'Approve' }}
+        </button>
+      }
+    </div>
+  </div>
+}
