@@ -10,6 +10,9 @@
   @if (error()) {
     <div class="alert alert--error">{{ error() }}</div>
   }
+  @if (saved()) {
+    <div class="alert alert--success">&#10003; Store saved successfully.</div>
+  }
 
   @if (loading()) {
     <div class="loading">Loading...</div>

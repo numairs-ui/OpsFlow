@@ -15,6 +15,7 @@
             <button class="fb__icon-btn" [disabled]="i === fields().length - 1" (click)="moveDown(i)" title="Move down">&#8595;</button>
             <button class="fb__icon-btn fb__icon-btn--danger" (click)="removeField(field.id)" title="Remove">&#10005;</button>
           </div>
+          <span class="fb__chevron" [class.fb__chevron--open]="expandedFieldId() === field.id">&#8250;</span>
         </div>
 
         <!-- Expanded config panel -->
@@ -68,22 +69,34 @@
 
             @if (field.type === 'Checklist') {
               <div class="fb__sub-items">
-                <label class="fb__label">Sub-items</label>
+                <label class="fb__label">Checklist items</label>
+
+                @if ((field.subItems ?? []).length === 0) {
+                  <p class="fb__hint">No items yet — type below and press Enter to add.</p>
+                }
+
+                <!-- Committed items -->
                 @for (sub of field.subItems ?? []; track sub.id) {
-                  <div class="fb__sub-item">
-                    <input class="fb__input fb__input--flex" [ngModel]="sub.label"
-                      (ngModelChange)="updateSubItem(field.id, sub.id, { label: $event })"
-                      placeholder="Sub-item label" />
-                    <label class="fb__checkbox-label">
-                      <input type="checkbox" [ngModel]="sub.required"
-                        (ngModelChange)="updateSubItem(field.id, sub.id, { required: $event })" />
-                      Req
-                    </label>
+                  <div class="fb__sub-item fb__sub-item--committed">
+                    <span class="fb__sub-item-bullet">&#10003;</span>
+                    <span class="fb__sub-item-label">{{ sub.label }}</span>
                     <button class="fb__icon-btn fb__icon-btn--danger"
-                      (click)="removeSubItem(field.id, sub.id)">&#10005;</button>
+                      (click)="removeSubItem(field.id, sub.id)" title="Remove">&#10005;</button>
                   </div>
                 }
-                <button class="fb__add-sub-btn" (click)="addSubItem(field.id)">+ Add sub-item</button>
+
+                <!-- Draft input -->
+                <div class="fb__sub-item-entry">
+                  <input
+                    class="fb__input fb__input--flex"
+                    [ngModel]="getDraft(field.id)"
+                    (ngModelChange)="setDraft(field.id, $event)"
+                    (keydown)="onSubItemKeydown($event, field.id)"
+                    placeholder="Type item name and press Enter…" />
+                  <button class="fb__add-sub-btn"
+                    [disabled]="!getDraft(field.id).trim()"
+                    (click)="commitSubItem(field.id)">Add</button>
+                </div>
               </div>
             }
 
@@ -103,9 +116,11 @@
 
   <!-- Add field toolbar -->
   <div class="fb__toolbar">
-    <span class="fb__toolbar-label">Add field:</span>
+    <span class="fb__toolbar-label">Add field type:</span>
     @for (type of fieldTypes; track type) {
-      <button class="fb__add-btn" (click)="addField(type)">+ {{ type }}</button>
+      <button class="fb__add-btn fb__add-btn--{{ type.toLowerCase() }}" (click)="addField(type)" title="Add {{ type }} field">
+        + {{ type }}
+      </button>
     }
   </div>
 </div>

@@ -65,10 +65,16 @@
           <div class="field-group">
             <label class="field-label">Till A Base ($)</label>
             <input class="input-text" type="number" min="0" step="0.01" formControlName="tillABase" placeholder="e.g. 200.00" />
+            @if (form.controls.tillABase.invalid && form.controls.tillABase.touched) {
+              <span class="field-error">Must be 0 or greater.</span>
+            }
           </div>
           <div class="field-group">
             <label class="field-label">Till B Base ($)</label>
             <input class="input-text" type="number" min="0" step="0.01" formControlName="tillBBase" placeholder="e.g. 200.00" />
+            @if (form.controls.tillBBase.invalid && form.controls.tillBBase.touched) {
+              <span class="field-error">Must be 0 or greater.</span>
+            }
           </div>
         </div>
       </section>

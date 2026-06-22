@@ -1,5 +1,5 @@
 import { Route } from '@angular/router';
-import { authGuard, roleGuard } from '@org/util-guards';
+import { authGuard } from '@org/data-access-auth';
 
 export const appRoutes: Route[] = [
   { path: '', redirectTo: 'tasks', pathMatch: 'full' },
@@ -28,7 +28,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'quick-template',
-    canActivate: [authGuard, roleGuard('store_manager')],
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./quick-template/quick-template.component.js').then(
         (m) => m.QuickTemplateComponent
@@ -36,7 +36,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'submissions',
-    canActivate: [authGuard, roleGuard('store_manager')],
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./submissions/submissions.component.js').then(
         (m) => m.SubmissionsComponent

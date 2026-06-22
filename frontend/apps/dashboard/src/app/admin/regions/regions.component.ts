@@ -2,6 +2,7 @@ import { SlicePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { OrgService, type Region } from '@org/data-access-org';
+import { noWhitespace } from '@org/ui-core';
 
 @Component({
   selector: 'app-regions',
@@ -17,11 +18,12 @@ export class RegionsComponent implements OnInit {
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
+  readonly saved = signal(false);
   readonly showForm = signal(false);
   readonly editingRegion = signal<Region | null>(null);
 
   readonly form = this.fb.group({
-    name: ['', Validators.required],
+    name: ['', [Validators.required, noWhitespace]],
     description: [''],
   });
 
@@ -59,7 +61,7 @@ export class RegionsComponent implements OnInit {
     if (this.form.invalid || this.saving()) return;
     const { name, description } = this.form.getRawValue();
     const body = { name: name!, description: description ?? undefined };
-    const onSuccess = () => { this.saving.set(false); this.closeForm(); this.load(); };
+    const onSuccess = () => { this.saving.set(false); this.saved.set(true); setTimeout(() => this.saved.set(false), 2500); this.closeForm(); this.load(); };
     const onError = () => { this.error.set('Failed to save region.'); this.saving.set(false); };
     this.saving.set(true);
     const editing = this.editingRegion();

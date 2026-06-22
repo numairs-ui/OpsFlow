@@ -56,4 +56,8 @@ export class TaskService {
   deferTask(taskId: string, body: DeferTaskRequest): Observable<void> {
     return this.http.post<void>(`${this.base}/tasks/${taskId}/defer`, body);
   }
+
+  assignTask(taskId: string, assignedToUserId: string | null): Observable<void> {
+    return this.http.patch<void>(`${this.base}/tasks/${taskId}/assign`, { assignedToUserId });
+  }
 }

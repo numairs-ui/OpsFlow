@@ -204,6 +204,26 @@
 
     <!-- Manager actions -->
     <div class="action-row">
+      @if (canAssign()) {
+        <div class="assign-row">
+          <select class="input-select"
+            [value]="assigningTo()"
+            (change)="assigningTo.set($any($event.target).value)">
+            <option value="">— unassigned —</option>
+            @for (e of employees(); track e.userId) {
+              <option [value]="e.userId">{{ e.displayName }}</option>
+            }
+          </select>
+          <button class="btn btn--secondary" [disabled]="assigning()" (click)="assign()">
+            {{ assigning() ? 'Assigning…' : 'Assign' }}
+          </button>
+        </div>
+      }
+      @if (canClaim()) {
+        <button class="btn btn--secondary" [disabled]="claiming()" (click)="claim()">
+          {{ claiming() ? 'Claiming…' : 'Claim Task' }}
+        </button>
+      }
       @if (canVerify()) {
         <button class="btn btn--verify" [disabled]="actionBusy()" (click)="verify()">
           {{ actionBusy() ? 'Verifying…' : 'Verify Task' }}

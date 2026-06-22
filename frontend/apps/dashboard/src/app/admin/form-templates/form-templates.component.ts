@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '@org/data-access-auth';
 import { OrgService, type Region, type Store } from '@org/data-access-org';
+import { noWhitespace } from '@org/ui-core';
 import {
   FormTemplateService,
   type ApprovalStep,
@@ -31,11 +32,13 @@ export class FormTemplatesComponent implements OnInit {
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
+  readonly saved = signal(false);
   readonly showForm = signal(false);
   readonly editingTemplate = signal<FormTemplateDetailDto | null>(null);
   readonly fields = signal<TemplateField[]>([]);
   readonly propagationType = signal<PropagationType>('Sequential');
   readonly approvalSteps = signal<ApprovalStep[]>([{ role: 'store_manager', order: 1 }]);
+  readonly approvalStepsError = signal<string | null>(null);
 
   readonly filterScope = signal<string>('');
   readonly filterActive = signal<boolean | undefined>(true);
@@ -44,7 +47,7 @@ export class FormTemplatesComponent implements OnInit {
   readonly currentUser = this.auth.currentUser;
 
   readonly form = this.fb.group({
-    name: ['', Validators.required],
+    name: ['', [Validators.required, noWhitespace]],
     description: [''],
     scope: ['System' as TemplateScope, Validators.required],
     regionId: [''],
@@ -102,6 +105,7 @@ export class FormTemplatesComponent implements OnInit {
         try { this.fields.set(JSON.parse(detail.fieldsJson)); } catch { this.fields.set([]); }
         this.showForm.set(true);
       },
+      error: () => this.error.set('Failed to load form template. Please try again.'),
     });
   }
 
@@ -116,7 +120,12 @@ export class FormTemplatesComponent implements OnInit {
   }
 
   onSubmit(): void {
-    if (this.form.invalid || this.saving() || this.approvalSteps().length === 0) return;
+    if (this.form.invalid || this.saving()) return;
+    if (this.approvalSteps().length === 0) {
+      this.approvalStepsError.set('At least one approval step is required.');
+      return;
+    }
+    this.approvalStepsError.set(null);
     const { name, description, scope, regionId, storeId } = this.form.getRawValue();
     const fieldsJson = JSON.stringify(this.fields());
     this.saving.set(true);
@@ -127,7 +136,7 @@ export class FormTemplatesComponent implements OnInit {
         name: name!, description: description ?? undefined,
         propagationType: this.propagationType(), approvalSteps: this.approvalSteps(), fieldsJson,
       }).subscribe({
-        next: () => { this.saving.set(false); this.closeForm(); this.load(); },
+        next: () => { this.saving.set(false); this.saved.set(true); setTimeout(() => this.saved.set(false), 2500); this.closeForm(); this.load(); },
         error: () => { this.error.set('Failed to save form template.'); this.saving.set(false); },
       });
     } else {
@@ -140,7 +149,7 @@ export class FormTemplatesComponent implements OnInit {
         approvalSteps: this.approvalSteps(),
         fieldsJson,
       }).subscribe({
-        next: () => { this.saving.set(false); this.closeForm(); this.load(); },
+        next: () => { this.saving.set(false); this.saved.set(true); setTimeout(() => this.saved.set(false), 2500); this.closeForm(); this.load(); },
         error: () => { this.error.set('Failed to save form template.'); this.saving.set(false); },
       });
     }

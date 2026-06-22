@@ -80,7 +80,7 @@ export class KioskComponent implements OnInit, OnDestroy {
       next: () => {
         this.taskSvc.startTask(task.id).subscribe({
           next: () => { this.claiming.set(false); this.claimStep.set('done'); this.load(); },
-          error: () => { this.claiming.set(false); this.claimStep.set('done'); this.load(); },
+          error: () => { this.claiming.set(false); this.error.set('Failed to start task. Please try again.'); this.cancelClaim(); },
         });
       },
       error: () => { this.claiming.set(false); this.error.set('Failed to claim task.'); this.cancelClaim(); },

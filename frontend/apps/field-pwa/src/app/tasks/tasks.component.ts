@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
 import { DashboardService, TaskService } from '@org/data-access-tasks';
 import type { MyCompletionDto, TaskBoardItemDto, TaskGroupDto, TaskStatus, TodayTasksDto } from '@org/data-access-tasks';
+import { FormatStatusPipe } from '@org/ui-core';
 
 const POLL_INTERVAL_MS = 30_000;
 
@@ -13,7 +14,7 @@ function statusRank(s: TaskStatus): number {
 
 @Component({
   selector: 'app-tasks',
-  imports: [DatePipe],
+  imports: [DatePipe, FormatStatusPipe],
   templateUrl: './tasks.component.html',
   styleUrl: './tasks.component.scss',
 })
@@ -30,19 +31,30 @@ export class TasksComponent implements OnInit, OnDestroy {
   readonly historyOpen = signal(false);
 
   private pollTimer?: ReturnType<typeof setInterval>;
+  private refreshTimer?: ReturnType<typeof setInterval>;
+
+  private readonly REFRESH_INTERVAL_MS = 13 * 60 * 1000; // refresh 2 min before token expires
 
   ngOnInit(): void {
     this.load();
-    this.pollTimer = setInterval(() => this.load(), POLL_INTERVAL_MS);
+    this.pollTimer   = setInterval(() => this.load(), POLL_INTERVAL_MS);
+    this.refreshTimer = setInterval(() => this.auth.refresh().then(ok => {
+      if (!ok) this.router.navigate(['/login']);
+    }), this.REFRESH_INTERVAL_MS);
   }
 
   ngOnDestroy(): void {
     clearInterval(this.pollTimer);
+    clearInterval(this.refreshTimer);
   }
 
   load(): void {
     const storeId = this.auth.currentUser()?.storeId;
-    if (!storeId) { this.error.set('No store assigned to your account.'); this.loading.set(false); return; }
+    if (!storeId) {
+      // Token is gone — redirect to login rather than showing a cryptic message
+      this.router.navigate(['/login']);
+      return;
+    }
 
     this.taskSvc.getTodayTasks(storeId).subscribe({
       next: (data) => { this.board.set(data); this.loading.set(false); this.error.set(null); },

@@ -12,6 +12,9 @@
   "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
   "references": [
     {
+      "path": "../../libs/ui/core/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/ui/field-builder/tsconfig.lib.json"
     },
     {
@@ -21,7 +24,7 @@
       "path": "../../libs/data-access/tasks/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/util/guards/tsconfig.lib.json"
+      "path": "../../libs/ui/template-builder/tsconfig.lib.json"
     },
     {
       "path": "../../libs/data-access/auth/tsconfig.lib.json"

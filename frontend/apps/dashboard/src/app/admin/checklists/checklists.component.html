@@ -7,6 +7,9 @@
   @if (error()) {
     <div class="alert alert--error">{{ error() }}</div>
   }
+  @if (saved()) {
+    <div class="alert alert--success">&#10003; Checklist saved successfully.</div>
+  }
 
   @if (loading()) {
     <div class="loading">Loading...</div>
@@ -76,13 +79,13 @@
   <aside class="slide-over">
     <div class="slide-over__header">
       <h2 class="slide-over__title">
-        {{ editingChecklist() ? 'Edit Checklist Items — ' + editingChecklist()!.name : 'New Checklist' }}
+        {{ editingChecklist() ? 'Edit Checklist' : 'New Checklist' }}
       </h2>
       <button class="slide-over__close" (click)="closeForm()">&times;</button>
     </div>
 
     <form class="slide-over__body" [formGroup]="form" (ngSubmit)="onSubmit()">
-      @if (!editingChecklist()) {
+      @if (true) {
         <div class="field">
           <label class="label" for="name">Name</label>
           <input id="name" class="input" formControlName="name" placeholder="e.g. Opening Checklist" />
@@ -163,7 +166,7 @@
       <div class="slide-over__footer">
         <button type="button" class="btn btn--ghost" (click)="closeForm()">Cancel</button>
         <button type="submit" class="btn btn--primary" [disabled]="form.invalid || saving()">
-          {{ saving() ? 'Saving…' : (editingChecklist() ? 'Save Items' : 'Create Checklist') }}
+          {{ saving() ? 'Saving…' : (editingChecklist() ? 'Save Checklist' : 'Create Checklist') }}
         </button>
       </div>
     </form>

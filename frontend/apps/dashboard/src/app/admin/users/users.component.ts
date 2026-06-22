@@ -2,6 +2,7 @@ import { SlicePipe } from '@angular/common';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { OrgService, type Region, type Store, type StoreAssignment, type User, type UserRole } from '@org/data-access-org';
+import { noWhitespace } from '@org/ui-core';
 
 @Component({
   selector: 'app-users',
@@ -50,7 +51,7 @@ export class UsersComponent implements OnInit {
   readonly form = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', Validators.required],
-    displayName: ['', Validators.required],
+    displayName: ['', [Validators.required, noWhitespace]],
     role: ['store_employee' as UserRole, Validators.required],
     storeId: [''],
     regionId: [''],
@@ -62,7 +63,24 @@ export class UsersComponent implements OnInit {
     this.load();
     this.org.getRegions(true).subscribe({ next: (r) => this.regions.set(r) });
     this.org.getStores(undefined, true).subscribe({ next: (s) => this.stores.set(s) });
-    this.form.controls['role'].valueChanges.subscribe((v) => this.selectedRole.set(v ?? ''));
+    this.form.controls['role'].valueChanges.subscribe((v) => {
+      const role = v ?? '';
+      this.selectedRole.set(role);
+      const storeCtrl = this.form.controls['storeId'];
+      const regionCtrl = this.form.controls['regionId'];
+      if (role === 'store_employee' || role === 'store_manager') {
+        storeCtrl.setValidators(Validators.required);
+      } else {
+        storeCtrl.clearValidators();
+      }
+      if (role === 'supervisor') {
+        regionCtrl.setValidators(Validators.required);
+      } else {
+        regionCtrl.clearValidators();
+      }
+      storeCtrl.updateValueAndValidity();
+      regionCtrl.updateValueAndValidity();
+    });
   }
 
   private load(): void {
@@ -179,6 +197,7 @@ export class UsersComponent implements OnInit {
   removeAssignment(storeId: string): void {
     const user = this.selectedUser();
     if (!user) return;
+    if (!confirm('Remove this store assignment?')) return;
     this.org.removeStoreAssignment(user.userId, storeId).subscribe({
       next: () => {
         this.org.getStoreAssignments(user.userId).subscribe({ next: (a) => this.assignments.set(a) });

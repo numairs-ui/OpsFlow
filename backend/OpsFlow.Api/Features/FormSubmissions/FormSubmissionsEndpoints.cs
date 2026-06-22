@@ -8,6 +8,7 @@ using OpsFlow.Api.Features.FormSubmissions.GetPendingReview;
 using OpsFlow.Api.Features.FormSubmissions.RejectFormSubmission;
 using OpsFlow.Api.Features.FormSubmissions.ReturnFormSubmission;
 using OpsFlow.Api.Features.FormSubmissions.SubmitFormSubmission;
+using OpsFlow.Api.Features.FormSubmissions.UpdateDraft;
 
 namespace OpsFlow.Api.Features.FormSubmissions;
 
@@ -60,6 +61,12 @@ internal static class FormSubmissionsEndpoints
             return Results.NoContent();
         });
 
+        group.MapPatch("/{id:guid}/draft", async (Guid id, UpdateDraftBody body, IMediator m) =>
+        {
+            await m.Send(new UpdateDraftCommand(id, body.FieldValues));
+            return Results.NoContent();
+        });
+
         return app;
     }
 }
@@ -68,3 +75,4 @@ internal sealed record CreateFormSubmissionBody(Guid? FormTemplateId, Guid Store
 internal sealed record SubmitFormSubmissionBody(Dictionary<string, string>? FieldValues);
 internal sealed record RejectFormSubmissionBody(string Reason);
 internal sealed record ReturnFormSubmissionBody(string Comments);
+internal sealed record UpdateDraftBody(Dictionary<string, string> FieldValues);

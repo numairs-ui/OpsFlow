@@ -9,7 +9,8 @@ internal sealed record CreateRecurringAssignmentCommand(
     Guid StoreId,
     string CronExpression,
     DateTimeOffset StartsAt,
-    DateTimeOffset? EndsAt
+    DateTimeOffset? EndsAt,
+    string? AssignedToUserId
 ) : IRequest<Guid>;
 
 internal sealed class CreateRecurringAssignmentValidator : AbstractValidator<CreateRecurringAssignmentCommand>

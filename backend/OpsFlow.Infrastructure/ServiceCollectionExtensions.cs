@@ -21,7 +21,9 @@ public static class ServiceCollectionExtensions
 
         services.AddDbContext<MasterDbContext>(opts =>
         {
-            if (provider == "azure")
+            if (provider == "inmemory")
+                opts.UseInMemoryDatabase("master-db");
+            else if (provider == "azure")
                 opts.UseSqlServer(masterConn);
             else
                 opts.UseNpgsql(masterConn);
@@ -38,6 +40,12 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration,
         string provider)
     {
+        if (provider == "inmemory")
+        {
+            // Test-only: register null adapters; actual stubs are injected by the WebApplicationFactory
+            return services;
+        }
+
         if (provider == "azure")
         {
             var blobConn = configuration["AZURE_BLOB_CONNECTION_STRING"]

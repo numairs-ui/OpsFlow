@@ -49,6 +49,10 @@
     "serve": {
       "continuous": true,
       "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4201,
+        "proxyConfig": "apps/field-pwa/proxy.conf.json"
+      },
       "configurations": {
         "production": {
           "buildTarget": "field-pwa:build:production"

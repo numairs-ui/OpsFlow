@@ -10,6 +10,9 @@
   @if (error()) {
     <div class="alert alert--error">{{ error() }}</div>
   }
+  @if (saved()) {
+    <div class="alert alert--success">&#10003; Form template saved successfully.</div>
+  }
 
   <div class="filters">
     <input class="input filters__search" placeholder="Search form templates…"

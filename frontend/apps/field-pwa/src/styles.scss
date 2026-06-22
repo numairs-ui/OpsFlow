@@ -1,1 +1,194 @@
-/* You can add global styles to this file, and also import other style files */
+// ─── Meal Dynamics Design Tokens ────────────────────────────────────────────
+:root {
+  --cream:       #F5EFE0;
+  --cream-deep:  #ECE3CC;
+  --paper:       #FBF6E9;
+  --ink:         #15131F;
+  --ink-soft:    #2B2839;
+  --muted:       #6B6678;
+  --line:        #DDD2B6;
+  --indigo:      #5B4FE9;
+  --indigo-deep: #3A2FBF;
+  --indigo-glow: rgba(91, 79, 233, 0.12);
+  --amber:       #FBBE3D;
+  --amber-deep:  #E89F00;
+  --rust:        #C84A2C;
+  --green:       #2A7F4F;
+  --serif: 'Fraunces', Georgia, serif;
+  --sans:  'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono:  'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+  --radius:    14px;
+  --radius-lg: 22px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+// ─── Reset ───────────────────────────────────────────────────────────────────
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 17px; -webkit-font-smoothing: antialiased; }
+
+body {
+  font-family: var(--sans);
+  font-size: 1rem;
+  line-height: 1.55;
+  background: var(--cream);
+  color: var(--ink-soft);
+  min-height: 100dvh;
+}
+
+// ─── Typography ──────────────────────────────────────────────────────────────
+h1, h2, h3 {
+  font-family: var(--serif);
+  font-weight: 380;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+  color: var(--ink);
+  font-variation-settings: 'opsz' 72, 'SOFT' 30;
+}
+h4 {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+em { font-style: italic; color: var(--indigo); font-family: var(--serif); }
+p  { font-family: var(--sans); color: var(--ink-soft); }
+
+// ─── Eyebrow ─────────────────────────────────────────────────────────────────
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--indigo);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  &::before {
+    content: '';
+    width: 18px;
+    height: 1px;
+    background: currentColor;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  &--amber { color: var(--amber-deep); }
+  &--muted { color: var(--muted); }
+}
+
+// ─── Buttons ─────────────────────────────────────────────────────────────────
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.72rem 1.4rem;
+  border-radius: 100px;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.35s var(--ease);
+  text-decoration: none;
+
+  &-ink {
+    background: var(--ink);
+    color: var(--cream);
+    &:hover { background: var(--indigo); transform: translateY(-1px); }
+  }
+  &-indigo {
+    background: var(--indigo);
+    color: var(--cream);
+    &:hover { background: var(--indigo-deep); transform: translateY(-1px); }
+  }
+  &-amber {
+    background: var(--amber);
+    color: var(--ink);
+    &:hover { background: var(--ink); color: var(--cream); transform: translateY(-1px); }
+  }
+  &-ghost {
+    background: transparent;
+    color: var(--ink);
+    border-color: var(--line);
+    &:hover { border-color: var(--ink); background: var(--paper); }
+  }
+
+  &:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+}
+
+// ─── Card base ───────────────────────────────────────────────────────────────
+.card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.5rem 1.4rem;
+  transition: border-color 0.35s var(--ease), transform 0.35s var(--ease);
+  &:hover { border-color: var(--indigo); transform: translateY(-3px); }
+}
+
+// ─── Status pills ────────────────────────────────────────────────────────────
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.25rem 0.65rem;
+  border-radius: 100px;
+  border: 1px solid currentColor;
+
+  &--pending   { color: var(--muted);       background: var(--cream-deep); }
+  &--inprogress{ color: var(--indigo);      background: var(--indigo-glow); border-color: var(--indigo); }
+  &--completed { color: var(--green);       background: rgba(42,127,79,0.1); border-color: var(--green); }
+  &--overdue   { color: var(--rust);        background: rgba(200,74,44,0.08); border-color: var(--rust); }
+  &--approved  { color: var(--green);       background: rgba(42,127,79,0.1); border-color: var(--green); }
+  &--rejected  { color: var(--rust);        background: rgba(200,74,44,0.08); border-color: var(--rust); }
+  &--draft     { color: var(--muted);       background: var(--cream-deep); }
+}
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+.meta {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+.state-loading {
+  text-align: center;
+  padding: 3rem 1rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.state-error {
+  background: rgba(200,74,44,0.08);
+  border: 1px solid var(--rust);
+  color: var(--rust);
+  padding: 0.875rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+// ─── Scrollbar ───────────────────────────────────────────────────────────────
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--cream); }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+// ─── Spinner ─────────────────────────────────────────────────────────────────
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

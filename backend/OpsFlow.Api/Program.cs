@@ -39,7 +39,7 @@ builder.Services.AddMediatR(cfg =>
 });
 
 // FluentValidation — scans this assembly for all validators
-builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly, includeInternalTypes: true);
 
 // Infrastructure adapters (Supabase dev / Azure prod)
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -98,6 +98,31 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
     app.UseCors("DevCors");
 }
+
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var ex = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+        context.Response.ContentType = "application/json";
+        if (ex is UnauthorizedAccessException)
+        {
+            context.Response.StatusCode = 401;
+            await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+        }
+        else if (ex is ValidationException vex)
+        {
+            context.Response.StatusCode = 400;
+            var errors = vex.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage });
+            await context.Response.WriteAsJsonAsync(new { message = "Validation failed.", errors });
+        }
+        else
+        {
+            context.Response.StatusCode = 500;
+            await context.Response.WriteAsJsonAsync(new { message = "An unexpected error occurred." });
+        }
+    });
+});
 
 app.UseAuthentication();
 app.UseAuthorization();

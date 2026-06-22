@@ -1,4 +1,4 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, effect, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   TemplateField, FieldType, ChecklistSubItem,
@@ -17,6 +17,18 @@ export class FieldBuilderComponent {
 
   readonly fields = signal<TemplateField[]>([]);
   readonly expandedFieldId = signal<string | null>(null);
+
+  // Draft label per checklist field (keyed by field.id)
+  readonly draftSubLabel = signal<Record<string, string>>({});
+
+  constructor() {
+    effect(() => {
+      const initial = this.initialFields();
+      if (initial.length > 0) {
+        this.fields.set(initial);
+      }
+    });
+  }
 
   readonly fieldTypes: FieldType[] = ['Numeric', 'Boolean', 'Text', 'Photo', 'Checklist'];
 
@@ -65,15 +77,34 @@ export class FieldBuilderComponent {
     this.emit();
   }
 
-  addSubItem(fieldId: string): void {
+  getDraft(fieldId: string): string {
+    return this.draftSubLabel()[fieldId] ?? '';
+  }
+
+  setDraft(fieldId: string, value: string): void {
+    this.draftSubLabel.update(d => ({ ...d, [fieldId]: value }));
+  }
+
+  commitSubItem(fieldId: string): void {
+    const label = this.getDraft(fieldId).trim();
+    if (!label) return;
+    const sub: ChecklistSubItem = { ...createSubItem(), label };
     this.fields.update((f) =>
       f.map((x) =>
         x.id === fieldId
-          ? { ...x, subItems: [...(x.subItems ?? []), createSubItem()] }
+          ? { ...x, subItems: [...(x.subItems ?? []), sub] }
           : x
       )
     );
+    this.setDraft(fieldId, '');
     this.emit();
+  }
+
+  onSubItemKeydown(event: KeyboardEvent, fieldId: string): void {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.commitSubItem(fieldId);
+    }
   }
 
   updateSubItem(fieldId: string, subItemId: string, patch: Partial<ChecklistSubItem>): void {

@@ -1,0 +1,99 @@
+// ─── Global FAB ──────────────────────────────────────────────────────────────
+.global-fab {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 200;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--indigo);
+  color: var(--cream);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 24px -4px rgba(91,79,233,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease), background 0.3s;
+
+  &:hover {
+    transform: scale(1.06) translateY(-2px);
+    box-shadow: 0 12px 32px -4px rgba(91,79,233,0.55);
+    background: var(--indigo-deep);
+  }
+
+  &__icon {
+    font-size: 1.6rem;
+    line-height: 1;
+    font-weight: 300;
+  }
+}
+
+// ─── Backdrop ────────────────────────────────────────────────────────────────
+.fab-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(21,19,31,0.5);
+  backdrop-filter: blur(4px);
+}
+
+// ─── Bottom sheet ────────────────────────────────────────────────────────────
+.fab-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 400;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 0 0 env(safe-area-inset-bottom, 0);
+  box-shadow: 0 -12px 48px -8px rgba(21,19,31,0.16);
+  animation: sheet-up 0.28s var(--ease);
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.1rem 1.25rem 0.75rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  &__title {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--indigo);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    &::before { content: ''; width: 14px; height: 1px; background: var(--indigo); display: inline-block; }
+  }
+
+  &__close {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    color: var(--muted);
+    padding: 4px;
+    border-radius: 50%;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s, color 0.2s;
+    &:hover { background: var(--cream-deep); color: var(--ink); }
+  }
+
+  &__body {
+    padding: 1rem 1.25rem 1.5rem;
+  }
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}

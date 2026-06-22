@@ -50,6 +50,7 @@ internal sealed class CreateRecurringAssignmentHandler(
             StartsAt = cmd.StartsAt,
             EndsAt = cmd.EndsAt,
             CreatedByUserId = userId,
+            AssignedToUserId = cmd.AssignedToUserId,
         };
 
         db.RecurringAssignments.Add(assignment);

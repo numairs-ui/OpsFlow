@@ -58,7 +58,7 @@
                   }
                   <span class="task-due">Due {{ task.dueAt | date:'h:mm a' }}</span>
                 </div>
-                <span class="task-badge">{{ task.status }}</span>
+                <span class="task-badge">{{ task.status | formatStatus }}</span>
               </li>
             }
           </ul>
@@ -86,7 +86,7 @@
               <span class="history-name">{{ item.taskName }}</span>
               <span class="history-time">{{ item.completedAt | date:'EEE, MMM d · h:mm a' }}</span>
             </div>
-            <span class="history-status">{{ item.status }}</span>
+            <span class="history-status">{{ item.status | formatStatus }}</span>
           </li>
         }
         @if (history().length === 0) {

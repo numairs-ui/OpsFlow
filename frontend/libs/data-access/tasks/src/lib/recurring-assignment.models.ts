@@ -11,6 +11,8 @@ export interface RecurringAssignmentDto {
   isPaused: boolean;
   taskInstanceCount: number;
   createdAt: string;
+  assignedToUserId?: string;
+  assignedToUserName?: string;
 }
 
 export interface CreateRecurringAssignmentRequest {
@@ -20,4 +22,5 @@ export interface CreateRecurringAssignmentRequest {
   cronExpression: string;
   startsAt: string;
   endsAt?: string;
+  assignedToUserId?: string;
 }

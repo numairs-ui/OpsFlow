@@ -10,6 +10,9 @@
   @if (error()) {
     <div class="alert alert--error">{{ error() }}</div>
   }
+  @if (saved()) {
+    <div class="alert alert--success">&#10003; Template saved successfully.</div>
+  }
 
   <!-- Filters -->
   <div class="filters">

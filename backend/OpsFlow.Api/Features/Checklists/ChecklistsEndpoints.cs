@@ -3,6 +3,7 @@ using OpsFlow.Api.Features.Checklists.CreateChecklist;
 using OpsFlow.Api.Features.Checklists.DeactivateChecklist;
 using OpsFlow.Api.Features.Checklists.GetChecklist;
 using OpsFlow.Api.Features.Checklists.GetChecklists;
+using OpsFlow.Api.Features.Checklists.UpdateChecklist;
 using OpsFlow.Api.Features.Checklists.UpdateItems;
 
 namespace OpsFlow.Api.Features.Checklists;
@@ -23,6 +24,12 @@ internal static class ChecklistsEndpoints
         {
             var id = await m.Send(cmd);
             return Results.Created($"/checklists/{id}", new { id });
+        });
+
+        group.MapPut("/{id:guid}", async (Guid id, UpdateChecklistCommand cmd, IMediator m) =>
+        {
+            await m.Send(cmd with { Id = id });
+            return Results.NoContent();
         });
 
         group.MapPut("/{id:guid}/items", async (Guid id, List<ItemInput> items, IMediator m) =>

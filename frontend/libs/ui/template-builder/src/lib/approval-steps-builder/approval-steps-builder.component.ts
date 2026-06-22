@@ -15,6 +15,13 @@ export class ApprovalStepsBuilderComponent {
 
   readonly roles: ApprovalRole[] = ['store_employee', 'store_manager', 'supervisor', 'admin'];
 
+  readonly roleLabels: Record<string, string> = {
+    store_employee: 'Store Employee',
+    store_manager: 'Store Manager',
+    supervisor: 'Supervisor',
+    admin: 'Administrator',
+  };
+
   get reorderDisabled(): boolean {
     return this.propagationType() !== 'Sequential';
   }

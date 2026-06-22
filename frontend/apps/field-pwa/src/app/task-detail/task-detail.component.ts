@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
+import { OrgService, type StoreEmployee } from '@org/data-access-org';
 import { InventoryService, TaskService } from '@org/data-access-tasks';
 import type {
   CompleteTaskResponse, DoughNeedTargetDto,
@@ -33,6 +34,7 @@ export class TaskDetailComponent implements OnInit {
   private readonly taskSvc = inject(TaskService);
   private readonly inventorySvc = inject(InventoryService);
   private readonly auth = inject(AuthService);
+  private readonly orgSvc = inject(OrgService);
 
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
@@ -50,6 +52,12 @@ export class TaskDetailComponent implements OnInit {
   readonly cancelReason = signal('');
   readonly deferReason = signal('');
   readonly deferDate = signal('');
+
+  // Assign / claim
+  readonly employees = signal<StoreEmployee[]>([]);
+  readonly assigningTo = signal<string>('');
+  readonly assigning = signal(false);
+  readonly claiming = signal(false);
 
   readonly isManager = computed(() => {
     const role = this.auth.currentUser()?.role ?? '';
@@ -78,6 +86,11 @@ export class TaskDetailComponent implements OnInit {
     const s = this.task()?.status;
     return this.isManager() && s !== undefined && !['Completed', 'Verified', 'Cancelled', 'Deferred'].includes(s);
   });
+  readonly canAssign = computed(() => this.isManager() &&
+    ['Pending', 'InProgress', 'Overdue'].includes(this.task()?.status ?? ''));
+  readonly canClaim = computed(() => !this.isManager() &&
+    !this.task()?.assignedToUserId &&
+    ['Pending', 'InProgress', 'Overdue'].includes(this.task()?.status ?? ''));
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
@@ -103,6 +116,10 @@ export class TaskDetailComponent implements OnInit {
             }
           }
           this.fieldValues.set(prePopulated);
+        }
+        const storeId = this.auth.currentUser()?.storeId;
+        if (storeId && this.isManager()) {
+          this.orgSvc.getStoreEmployees(storeId).subscribe({ next: e => this.employees.set(e) });
         }
       },
       error: () => { this.error.set('Failed to load task.'); this.loading.set(false); },
@@ -210,6 +227,26 @@ export class TaskDetailComponent implements OnInit {
     this.taskSvc.deferTask(t.id, { reason: this.deferReason(), deferredTo: this.deferDate() }).subscribe({
       next: () => { this.actionBusy.set(false); this.activeModal.set(null); this.router.navigate(['/tasks']); },
       error: () => { this.actionBusy.set(false); this.error.set('Failed to defer task.'); },
+    });
+  }
+
+  assign(): void {
+    const taskId = this.task()?.id;
+    if (!taskId || this.assigning()) return;
+    this.assigning.set(true);
+    this.taskSvc.assignTask(taskId, this.assigningTo() || null).subscribe({
+      next: () => { this.assigning.set(false); this.loadTask(taskId); },
+      error: () => this.assigning.set(false),
+    });
+  }
+
+  claim(): void {
+    const taskId = this.task()?.id;
+    if (!taskId || this.claiming()) return;
+    this.claiming.set(true);
+    this.taskSvc.claimTask(taskId).subscribe({
+      next: () => { this.claiming.set(false); this.loadTask(taskId); },
+      error: () => this.claiming.set(false),
     });
   }
 

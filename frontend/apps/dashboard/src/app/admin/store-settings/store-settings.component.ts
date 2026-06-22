@@ -40,8 +40,8 @@ export class StoreSettingsComponent implements OnInit {
   readonly error = signal<string | null>(null);
 
   readonly form = this.fb.group({
-    tillABase: [null as number | null],
-    tillBBase: [null as number | null],
+    tillABase: [null as number | null, [Validators.min(0)]],
+    tillBBase: [null as number | null, [Validators.min(0)]],
     timezoneId: ['America/New_York', Validators.required],
     overdueGraceMinutes: [30, [Validators.required, Validators.min(0), Validators.max(480)]],
   });

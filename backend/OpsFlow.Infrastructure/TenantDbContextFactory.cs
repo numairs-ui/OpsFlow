@@ -30,7 +30,9 @@ public sealed class TenantDbContextFactory(
         var provider = configuration["DATABASE_PROVIDER"] ?? "supabase";
         var opts = new DbContextOptionsBuilder<TenantDbContext>();
 
-        if (provider == "azure")
+        if (provider == "inmemory")
+            opts.UseInMemoryDatabase(tenantId);
+        else if (provider == "azure")
             opts.UseSqlServer(tenant.ConnectionString);
         else
             opts.UseNpgsql(tenant.ConnectionString);

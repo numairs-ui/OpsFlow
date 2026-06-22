@@ -19,5 +19,7 @@ internal sealed record RecurringAssignmentDto(
     DateTimeOffset? EndsAt,
     bool IsPaused,
     int TaskInstanceCount,
-    DateTimeOffset CreatedAt
+    DateTimeOffset CreatedAt,
+    string? AssignedToUserId,
+    string? AssignedToUserName
 );

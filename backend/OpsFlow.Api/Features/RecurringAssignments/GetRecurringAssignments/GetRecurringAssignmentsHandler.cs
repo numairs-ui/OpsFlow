@@ -40,15 +40,17 @@ internal sealed class GetRecurringAssignmentsHandler(
             q = q.Where(r => r.Store!.RegionId == rid);
         }
 
-        var list = await q.OrderByDescending(r => r.CreatedAt).ToListAsync(ct);
-
-        return list.Select(r => new RecurringAssignmentDto(
+        return await q.OrderByDescending(r => r.CreatedAt).Select(r => new RecurringAssignmentDto(
             r.Id, r.Name,
-            r.ChecklistId, r.Checklist?.Name ?? "",
-            r.StoreId, r.Store?.Name ?? "",
+            r.ChecklistId, r.Checklist!.Name,
+            r.StoreId, r.Store!.Name,
             r.CronExpression, r.StartsAt, r.EndsAt, r.IsPaused,
             r.TaskInstances.Count,
-            r.CreatedAt
-        )).ToList();
+            r.CreatedAt,
+            r.AssignedToUserId,
+            r.AssignedToUserId != null
+                ? db.UserProfiles.Where(u => u.UserId == r.AssignedToUserId).Select(u => u.DisplayName).FirstOrDefault()
+                : null
+        )).ToListAsync(ct);
     }
 }

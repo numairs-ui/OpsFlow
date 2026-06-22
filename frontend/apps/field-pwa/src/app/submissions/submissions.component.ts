@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
 import {
   FormSubmissionService,
@@ -8,6 +8,11 @@ import {
   type PendingReviewDto,
 } from '@org/data-access-tasks';
 import { FormTemplateService, type FormTemplateDto } from '@org/data-access-templates';
+import {
+  TemplatePickerComponent,
+  SaveToggleComponent,
+  type SaveToggleMode,
+} from '@org/ui-template-builder';
 import type { TemplateField } from '@org/ui-field-builder';
 
 type Tab = 'mine' | 'review';
@@ -16,7 +21,7 @@ type DetailMode = 'fill' | 'review' | 'view';
 
 @Component({
   selector: 'app-submissions',
-  imports: [],
+  imports: [TemplatePickerComponent, SaveToggleComponent],
   templateUrl: './submissions.component.html',
   styleUrl: './submissions.component.scss',
 })
@@ -25,6 +30,7 @@ export class SubmissionsComponent implements OnInit {
   private readonly submissionSvc = inject(FormSubmissionService);
   private readonly templateSvc = inject(FormTemplateService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly currentUser = this.auth.currentUser;
   readonly screen = signal<Screen>('list');
@@ -53,6 +59,14 @@ export class SubmissionsComponent implements OnInit {
   ngOnInit(): void {
     this.loadMine();
     this.loadReview();
+
+    // FAB deep-link: navigated here with ?action=create
+    const action = this.route.snapshot.queryParamMap.get('action');
+    if (action === 'create') {
+      this.openPicker();
+      // clean up query param so back/refresh doesn't re-trigger
+      this.router.navigate([], { queryParams: {}, replaceUrl: true });
+    }
   }
 
   goBack(): void {
@@ -105,12 +119,14 @@ export class SubmissionsComponent implements OnInit {
   openMine(s: MySubmissionDto): void {
     this.submissionSvc.getSubmission(s.id).subscribe({
       next: (d) => this.openDetailFromDto(d, s.status === 'Draft' || s.status === 'Returned' ? 'fill' : 'view'),
+      error: () => this.error.set('Failed to load submission. Please try again.'),
     });
   }
 
   openReview(p: PendingReviewDto): void {
     this.submissionSvc.getSubmission(p.id).subscribe({
       next: (d) => this.openDetailFromDto(d, 'review'),
+      error: () => this.error.set('Failed to load submission. Please try again.'),
     });
   }
 
@@ -145,6 +161,27 @@ export class SubmissionsComponent implements OnInit {
 
   getFieldValue(fieldId: string): string {
     return this.fieldValues()[fieldId] ?? '';
+  }
+
+  saveDraft(): void {
+    this.detailBusy.set(true);
+    this.detailError.set(null);
+    const existingId = this.draftId();
+    if (existingId) {
+      this.submissionSvc.updateDraft(existingId, this.fieldValues()).subscribe({
+        next: () => { this.detailBusy.set(false); this.backToList(); this.loadMine(); },
+        error: (err) => { this.detailBusy.set(false); this.detailError.set(this.extractError(err)); },
+      });
+      return;
+    }
+    const storeId = this.currentUser()?.storeId;
+    if (!storeId) { this.detailBusy.set(false); this.detailError.set('No store assigned to your account.'); return; }
+    this.submissionSvc.createSubmission({
+      formTemplateId: this.pendingCreateTemplateId, storeId, fieldValues: this.fieldValues(),
+    }).subscribe({
+      next: (res) => { this.draftId.set(res.id); this.detailBusy.set(false); this.backToList(); this.loadMine(); },
+      error: (err) => { this.detailBusy.set(false); this.detailError.set(this.extractError(err)); },
+    });
   }
 
   submitFill(): void {
@@ -205,6 +242,10 @@ export class SubmissionsComponent implements OnInit {
       next: () => { this.detailBusy.set(false); this.backToList(); this.loadMine(); this.loadReview(); },
       error: (err) => { this.detailBusy.set(false); this.detailError.set(this.extractError(err)); },
     });
+  }
+
+  saveToggleMode(): SaveToggleMode {
+    return this.detailMode() === 'review' ? 'review' : 'fill';
   }
 
   private extractError(err: unknown): string {

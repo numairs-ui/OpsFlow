@@ -1,4 +1,5 @@
 using MediatR;
+using OpsFlow.Api.Features.Tasks.AssignTask;
 using OpsFlow.Api.Features.Tasks.CancelTask;
 using OpsFlow.Api.Features.Tasks.ClaimTask;
 using OpsFlow.Api.Features.Tasks.CompleteTask;
@@ -33,6 +34,12 @@ internal static class TasksEndpoints
         group.MapPost("/{id:guid}/claim", async (Guid id, ClaimTaskRequest? body, IMediator m) =>
         {
             await m.Send(new ClaimTaskCommand(id, body?.VolunteerName));
+            return Results.NoContent();
+        });
+
+        group.MapPatch("/{id:guid}/assign", async (Guid id, AssignTaskRequest body, IMediator m) =>
+        {
+            await m.Send(new AssignTaskCommand(id, body.AssignedToUserId));
             return Results.NoContent();
         });
 
@@ -81,3 +88,4 @@ internal sealed record ClaimTaskRequest(string? VolunteerName);
 internal sealed record CompleteTaskRequest(string? CompletedByVolunteerName, List<FieldSubmission> FieldValues);
 internal sealed record CancelTaskRequest(string Reason);
 internal sealed record DeferTaskRequest(string Reason, DateTimeOffset DeferredTo);
+internal sealed record AssignTaskRequest(string? AssignedToUserId);

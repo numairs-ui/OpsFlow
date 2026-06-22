@@ -1,8 +1,9 @@
 <div class="shell">
   <nav class="sidebar">
     <div class="sidebar__brand">
-      <span class="sidebar__logo">OpsFlow</span>
-      <span class="sidebar__role">Admin</span>
+      <span class="sidebar__logo-mark"><em>O</em></span>
+      <span class="sidebar__logo-name">OpsFlow</span>
+      <span class="sidebar__role-tag">Admin</span>
     </div>
 
     <ul class="sidebar__nav">
@@ -83,7 +84,7 @@
     </ul>
 
     <div class="sidebar__footer">
-      <span class="sidebar__user-email">{{ user()?.role }}</span>
+      <span class="sidebar__user-email">{{ roleLabel(user()?.role) }}</span>
       <button class="sidebar__logout" (click)="onLogout()">Sign out</button>
     </div>
   </nav>

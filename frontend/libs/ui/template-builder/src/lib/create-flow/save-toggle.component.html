@@ -1,0 +1,20 @@
+@if (mode() === 'fill') {
+  <div class="toggle-row">
+    <button class="btn btn--ghost" [disabled]="busy()" (click)="saveDraft.emit()">
+      {{ isNew() ? 'Save Draft' : 'Save Changes' }}
+    </button>
+    <button class="btn btn--primary" [disabled]="busy()" (click)="submit.emit()">
+      {{ busy() ? 'Submitting…' : 'Submit' }}
+    </button>
+  </div>
+}
+
+@if (mode() === 'review' && reviewActionsVisible()) {
+  <div class="toggle-row">
+    <button class="btn btn--danger" [disabled]="busy()" (click)="reject.emit()">Reject</button>
+    <button class="btn btn--secondary" [disabled]="busy()" (click)="return.emit()">Return</button>
+    <button class="btn btn--primary" [disabled]="busy()" (click)="approve.emit()">
+      {{ busy() ? 'Approving…' : 'Approve' }}
+    </button>
+  </div>
+}

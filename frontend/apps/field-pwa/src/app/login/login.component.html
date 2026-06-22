@@ -1,11 +1,18 @@
 <div class="login-container">
   <div class="login-card">
-    <h1 class="login-title">OpsFlow</h1>
-    <p class="login-subtitle">Sign in to continue</p>
+    <div class="brand">
+      <span class="brand-mark"><em>O</em></span>
+      <span class="brand-name">OpsFlow</span>
+      <span class="brand-tag">Field</span>
+    </div>
+
+    <span class="login-eyebrow">Staff Portal</span>
+    <h1 class="login-title">Welcome<br><em>back.</em></h1>
+    <p class="login-subtitle">Sign in to see your store's tasks and checklists.</p>
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()">
       <div class="field">
-        <label for="email">Email</label>
+        <label for="email">Email address</label>
         <input
           id="email"
           type="email"
@@ -44,7 +51,7 @@
           <span class="spinner" aria-hidden="true"></span>
           Signing in…
         } @else {
-          Sign in
+          Sign in ↗
         }
       </button>
     </form>

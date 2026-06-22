@@ -1,0 +1,8 @@
+@for (t of templates(); track t.id) {
+  <button class="template-pick" (click)="templateSelected.emit(t)">
+    <span class="template-pick__name">{{ t.name }}</span>
+    <span class="template-pick__meta">{{ t.propagationType }} · {{ t.fieldCount }} fields</span>
+  </button>
+} @empty {
+  <p class="template-pick__empty">{{ emptyMessage() }}</p>
+}

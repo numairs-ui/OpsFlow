@@ -1,0 +1,12 @@
+<div class="type-grid">
+  <button class="type-tile" (click)="typeSelected.emit('task')">
+    <span class="type-tile__icon">&#9998;</span>
+    <span class="type-tile__label">New Task</span>
+    <span class="type-tile__desc">Create an ad-hoc task</span>
+  </button>
+  <button class="type-tile" (click)="typeSelected.emit('form')">
+    <span class="type-tile__icon">&#128196;</span>
+    <span class="type-tile__label">New Form</span>
+    <span class="type-tile__desc">Submit a form for approval</span>
+  </button>
+</div>

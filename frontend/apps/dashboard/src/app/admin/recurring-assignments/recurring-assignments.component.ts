@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '@org/data-access-auth';
-import { OrgService, type Store } from '@org/data-access-org';
+import { OrgService, type Store, type StoreEmployee } from '@org/data-access-org';
 import { ChecklistService, type ChecklistDto } from '@org/data-access-templates';
 import {
   RecurringAssignmentService,
@@ -27,6 +27,8 @@ export class RecurringAssignmentsComponent implements OnInit {
   readonly assignments = signal<RecurringAssignmentDto[]>([]);
   readonly checklists = signal<ChecklistDto[]>([]);
   readonly stores = signal<Store[]>([]);
+  readonly employees = signal<StoreEmployee[]>([]);
+  readonly loadingEmployees = signal(false);
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
@@ -41,6 +43,7 @@ export class RecurringAssignmentsComponent implements OnInit {
     storeId: ['', Validators.required],
     startsAt: [new Date().toISOString().slice(0, 10), Validators.required],
     endsAt: [''],
+    assignedToUserId: [''],
   });
 
   ngOnInit(): void {
@@ -67,9 +70,13 @@ export class RecurringAssignmentsComponent implements OnInit {
 
   onCronChange(cron: string): void { this.cronExpression.set(cron); }
 
+  onStoreChange(storeId: string): void {
+    this.orgSvc.getStoreEmployees(storeId).subscribe({ next: e => this.employees.set(e) });
+  }
+
   onSubmit(): void {
     if (this.form.invalid || this.saving()) return;
-    const { name, checklistId, storeId, startsAt, endsAt } = this.form.getRawValue();
+    const { name, checklistId, storeId, startsAt, endsAt, assignedToUserId } = this.form.getRawValue();
     const body: CreateRecurringAssignmentRequest = {
       name: name!,
       checklistId: checklistId!,
@@ -77,6 +84,7 @@ export class RecurringAssignmentsComponent implements OnInit {
       cronExpression: this.cronExpression(),
       startsAt: new Date(startsAt!).toISOString(),
       endsAt: endsAt ? new Date(endsAt).toISOString() : undefined,
+      assignedToUserId: assignedToUserId || undefined,
     };
     this.saving.set(true);
     this.svc.createRecurringAssignment(body).subscribe({

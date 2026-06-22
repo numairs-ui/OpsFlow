@@ -57,14 +57,10 @@
       <h1>Choose a Template</h1>
     </header>
     <div class="submission-list">
-      @for (t of formTemplates(); track t.id) {
-        <button class="submission-card" (click)="startNewSubmission(t)">
-          <span class="submission-card__name">{{ t.name }}</span>
-          <span class="submission-card__meta">{{ t.propagationType }} · {{ t.fieldCount }} fields</span>
-        </button>
-      } @empty {
-        <p class="empty-hint">No active form templates available.</p>
-      }
+      <lib-template-picker
+        [templates]="formTemplates()"
+        (templateSelected)="startNewSubmission($event)"
+      />
     </div>
   </div>
 }
@@ -147,17 +143,18 @@
       </div>
     }
 
-    @if (detailMode() === 'fill') {
-      <button class="btn btn--primary btn--full" [disabled]="detailBusy()" (click)="submitFill()">
-        {{ detailBusy() ? 'Submitting…' : 'Submit' }}
-      </button>
-    }
-    @if (detailMode() === 'review' && !actionModal()) {
-      <div class="action-row">
-        <button class="btn btn--danger" [disabled]="detailBusy()" (click)="openActionModal('reject')">Reject</button>
-        <button class="btn btn--secondary" [disabled]="detailBusy()" (click)="openActionModal('return')">Return</button>
-        <button class="btn btn--verify" [disabled]="detailBusy()" (click)="approve()">Approve</button>
-      </div>
+    @if (detailMode() !== 'view') {
+      <lib-save-toggle
+        [mode]="saveToggleMode()"
+        [busy]="detailBusy()"
+        [isNew]="!draftId()"
+        [reviewActionsVisible]="!actionModal()"
+        (saveDraft)="saveDraft()"
+        (submit)="submitFill()"
+        (approve)="approve()"
+        (reject)="openActionModal('reject')"
+        (return)="openActionModal('return')"
+      />
     }
   </div>
 }

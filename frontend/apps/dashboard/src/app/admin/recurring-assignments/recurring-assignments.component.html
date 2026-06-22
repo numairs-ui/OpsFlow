@@ -24,6 +24,7 @@
             <th>Starts</th>
             <th>Ends</th>
             <th>Tasks</th>
+            <th>Assignee</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
@@ -38,6 +39,7 @@
               <td>{{ a.startsAt | date:'mediumDate' }}</td>
               <td>{{ a.endsAt ? (a.endsAt | date:'mediumDate') : '—' }}</td>
               <td>{{ a.taskInstanceCount }}</td>
+              <td>{{ a.assignedToUserName ?? '—' }}</td>
               <td>
                 <span class="badge" [class]="a.isPaused ? 'badge--paused' : 'badge--active'">
                   {{ a.isPaused ? 'Paused' : 'Active' }}
@@ -83,10 +85,20 @@
 
       <div class="field">
         <label class="label" for="storeId">Store</label>
-        <select id="storeId" class="input" formControlName="storeId">
+        <select id="storeId" class="input" formControlName="storeId" (change)="onStoreChange($any($event.target).value)">
           <option value="">— select store —</option>
           @for (s of stores(); track s.id) {
             <option [value]="s.id">{{ s.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="label" for="assignedToUserId">Default Assignee (optional)</label>
+        <select id="assignedToUserId" class="input" formControlName="assignedToUserId">
+          <option value="">— unassigned —</option>
+          @for (e of employees(); track e.userId) {
+            <option [value]="e.userId">{{ e.displayName }} ({{ e.role }})</option>
           }
         </select>
       </div>

@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
 import { OrgService, type Region, type Store } from '@org/data-access-org';
+import { noWhitespace } from '@org/ui-core';
 import {
   TemplateService,
   type TemplateDetailDto,
@@ -30,6 +31,7 @@ export class TemplatesComponent implements OnInit {
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
+  readonly saved = signal(false);
   readonly showForm = signal(false);
   readonly editingTemplate = signal<TemplateDetailDto | null>(null);
   readonly fields = signal<TemplateField[]>([]);
@@ -45,7 +47,7 @@ export class TemplatesComponent implements OnInit {
   readonly currentUser = this.auth.currentUser;
 
   readonly form = this.fb.group({
-    name: ['', Validators.required],
+    name: ['', [Validators.required, noWhitespace]],
     description: [''],
     category: ['', Validators.required],
     scope: ['System' as TemplateScope, Validators.required],
@@ -110,6 +112,7 @@ export class TemplatesComponent implements OnInit {
         try { this.fields.set(JSON.parse(detail.fieldsJson)); } catch { this.fields.set([]); }
         this.showForm.set(true);
       },
+      error: () => this.error.set('Failed to load template. Please try again.'),
     });
   }
 
@@ -134,7 +137,7 @@ export class TemplatesComponent implements OnInit {
       this.templateSvc.updateTemplate(editing.id, {
         name: name!, description: description ?? undefined, category: category!, fieldsJson,
       }).subscribe({
-        next: () => { this.saving.set(false); this.closeForm(); this.load(); },
+        next: () => { this.saving.set(false); this.saved.set(true); setTimeout(() => this.saved.set(false), 2500); this.closeForm(); this.load(); },
         error: () => { this.error.set('Failed to save template.'); this.saving.set(false); },
       });
     } else {
@@ -145,7 +148,7 @@ export class TemplatesComponent implements OnInit {
         storeId: storeId || undefined,
         fieldsJson,
       }).subscribe({
-        next: () => { this.saving.set(false); this.closeForm(); this.load(); },
+        next: () => { this.saving.set(false); this.saved.set(true); setTimeout(() => this.saved.set(false), 2500); this.closeForm(); this.load(); },
         error: () => { this.error.set('Failed to save template.'); this.saving.set(false); },
       });
     }

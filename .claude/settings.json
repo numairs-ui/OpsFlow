@@ -3,7 +3,18 @@
     "allow": [
       "Bash(NX_IGNORE_UNSUPPORTED_TS_SETUP=true node node_modules/.bin/nx generate @nx/js:library --name=util-models --directory=libs/util/models --bundler=tsc --no-interactive)",
       "Bash(chmod +x /tmp/dotnet-install.sh)",
-      "Bash(/tmp/dotnet-install.sh --channel 9.0 --install-dir /Users/numair/.dotnet)"
+      "Bash(/tmp/dotnet-install.sh --channel 9.0 --install-dir /Users/numair/.dotnet)",
+      "Bash(pkill -f \"OpsFlow.Api\")",
+      "Bash(~/.dotnet/dotnet run *)",
+      "Bash(cat /tmp/backend.log | tail -20)",
+      "Read(//private/tmp/**)",
+      "Read(//tmp/opsflow_screenshots/**)",
+      "Read(//private/tmp/opsflow_screenshots/**)",
+      "Bash(NX_NO_CLOUD=true npx nx run-many --target=build --projects=field-pwa,dashboard --output-style=static)",
+      "Bash(NX_NO_CLOUD=true npx nx sync)",
+      "Bash(NX_NO_CLOUD=true npx nx build ui-core)",
+      "Bash(NX_NO_CLOUD=true npx nx sync --yes)",
+      "Bash(~/.dotnet/dotnet build *)"
     ]
   }
 }

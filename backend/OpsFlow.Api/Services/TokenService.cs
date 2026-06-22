@@ -7,7 +7,7 @@ using OpsFlow.Domain.Interfaces;
 
 namespace OpsFlow.Api.Services;
 
-internal sealed class TokenService(IConfiguration configuration)
+internal sealed class TokenService(IConfiguration configuration, IWebHostEnvironment env)
 {
     internal const string RefreshCookieName = "refresh_token";
     private const int AccessTokenMinutes = 15;
@@ -52,11 +52,12 @@ internal sealed class TokenService(IConfiguration configuration)
     public void SetRefreshCookie(HttpResponse response, string tenantId, string rawToken, DateTimeOffset expiresAt)
     {
         // Cookie value = "{tenantId}:{rawToken}" so we can resolve the tenant DB on refresh
+        var isSecure = !env.IsDevelopment();
         response.Cookies.Append(RefreshCookieName, $"{tenantId}:{rawToken}", new CookieOptions
         {
             HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Strict,
+            Secure = isSecure,
+            SameSite = isSecure ? SameSiteMode.Strict : SameSiteMode.Lax,
             Expires = expiresAt,
         });
     }

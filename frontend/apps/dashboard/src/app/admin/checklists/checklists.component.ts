@@ -1,11 +1,12 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '@org/data-access-auth';
+import { noWhitespace } from '@org/ui-core';
 import { OrgService, type Region, type Store } from '@org/data-access-org';
 import {
   ChecklistService, TemplateService,
   type ChecklistDetailDto, type ChecklistDto, type ChecklistItemDto,
-  type TemplateDto, type TemplateScope,
+  type TemplateDto, type TemplateScope, type UpdateChecklistRequest,
 } from '@org/data-access-templates';
 
 @Component({
@@ -28,6 +29,7 @@ export class ChecklistsComponent implements OnInit {
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
+  readonly saved = signal(false);
   readonly showForm = signal(false);
   readonly editingChecklist = signal<ChecklistDetailDto | null>(null);
   readonly items = signal<ChecklistItemDto[]>([]);
@@ -38,7 +40,7 @@ export class ChecklistsComponent implements OnInit {
   readonly selectedScope = signal<string>('System');
 
   readonly form = this.fb.group({
-    name: ['', Validators.required],
+    name: ['', [Validators.required, noWhitespace]],
     description: [''],
     scope: ['System' as TemplateScope, Validators.required],
     regionId: [''],
@@ -133,8 +135,19 @@ export class ChecklistsComponent implements OnInit {
     const editing = this.editingChecklist();
 
     if (editing) {
-      this.checklistSvc.updateItems(editing.id, itemInputs).subscribe({
-        next: () => { this.saving.set(false); this.closeForm(); this.load(); },
+      const header: UpdateChecklistRequest = {
+        name: name!, description: description ?? undefined,
+        scope: scope as TemplateScope,
+        regionId: regionId || undefined,
+        storeId: storeId || undefined,
+      };
+      this.checklistSvc.updateChecklist(editing.id, header).subscribe({
+        next: () => {
+          this.checklistSvc.updateItems(editing.id, itemInputs).subscribe({
+            next: () => { this.saving.set(false); this.saved.set(true); setTimeout(() => this.saved.set(false), 2500); this.closeForm(); this.load(); },
+            error: () => { this.error.set('Failed to save checklist items.'); this.saving.set(false); },
+          });
+        },
         error: () => { this.error.set('Failed to save checklist.'); this.saving.set(false); },
       });
     } else {

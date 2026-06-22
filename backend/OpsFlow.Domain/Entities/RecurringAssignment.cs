@@ -14,6 +14,7 @@ public sealed class RecurringAssignment
     public DateTimeOffset? EndsAt { get; set; }
     public bool IsPaused { get; set; } = false;
     public string CreatedByUserId { get; set; } = default!;
+    public string? AssignedToUserId { get; set; }
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
 
     public Checklist? Checklist { get; init; }

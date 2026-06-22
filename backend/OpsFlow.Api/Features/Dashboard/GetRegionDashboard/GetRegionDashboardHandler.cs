@@ -11,9 +11,9 @@ internal sealed class GetRegionDashboardHandler(
     {
         await using var db = await factory.CreateAsync(ct);
 
-        var now = DateTimeOffset.UtcNow;
-        var todayStart = now.Date;
-        var todayEnd = todayStart.AddDays(1);
+        var now        = DateTimeOffset.UtcNow;
+        var todayStart = new DateTimeOffset(now.Date, TimeSpan.Zero);
+        var todayEnd   = todayStart.AddDays(1);
 
         var stores = await db.Stores
             .Where(s => s.RegionId == query.RegionId && s.IsActive)
