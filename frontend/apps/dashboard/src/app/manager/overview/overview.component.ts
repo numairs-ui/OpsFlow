@@ -18,6 +18,7 @@ export class ManagerOverviewComponent implements OnInit, OnDestroy {
   readonly data = signal<StoreDashboardDto | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  readonly lastUpdated = signal<Date | null>(null);
 
   private pollTimer?: ReturnType<typeof setInterval>;
 
@@ -32,7 +33,7 @@ export class ManagerOverviewComponent implements OnInit, OnDestroy {
     const sid = this.storeId();
     if (!sid) return;
     this.dashboardSvc.getStoreDashboard(sid).subscribe({
-      next: (d) => { this.data.set(d); this.loading.set(false); },
+      next: (d) => { this.data.set(d); this.loading.set(false); this.lastUpdated.set(new Date()); },
       error: () => { this.error.set('Failed to load dashboard.'); this.loading.set(false); },
     });
   }
@@ -47,6 +48,23 @@ export class ManagerOverviewComponent implements OnInit, OnDestroy {
     if (rate >= 0.8) return '#16a34a';
     if (rate >= 0.6) return '#d97706';
     return '#dc2626';
+  }
+
+  statusLabel(status: string): string {
+    const map: Record<string, string> = {
+      'Pending': 'Pending', 'InProgress': 'In Progress', 'Completed': 'Done',
+      'Verified': 'Verified', 'Overdue': 'Overdue',
+      'CorrectiveActionRaised': 'Action Raised',
+      'Cancelled': 'Cancelled', 'Deferred': 'Deferred',
+    };
+    return map[status] ?? status;
+  }
+
+  elapsedLabel(minutes: number): string {
+    if (minutes < 60) return `${minutes}m ago`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m > 0 ? `${h}h ${m}m ago` : `${h}h ago`;
   }
 
 }

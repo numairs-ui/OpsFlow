@@ -1,8 +1,8 @@
 <div class="page">
-  <div class="page-header">
+  <div class="page__header">
     <div>
-      <h1 class="page-title">Safe &amp; Bank Deposit</h1>
-      <p class="page-subtitle">Record today's bank deposit and view deposit history.</p>
+      <h1 class="page__title">Safe &amp; Bank Deposit</h1>
+      <p class="page__subtitle">Record today's bank deposit and view deposit history.</p>
     </div>
   </div>
 
@@ -13,7 +13,7 @@
       <div class="today-card__content">
         <div class="today-card__label">Today's Deposit Recorded</div>
         <div class="today-card__amount">{{ dep.amount | currency }}</div>
-        <div class="today-card__meta">Submitted {{ dep.submittedAt | date:'h:mm a' }} by {{ dep.submittedByManagerId }}</div>
+        <div class="today-card__meta">Submitted {{ dep.submittedAt | date:'h:mm a' }} by {{ managerLabel(dep.submittedByManagerId) }}</div>
       </div>
     } @else {
       <div class="today-card__icon today-card__icon--warn">!</div>
@@ -24,6 +24,12 @@
     }
   </div>
 
+  @if (justSubmitted() && todayDeposit(); as dep) {
+    <div class="success-banner" role="alert">
+      &#10003; Deposit of {{ dep.amount | currency }} recorded at {{ dep.submittedAt | date:'h:mm a' }}.
+    </div>
+  }
+
   <!-- Record form — only shown if no deposit today -->
   @if (!todayDeposit()) {
     <div class="record-card">
@@ -33,24 +39,38 @@
         <div class="state-error">{{ err }}</div>
       }
 
-      <div class="amount-row">
-        <div class="amount-prefix">$</div>
-        <input
-          class="amount-input"
-          type="number"
-          min="0.01"
-          step="0.01"
-          placeholder="0.00"
-          [ngModel]="amount()"
-          (ngModelChange)="amount.set($event)" />
-      </div>
-
-      <button
-        class="btn btn--primary btn--submit"
-        [disabled]="submitting() || !amount() || +amount() <= 0"
-        (click)="submit()">
-        {{ submitting() ? 'Recording…' : 'Record Deposit' }}
-      </button>
+      @if (!confirming()) {
+        <div class="amount-row">
+          <div class="amount-prefix">$</div>
+          <input
+            class="amount-input"
+            type="number"
+            min="0.01"
+            step="0.01"
+            placeholder="0.00"
+            [ngModel]="amount()"
+            (ngModelChange)="amount.set($event)" />
+        </div>
+        @if (amountInvalid()) {
+          <span class="field-error">Please enter a valid amount greater than $0.</span>
+        }
+        <button
+          class="btn btn--primary btn--submit"
+          [disabled]="!amount() || amountInvalid()"
+          (click)="requestConfirm()">
+          Record Deposit
+        </button>
+      } @else {
+        <div class="confirm-panel">
+          <p class="confirm-summary">You are about to record a deposit of <strong>{{ amount() | currency }}</strong>. This cannot be undone.</p>
+          <div class="confirm-actions">
+            <button class="btn btn--ghost" (click)="cancelConfirm()">Cancel</button>
+            <button class="btn btn--primary" [disabled]="submitting()" (click)="submit()">
+              {{ submitting() ? 'Recording…' : 'Confirm Deposit' }}
+            </button>
+          </div>
+        </div>
+      }
     </div>
   }
 
@@ -68,7 +88,7 @@
               <th>Date</th>
               <th>Amount</th>
               <th>Submitted At</th>
-              <th>Manager ID</th>
+              <th>Manager</th>
             </tr>
           </thead>
           <tbody>
@@ -77,7 +97,7 @@
                 <td>{{ dep.submittedAt | date:'MMM d, y' }}</td>
                 <td class="amount-cell">{{ dep.amount | currency }}</td>
                 <td>{{ dep.submittedAt | date:'h:mm a' }}</td>
-                <td class="meta-cell">{{ dep.submittedByManagerId }}</td>
+                <td class="meta-cell">{{ managerLabel(dep.submittedByManagerId) }}</td>
               </tr>
             }
             @if (history().length === 0) {
@@ -90,7 +110,7 @@
       @if (totalCount() > 14) {
         <div class="pagination">
           <button class="btn btn--ghost btn--sm" [disabled]="page() <= 1" (click)="prevPage()">&#8592; Prev</button>
-          <span class="page-info">Page {{ page() }}</span>
+          <span class="page-info">Page {{ page() }} of {{ totalPages() }}</span>
           <button class="btn btn--ghost btn--sm" [disabled]="!hasNextPage()" (click)="nextPage()">Next &#8594;</button>
         </div>
       }

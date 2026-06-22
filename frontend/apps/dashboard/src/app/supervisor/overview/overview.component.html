@@ -1,8 +1,8 @@
 <div class="page">
-  <div class="page-header">
+  <div class="page__header">
     <div>
-      <h1 class="page-title">Regional Dashboard</h1>
-      <p class="page-subtitle">Store leaderboard &amp; critical alerts — refreshes every 60 seconds.</p>
+      <h1 class="page__title">Regional Dashboard</h1>
+      <p class="page__subtitle">Store leaderboard &amp; critical alerts — refreshes every 60 seconds.</p>
     </div>
   </div>
 
@@ -51,7 +51,8 @@
                 <td class="rank-cell">{{ i + 1 }}</td>
                 <td>{{ s.name }}</td>
                 <td>
-                  <span class="score-badge {{ scoreColor(s.compositeScore) }}">{{ s.compositeScore }}</span>
+                  <span class="score-badge {{ scoreColor(s.compositeScore) }}"
+                    [title]="scoreTooltip(s)">{{ s.compositeScore }}</span>
                 </td>
                 <td>{{ s.completionRate | percent }}</td>
                 <td>{{ s.openCount }}</td>

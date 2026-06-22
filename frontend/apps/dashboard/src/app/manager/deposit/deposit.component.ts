@@ -16,8 +16,11 @@ export class DepositComponent implements OnInit {
   private readonly auth = inject(AuthService);
 
   readonly storeId = computed(() => this.auth.currentUser()?.storeId ?? '');
+  readonly currentUserId = computed(() => this.auth.currentUser()?.userId ?? '');
   readonly amount = signal('');
+  readonly confirming = signal(false);
   readonly submitting = signal(false);
+  readonly justSubmitted = signal(false);
   readonly error = signal<string | null>(null);
   readonly todayDeposit = signal<DepositLogDto | null>(null);
   readonly history = signal<DepositLogDto[]>([]);
@@ -27,6 +30,17 @@ export class DepositComponent implements OnInit {
   readonly loadingHistory = signal(false);
 
   readonly today = new Date().toISOString().slice(0, 10);
+
+  readonly amountInvalid = computed(() => {
+    const val = parseFloat(this.amount());
+    return this.amount().trim().length > 0 && (isNaN(val) || val <= 0);
+  });
+
+  readonly totalPages = computed(() => Math.ceil(this.totalCount() / 14));
+
+  managerLabel(managerId: string): string {
+    return managerId === this.currentUserId() ? 'You' : 'Another manager';
+  }
 
   ngOnInit(): void {
     const sid = this.storeId();
@@ -55,12 +69,21 @@ export class DepositComponent implements OnInit {
     });
   }
 
+  requestConfirm(): void {
+    const val = parseFloat(this.amount());
+    if (isNaN(val) || val <= 0 || this.amountInvalid()) return;
+    this.confirming.set(true);
+  }
+
+  cancelConfirm(): void { this.confirming.set(false); }
+
   submit(): void {
     const sid = this.storeId();
     const val = parseFloat(this.amount());
     if (!sid || isNaN(val) || val <= 0 || this.submitting()) return;
 
     this.submitting.set(true);
+    this.confirming.set(false);
     this.error.set(null);
 
     this.depositSvc.recordDeposit(sid, { amount: val }).subscribe({
@@ -68,6 +91,8 @@ export class DepositComponent implements OnInit {
         this.submitting.set(false);
         this.todayDeposit.set(d);
         this.amount.set('');
+        this.justSubmitted.set(true);
+        setTimeout(() => this.justSubmitted.set(false), 5000);
         this.loadHistory(sid);
       },
       error: (err) => {

@@ -9,6 +9,7 @@ import {
   type PendingReviewDto,
 } from '@org/data-access-tasks';
 import { FormTemplateService, type FormTemplateDto } from '@org/data-access-templates';
+import { TemplatePickerComponent, SaveToggleComponent, type SaveToggleMode } from '@org/ui-template-builder';
 import type { TemplateField } from '@org/ui-field-builder';
 
 type Tab = 'mine' | 'review';
@@ -17,7 +18,7 @@ type DetailMode = 'fill' | 'review' | 'view';
 
 @Component({
   selector: 'app-form-submissions',
-  imports: [DatePipe],
+  imports: [DatePipe, TemplatePickerComponent, SaveToggleComponent],
   templateUrl: './form-submissions.component.html',
   styleUrl: './form-submissions.component.scss',
 })
@@ -118,12 +119,14 @@ export class FormSubmissionsComponent implements OnInit {
   openMine(s: MySubmissionDto): void {
     this.submissionSvc.getSubmission(s.id).subscribe({
       next: (d) => this.openDetailFromDto(d, s.status === 'Draft' || s.status === 'Returned' ? 'fill' : 'view'),
+      error: () => this.error.set('Failed to load submission. Please try again.'),
     });
   }
 
   openReview(p: PendingReviewDto): void {
     this.submissionSvc.getSubmission(p.id).subscribe({
       next: (d) => this.openDetailFromDto(d, 'review'),
+      error: () => this.error.set('Failed to load submission. Please try again.'),
     });
   }
 
@@ -188,6 +191,26 @@ export class FormSubmissionsComponent implements OnInit {
     });
   }
 
+  saveDraft(): void {
+    this.detailBusy.set(true);
+    this.detailError.set(null);
+    const existingId = this.draftId();
+    if (existingId) {
+      this.submissionSvc.updateDraft(existingId, this.fieldValues()).subscribe({
+        next: () => { this.detailBusy.set(false); this.closeDetail(); this.loadMine(); },
+        error: (err) => { this.detailBusy.set(false); this.detailError.set(this.extractError(err)); },
+      });
+      return;
+    }
+    const storeId = this.currentUser()?.storeId;
+    if (!storeId) { this.detailBusy.set(false); this.detailError.set('No store assigned to your account.'); return; }
+    const templateId = this.pendingCreateTemplateId;
+    this.submissionSvc.createSubmission({ formTemplateId: templateId, storeId, fieldValues: this.fieldValues() }).subscribe({
+      next: (res) => { this.draftId.set(res.id); this.detailBusy.set(false); this.closeDetail(); this.loadMine(); },
+      error: (err) => { this.detailBusy.set(false); this.detailError.set(this.extractError(err)); },
+    });
+  }
+
   // --- Review actions ---
   openActionModal(kind: 'reject' | 'return'): void {
     this.actionModal.set(kind);
@@ -217,6 +240,10 @@ export class FormSubmissionsComponent implements OnInit {
       next: () => { this.detailBusy.set(false); this.closeDetail(); this.loadMine(); this.loadReview(); },
       error: (err) => { this.detailBusy.set(false); this.detailError.set(this.extractError(err)); },
     });
+  }
+
+  saveToggleMode(): SaveToggleMode {
+    return this.detailMode() === 'review' ? 'review' : 'fill';
   }
 
   private extractError(err: unknown): string {

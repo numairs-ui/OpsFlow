@@ -30,7 +30,11 @@ export class SupervisorOverviewComponent implements OnInit, OnDestroy {
 
   private load(): void {
     const rid = this.regionId();
-    if (!rid) return;
+    if (!rid) {
+      this.loading.set(false);
+      this.error.set('No region assigned to your account. Contact an administrator.');
+      return;
+    }
     this.dashboardSvc.getRegionDashboard(rid).subscribe({
       next: (d) => { this.data.set(d); this.loading.set(false); },
       error: () => { this.error.set('Failed to load regional dashboard.'); this.loading.set(false); },
@@ -41,6 +45,15 @@ export class SupervisorOverviewComponent implements OnInit, OnDestroy {
     if (score >= 80) return 'score--green';
     if (score >= 60) return 'score--amber';
     return 'score--red';
+  }
+
+  scoreTooltip(store: StoreScoreDto): string {
+    return [
+      `Composite score: ${store.compositeScore}/100`,
+      `Completion rate: ${store.completionRate}%`,
+      `Corrective actions: ${store.correctiveActionCount}`,
+      store.depositLoggedToday ? 'Deposit: ✓ logged' : 'Deposit: ✗ not logged',
+    ].join(' | ');
   }
 
   missedDeposit(store: StoreScoreDto): boolean { return !store.depositLoggedToday; }
