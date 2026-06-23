@@ -4,7 +4,7 @@ import {
 } from '@angular/core';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
-import { authInterceptor } from '@org/data-access-auth';
+import { authInterceptor, provideAuthInitializer } from '@org/data-access-auth';
 import { appRoutes } from './app.routes.js';
 
 export const appConfig: ApplicationConfig = {
@@ -12,5 +12,6 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(appRoutes),
     provideHttpClient(withInterceptors([authInterceptor])),
+    provideAuthInitializer(),
   ],
 };

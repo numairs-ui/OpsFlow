@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type {
-  ChecklistDetailDto, ChecklistDto, ChecklistItemInput, CreateChecklistRequest,
+  ChecklistDetailDto, ChecklistDto, ChecklistItemInput, CreateChecklistRequest, UpdateChecklistRequest,
 } from './checklist.models.js';
 
 @Injectable({ providedIn: 'root' })
@@ -24,6 +24,10 @@ export class ChecklistService {
 
   createChecklist(body: CreateChecklistRequest): Observable<{ id: string }> {
     return this.http.post<{ id: string }>(`${this.base}/checklists`, body);
+  }
+
+  updateChecklist(id: string, body: UpdateChecklistRequest): Observable<void> {
+    return this.http.put<void>(`${this.base}/checklists/${id}`, body);
   }
 
   updateItems(id: string, items: ChecklistItemInput[]): Observable<void> {

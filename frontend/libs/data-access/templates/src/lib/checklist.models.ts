@@ -38,3 +38,11 @@ export interface CreateChecklistRequest {
   storeId?: string;
   items: ChecklistItemInput[];
 }
+
+export interface UpdateChecklistRequest {
+  name: string;
+  description?: string;
+  scope: TemplateScope;
+  regionId?: string;
+  storeId?: string;
+}

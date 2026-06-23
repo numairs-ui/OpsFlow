@@ -33,6 +33,9 @@
       "path": "../../libs/data-access/org/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/ui/core/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/data-access/auth/tsconfig.lib.json"
     }
   ]

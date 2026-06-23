@@ -2,14 +2,12 @@
 import { defineConfig } from 'vite';
 import angular from '@analogjs/vite-plugin-angular';
 
+const isTest = !!process.env['VITEST'];
+
 export default defineConfig(() => ({
   root: __dirname,
   cacheDir: '../../../node_modules/.vite/libs/ui/core',
-  plugins: [angular()],
-  // Uncomment this if you are using workers.
-  // worker: {
-  //  plugins: [],
-  // },
+  plugins: isTest ? [] : [angular({ tsconfig: './tsconfig.lib.json' })],
   test: {
     name: 'ui-core',
     watch: false,
