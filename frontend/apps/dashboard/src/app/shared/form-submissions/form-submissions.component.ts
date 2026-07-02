@@ -5,14 +5,16 @@ import {
   FormSubmissionService,
   type FormSubmissionDetailDto,
   type FormSubmissionStatus,
+  type FormSubmissionSummaryDto,
   type MySubmissionDto,
   type PendingReviewDto,
 } from '@org/data-access-tasks';
 import { FormTemplateService, type FormTemplateDto } from '@org/data-access-templates';
+import { OrgService, type Store } from '@org/data-access-org';
 import { TemplatePickerComponent, SaveToggleComponent, type SaveToggleMode } from '@org/ui-template-builder';
 import type { TemplateField } from '@org/ui-field-builder';
 
-type Tab = 'mine' | 'review';
+type Tab = 'mine' | 'review' | 'all';
 type Pile = 'All' | 'Draft' | 'PendingApproval' | 'Returned' | 'Rejected' | 'Approved' | 'Recorded';
 type DetailMode = 'fill' | 'review' | 'view';
 
@@ -26,13 +28,20 @@ export class FormSubmissionsComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly submissionSvc = inject(FormSubmissionService);
   private readonly templateSvc = inject(FormTemplateService);
+  private readonly orgSvc = inject(OrgService);
 
   readonly currentUser = this.auth.currentUser;
   readonly activeTab = signal<Tab>('mine');
   readonly pile = signal<Pile>('All');
 
+  readonly isAdminOrSupervisor = computed(() => {
+    const role = this.currentUser()?.role;
+    return role === 'admin' || role === 'supervisor';
+  });
+
   readonly mySubmissions = signal<MySubmissionDto[]>([]);
   readonly pendingReview = signal<PendingReviewDto[]>([]);
+  readonly allSubmissions = signal<FormSubmissionSummaryDto[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
 
@@ -47,6 +56,8 @@ export class FormSubmissionsComponent implements OnInit {
   // Create flow
   readonly showCreatePicker = signal(false);
   readonly formTemplates = signal<FormTemplateDto[]>([]);
+  readonly stores = signal<Store[]>([]);
+  readonly selectedStoreId = signal<string | null>(null);
 
   // Detail / fill / review slide-over
   readonly detail = signal<FormSubmissionDetailDto | null>(null);
@@ -60,13 +71,32 @@ export class FormSubmissionsComponent implements OnInit {
   readonly actionModal = signal<'reject' | 'return' | null>(null);
   readonly actionComment = signal('');
 
+  readonly submissionStats = computed(() => {
+    const isAdminSup = this.isAdminOrSupervisor();
+    const items = isAdminSup ? this.allSubmissions() : this.mySubmissions();
+    const review = this.pendingReview();
+    if (!items.length && !review.length) return null;
+    return {
+      total: items.length,
+      inFlight: items.filter(s => s.status === 'PendingApproval').length,
+      awaitingReview: review.length,
+      resolved: items.filter(s => s.status === 'Approved' || s.status === 'Recorded').length,
+      needsAttention: items.filter(s => s.status === 'Returned' || s.status === 'Rejected' || s.status === 'Draft').length,
+    };
+  });
+
   ngOnInit(): void {
     this.loadMine();
     this.loadReview();
+    if (this.isAdminOrSupervisor()) {
+      this.loadAll();
+      this.activeTab.set('all');
+    }
   }
 
   switchTab(tab: Tab): void {
     this.activeTab.set(tab);
+    if (tab === 'all') this.loadAll();
   }
 
   private loadMine(): void {
@@ -84,12 +114,22 @@ export class FormSubmissionsComponent implements OnInit {
     });
   }
 
+  private loadAll(): void {
+    this.submissionSvc.getSubmissions().subscribe({
+      next: (r) => this.allSubmissions.set(r),
+      error: () => undefined,
+    });
+  }
+
   // --- Create flow ---
   openCreatePicker(): void {
     this.showCreatePicker.set(true);
     this.templateSvc.getFormTemplates({ isActive: true }).subscribe({
       next: (r) => this.formTemplates.set(r.items),
     });
+    if (this.isAdminOrSupervisor() && !this.currentUser()?.storeId) {
+      this.orgSvc.getStores().subscribe({ next: (r) => this.stores.set(r) });
+    }
   }
 
   closeCreatePicker(): void {
@@ -112,6 +152,19 @@ export class FormSubmissionsComponent implements OnInit {
         this.detailError.set(null);
         this.showCreatePicker.set(false);
       },
+    });
+  }
+
+  openSummary(s: FormSubmissionSummaryDto): void {
+    this.openMine({
+      id: s.id,
+      formTemplateId: s.formTemplateId,
+      formTemplateName: s.formTemplateName,
+      storeId: s.storeId,
+      status: s.status,
+      createdAt: s.createdAt,
+      submittedAt: s.submittedAt,
+      resolvedAt: s.resolvedAt,
     });
   }
 
@@ -151,6 +204,7 @@ export class FormSubmissionsComponent implements OnInit {
     this.detailMode.set('view');
     this.actionModal.set(null);
     this.actionComment.set('');
+    this.selectedStoreId.set(null);
   }
 
   setFieldValue(fieldId: string, value: string): void {
@@ -162,8 +216,8 @@ export class FormSubmissionsComponent implements OnInit {
   }
 
   submitFill(): void {
-    const storeId = this.currentUser()?.storeId;
-    if (!storeId) { this.detailError.set('No store assigned to your account.'); return; }
+    const storeId = this.currentUser()?.storeId ?? this.selectedStoreId() ?? null;
+    if (!storeId) { this.detailError.set('Please select a store for this submission.'); return; }
 
     this.detailBusy.set(true);
     this.detailError.set(null);
@@ -171,7 +225,7 @@ export class FormSubmissionsComponent implements OnInit {
     const id = this.draftId();
     if (id) {
       this.submissionSvc.submitSubmission(id, { fieldValues: this.fieldValues() }).subscribe({
-        next: () => { this.detailBusy.set(false); this.closeDetail(); this.loadMine(); this.loadReview(); },
+        next: () => { this.detailBusy.set(false); this.closeDetail(); this.loadMine(); this.loadReview(); if (this.isAdminOrSupervisor()) this.loadAll(); },
         error: (err) => { this.detailBusy.set(false); this.detailError.set(this.extractError(err)); },
       });
       return;
@@ -183,7 +237,7 @@ export class FormSubmissionsComponent implements OnInit {
       next: (res) => {
         this.draftId.set(res.id);
         this.submissionSvc.submitSubmission(res.id, { fieldValues: this.fieldValues() }).subscribe({
-          next: () => { this.detailBusy.set(false); this.closeDetail(); this.loadMine(); this.loadReview(); },
+          next: () => { this.detailBusy.set(false); this.closeDetail(); this.loadMine(); this.loadReview(); if (this.isAdminOrSupervisor()) this.loadAll(); },
           error: (err) => { this.detailBusy.set(false); this.detailError.set(this.extractError(err)); },
         });
       },
@@ -198,12 +252,12 @@ export class FormSubmissionsComponent implements OnInit {
     if (existingId) {
       this.submissionSvc.updateDraft(existingId, this.fieldValues()).subscribe({
         next: () => { this.detailBusy.set(false); this.closeDetail(); this.loadMine(); },
-        error: (err) => { this.detailBusy.set(false); this.detailError.set(this.extractError(err)); },
+        error: (err: unknown) => { this.detailBusy.set(false); this.detailError.set(this.extractError(err)); },
       });
       return;
     }
-    const storeId = this.currentUser()?.storeId;
-    if (!storeId) { this.detailBusy.set(false); this.detailError.set('No store assigned to your account.'); return; }
+    const storeId = this.currentUser()?.storeId ?? this.selectedStoreId() ?? null;
+    if (!storeId) { this.detailBusy.set(false); this.detailError.set('Please select a store.'); return; }
     const templateId = this.pendingCreateTemplateId;
     this.submissionSvc.createSubmission({ formTemplateId: templateId, storeId, fieldValues: this.fieldValues() }).subscribe({
       next: (res) => { this.draftId.set(res.id); this.detailBusy.set(false); this.closeDetail(); this.loadMine(); },
@@ -253,5 +307,15 @@ export class FormSubmissionsComponent implements OnInit {
 
   pileLabel(status: FormSubmissionStatus | Pile): string {
     return status === 'PendingApproval' ? 'Pending' : status;
+  }
+
+  roleLabel(role: string): string {
+    const map: Record<string, string> = {
+      store_employee: 'Store Employee',
+      store_manager: 'Store Manager',
+      supervisor: 'Area Supervisor',
+      admin: 'Admin',
+    };
+    return map[role] ?? role;
   }
 }

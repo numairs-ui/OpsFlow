@@ -131,4 +131,24 @@ Co-Authored-By: Antigravity <antigravity@google.com>
 
 ---
 
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs live as GitHub issues on `numairs-ui/OpsFlow` (via the `gh` CLI). External PRs are **not** a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical vocabulary, used verbatim: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Design system
+
+Before building or changing any OpsFlow frontend UI, read and apply the **`opsflow-design-system`** skill (`.claude/skills/opsflow-design-system/SKILL.md`) — the canonical tokens, typography (Inter), components, forms, and patterns. Implementation lives in each app's `src/styles.scss`.
+
+---
+
 *Remember: Directives are living protocols. Respect the architecture, design for reliability, and always leave the workspace smarter than you found it.*

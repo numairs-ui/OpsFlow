@@ -5,10 +5,12 @@ export function noWhitespace(control: AbstractControl): ValidationErrors | null 
 }
 
 const ROLE_LABELS: Record<string, string> = {
+  super_admin: 'Super Admin',
   admin: 'Administrator',
   supervisor: 'Supervisor',
   store_manager: 'Store Manager',
   store_employee: 'Store Employee',
+  store_kiosk: 'Store Kiosk',
 };
 
 export function roleLabel(role: string | null | undefined): string {

@@ -43,7 +43,7 @@ public sealed class UpdateChecklistTests : IClassFixture<TenantAwareWebApplicati
             CreatedByUserId = TenantAwareWebApplicationFactory.AdminUserId,
         });
 
-        var token = _factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin");
+        var token = _factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin");
         _client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
@@ -104,7 +104,7 @@ public sealed class UpdateChecklistTests : IClassFixture<TenantAwareWebApplicati
             CreatedByUserId = TenantAwareWebApplicationFactory.AdminUserId,
         });
 
-        var token = _factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin");
+        var token = _factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin");
         _client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 

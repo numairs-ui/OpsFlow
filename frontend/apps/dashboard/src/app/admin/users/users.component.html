@@ -11,7 +11,6 @@
     <div class="alert alert--error">{{ error() }}</div>
   }
 
-  <!-- Filters -->
   <div class="filters">
     <input class="input filters__search" placeholder="Search by name or email…"
       [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)" />
@@ -27,48 +26,54 @@
     <div class="loading">Loading...</div>
   } @else {
     <div class="table-wrap">
-      <table class="table">
+      <table class="table table--clickable">
         <thead>
           <tr>
-            <th>Name</th>
+            <th class="col--name">Name</th>
             <th>Email</th>
-            <th>Role</th>
-            <th>Store / Region</th>
-            <th>Status</th>
-            <th class="table__actions-col">Actions</th>
+            <th class="col--role">Role</th>
+            <th class="col--location">Store / Region</th>
+            <th class="col--status">Status</th>
+            <th class="col--actions">Actions</th>
           </tr>
         </thead>
         <tbody>
           @for (user of filteredUsers(); track user.userId) {
-            <tr [class.table__row--inactive]="!user.isActive">
-              <td>
+            <tr [class.table__row--inactive]="!user.isActive" (click)="cancelDeactivate(); openDetail(user)">
+              <td class="td--name col--name">
                 {{ user.displayName }}
                 @if (user.mustChangePassword) {
-                  <span class="badge badge--warn" title="Must change password">&#8203;&#9888;</span>
+                  <span class="pw-warn" title="Must change password on next login">&#9888;</span>
                 }
               </td>
               <td class="text-muted">{{ user.email }}</td>
-              <td><span class="role-badge role-badge--{{ user.role }}">{{ user.role }}</span></td>
-              <td class="text-muted">
+              <td class="col--role">
+                <span class="role-badge role-badge--{{ user.role }}">{{ roleLabel(user.role) }}</span>
+              </td>
+              <td class="text-muted col--location">
                 @if (user.storeName) { {{ user.storeName }} }
                 @else if (user.regionName) { {{ user.regionName }} }
                 @else { — }
               </td>
-              <td>
+              <td class="col--status">
                 <span class="badge" [class.badge--active]="user.isActive" [class.badge--inactive]="!user.isActive">
                   {{ user.isActive ? 'Active' : 'Inactive' }}
                 </span>
               </td>
-              <td class="table__actions">
-                <button class="btn btn--sm btn--ghost" (click)="openEdit(user)">Edit</button>
-                @if (user.role === 'store_manager') {
-                  <button class="btn btn--sm btn--ghost" (click)="openAssignments(user)">Stores</button>
-                }
-                @if (user.isActive) {
-                  <button class="btn btn--sm btn--danger-ghost" (click)="deactivate(user)">Deactivate</button>
-                } @else {
-                  <button class="btn btn--sm btn--success-ghost" (click)="reactivate(user)">Reactivate</button>
-                }
+              <td class="col--actions" (click)="$event.stopPropagation()">
+                <div class="row-actions">
+                  <button class="btn btn--sm btn--ghost" (click)="openEdit(user)">Edit</button>
+                  @if (user.isActive) {
+                    @if (confirmingUserId() === user.userId) {
+                      <button class="btn btn--sm btn--danger" (click)="executeDeactivate(user)">Confirm?</button>
+                      <button class="btn btn--sm btn--ghost" (click)="cancelDeactivate()">✕</button>
+                    } @else {
+                      <button class="btn btn--sm btn--danger-ghost" (click)="beginDeactivate(user.userId)">Deactivate</button>
+                    }
+                  } @else {
+                    <button class="btn btn--sm btn--success-ghost" (click)="reactivate(user)">Reactivate</button>
+                  }
+                </div>
               </td>
             </tr>
           } @empty {
@@ -79,6 +84,120 @@
     </div>
   }
 </div>
+
+<!-- User detail slide-over -->
+@if (detailUser()) {
+  <div class="overlay" (click)="closeDetail()"></div>
+  <div class="slide-over">
+    <div class="slide-over__header">
+      <div class="detail-title">
+        <span class="detail-title__eyebrow">{{ roleLabel(detailUser()!.role) }}</span>
+        <h2>{{ detailUser()!.displayName }}</h2>
+      </div>
+      <button class="slide-over__close" (click)="closeDetail()">&#10005;</button>
+    </div>
+
+    <div class="slide-over__body">
+
+      <!-- Profile -->
+      <div class="detail-meta">
+        <div class="user-profile">
+          <span class="badge" [class.badge--active]="detailUser()!.isActive" [class.badge--inactive]="!detailUser()!.isActive">
+            {{ detailUser()!.isActive ? 'Active' : 'Inactive' }}
+          </span>
+          <span class="role-badge role-badge--{{ detailUser()!.role }}">{{ roleLabel(detailUser()!.role) }}</span>
+        </div>
+        <p class="detail-meta__desc">{{ detailUser()!.email }}</p>
+        @if (detailUser()!.storeName) {
+          <p class="detail-meta__desc">&#128205; {{ detailUser()!.storeName }}</p>
+        } @else if (detailUser()!.regionName) {
+          <p class="detail-meta__desc">&#128205; {{ detailUser()!.regionName }}</p>
+        }
+        @if (detailUser()!.mustChangePassword) {
+          <div class="pw-warn-banner">
+            <span>&#9888;</span> Password change required on next login.
+          </div>
+        }
+      </div>
+
+      <!-- Store assignments (store managers only) -->
+      @if (detailUser()!.role === 'store_manager') {
+        <div class="detail-section">
+          <h3 class="detail-section__title">Store Assignments</h3>
+          @if (loadingAssignments()) {
+            <p class="loading-inline">Loading…</p>
+          } @else {
+            <div class="assignment-list">
+              @for (a of assignments(); track a.storeId) {
+                <div class="assignment-item">
+                  <div>
+                    <div class="assignment-item__name">{{ a.storeName }}</div>
+                    <div class="assignment-item__meta">{{ a.regionName }} · Assigned {{ a.assignedAt | slice:0:10 }}</div>
+                  </div>
+                  <button class="btn btn--sm btn--danger-ghost" (click)="removeAssignment(a.storeId)">Remove</button>
+                </div>
+              } @empty {
+                <p class="empty-inline">No store assignments yet.</p>
+              }
+            </div>
+            @if (availableStoresForAssignment().length > 0) {
+              <div class="assign-add">
+                <select class="input" [value]="assigningStore()" (change)="assigningStore.set($any($event.target).value)">
+                  <option value="">Add a store…</option>
+                  @for (s of availableStoresForAssignment(); track s.id) {
+                    <option [value]="s.id">{{ s.name }} ({{ s.regionName }})</option>
+                  }
+                </select>
+                <button class="btn btn--ghost" [disabled]="!assigningStore()" (click)="addAssignment()">Add</button>
+              </div>
+            }
+          }
+        </div>
+      }
+
+      <!-- Activity history -->
+      <div class="detail-section">
+        <h3 class="detail-section__title">Activity History</h3>
+        @if (loadingActivity()) {
+          <p class="loading-inline">Loading…</p>
+        } @else if (activity().length === 0) {
+          <p class="empty-inline">No activity recorded yet.</p>
+        } @else {
+          <div class="activity-list">
+            @for (item of activity(); track $index) {
+              <div class="activity-item">
+                <span class="activity-item__type activity-item__type--{{ item.type }}">
+                  {{ activityTypeLabel(item.type) }}
+                </span>
+                <span class="activity-item__title">{{ item.title }}</span>
+                <span class="activity-item__status activity-item__status--{{ item.status.toLowerCase() }}">
+                  {{ item.status }}
+                </span>
+                <span class="activity-item__date">{{ item.date | slice:0:10 }}</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+    </div>
+
+    <div class="slide-over__footer">
+      @if (detailUser()!.isActive) {
+        @if (confirmingUserId() === detailUser()!.userId) {
+          <button class="btn btn--ghost" (click)="cancelDeactivate()">Cancel</button>
+          <button class="btn btn--danger" (click)="executeDeactivate(detailUser()!)">Confirm Deactivate</button>
+        } @else {
+          <button class="btn btn--danger-ghost" (click)="beginDeactivate(detailUser()!.userId)">Deactivate</button>
+          <button class="btn btn--primary" (click)="editFromDetail()">Edit User</button>
+        }
+      } @else {
+        <button class="btn btn--success-ghost" (click)="reactivate(detailUser()!)">Reactivate</button>
+        <button class="btn btn--primary" (click)="editFromDetail()">Edit User</button>
+      }
+    </div>
+  </div>
+}
 
 <!-- Create / Edit slide-over -->
 @if (showForm()) {
@@ -112,18 +231,15 @@
       <div class="field">
         <label class="label" for="role">Role *</label>
         <select id="role" class="input" formControlName="role">
-          @for (r of roles; track r.value) {
+          @for (r of availableRoles(); track r.value) {
             <option [value]="r.value">{{ r.label }}</option>
           }
         </select>
       </div>
 
-      <!-- Role-conditional fields -->
-      @if (selectedRole() === 'store_employee' || selectedRole() === 'store_manager') {
+      @if (needsStore()) {
         <div class="field">
-          <label class="label" for="storeId">
-            Primary Store @if (selectedRole() === 'store_employee') { * }
-          </label>
+          <label class="label" for="storeId">Primary Store *</label>
           <select id="storeId" class="input" formControlName="storeId">
             <option value="">Select a store</option>
             @for (s of stores(); track s.id) {
@@ -132,15 +248,22 @@
           </select>
         </div>
       }
-      @if (selectedRole() === 'supervisor') {
+      @if (needsRegions()) {
         <div class="field">
-          <label class="label" for="regionId">Region *</label>
-          <select id="regionId" class="input" formControlName="regionId">
-            <option value="">Select a region</option>
+          <label class="label" for="regionIds">
+            {{ singleRegionOnly() ? 'Region *' : 'Regions *' }}
+          </label>
+          <select id="regionIds" class="input input--multi" multiple formControlName="regionIds"
+                  [size]="regions().length > 6 ? 6 : regions().length">
             @for (r of regions(); track r.id) {
               <option [value]="r.id">{{ r.name }}</option>
             }
           </select>
+          <p class="field__hint">
+            {{ singleRegionOnly()
+              ? 'A supervisor oversees a single region — pick one.'
+              : 'An admin manages every region selected here. Hold Ctrl/⌘ to choose several.' }}
+          </p>
         </div>
       }
 
@@ -151,54 +274,5 @@
         </button>
       </div>
     </form>
-  </div>
-}
-
-<!-- TB-17: Store Assignments panel -->
-@if (selectedUser()) {
-  <div class="overlay" (click)="closeAssignments()"></div>
-  <div class="slide-over">
-    <div class="slide-over__header">
-      <h2>Store Assignments — {{ selectedUser()!.displayName }}</h2>
-      <button class="slide-over__close" (click)="closeAssignments()">&#10005;</button>
-    </div>
-    <div class="slide-over__body">
-      <p class="text-muted" style="font-size:13px;margin-top:0">
-        Store managers can be assigned to multiple stores.
-      </p>
-
-      @if (loadingAssignments()) {
-        <div class="loading">Loading...</div>
-      } @else {
-        <div class="assignment-list">
-          @for (a of assignments(); track a.storeId) {
-            <div class="assignment-item">
-              <div>
-                <div class="assignment-item__name">{{ a.storeName }}</div>
-                <div class="assignment-item__meta">{{ a.regionName }} · Assigned {{ a.assignedAt | slice:0:10 }}</div>
-              </div>
-              <button class="btn btn--sm btn--danger-ghost" (click)="removeAssignment(a.storeId)">Remove</button>
-            </div>
-          } @empty {
-            <p class="empty" style="padding:20px 0">No store assignments yet.</p>
-          }
-        </div>
-
-        @if (availableStoresForAssignment().length > 0) {
-          <div class="field" style="margin-top:16px">
-            <label class="label">Add Store</label>
-            <div style="display:flex;gap:8px">
-              <select class="input" [value]="assigningStore()" (change)="assigningStore.set($any($event.target).value)">
-                <option value="">Select a store…</option>
-                @for (s of availableStoresForAssignment(); track s.id) {
-                  <option [value]="s.id">{{ s.name }} ({{ s.regionName }})</option>
-                }
-              </select>
-              <button class="btn btn--primary" [disabled]="!assigningStore()" (click)="addAssignment()">Add</button>
-            </div>
-          </div>
-        }
-      }
-    </div>
   </div>
 }

@@ -1,15 +1,27 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Security;
 using OpsFlow.Infrastructure;
 
 namespace OpsFlow.Api.Features.Dashboard.GetStoreDashboard;
 
 internal sealed class GetStoreDashboardHandler(
-    TenantDbContextFactory factory) : IRequestHandler<GetStoreDashboardQuery, StoreDashboardDto>
+    TenantDbContextFactory factory,
+    IHttpContextAccessor httpContextAccessor) : IRequestHandler<GetStoreDashboardQuery, StoreDashboardDto>
 {
     public async Task<StoreDashboardDto> Handle(GetStoreDashboardQuery query, CancellationToken ct)
     {
+        var user = httpContextAccessor.HttpContext!.User;
+        var spec = user.ToCaller().Scope();
+
         await using var db = await factory.CreateAsync(ct);
+
+        // Only those who can view this store may see its dashboard.
+        var store = await db.Stores.FindAsync([query.StoreId], ct)
+            ?? throw new KeyNotFoundException($"Store {query.StoreId} not found.");
+        var assigned = spec.IsStoreScoped
+            && await db.UserStoreAssignments.AnyAsync(a => a.UserId == user.GetUserId() && a.StoreId == query.StoreId, ct);
+        spec.AssertCanViewStore(store.RegionId, store.Id, assigned);
 
         var now        = DateTimeOffset.UtcNow;
         var todayStart = new DateTimeOffset(now.Date, TimeSpan.Zero);

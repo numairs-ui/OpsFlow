@@ -1,8 +1,12 @@
 <div class="page">
   <div class="page__header">
     <div>
-      <h1 class="page__title">Form Submissions</h1>
-      <p class="page__subtitle">Submit forms and review pending approvals.</p>
+      <p class="page__eyebrow">
+        @if (isAdminOrSupervisor()) { Admin · System View } @else { Forms }
+      </p>
+      <h1 class="page__title">
+        Form <em>Submissions</em>
+      </h1>
     </div>
     <button class="btn btn--primary" (click)="openCreatePicker()">+ New Submission</button>
   </div>
@@ -11,25 +15,130 @@
     <div class="alert alert--error">{{ error() }}</div>
   }
 
+  <!-- ── Stats strip ──────────────────────────────────────────────────────── -->
+  @if (submissionStats(); as stats) {
+    <div class="stats-strip">
+      <div class="stat-tile">
+        <span class="stat-tile__num">{{ stats.total }}</span>
+        <span class="stat-tile__lbl">Total</span>
+      </div>
+      <div class="stat-tile" [class.stat-tile--warn]="stats.inFlight > 0">
+        <span class="stat-tile__num">{{ stats.inFlight }}</span>
+        <span class="stat-tile__lbl">In Flight</span>
+      </div>
+      @if (isAdminOrSupervisor()) {
+        <div class="stat-tile" [class.stat-tile--action]="stats.awaitingReview > 0">
+          <span class="stat-tile__num">{{ stats.awaitingReview }}</span>
+          <span class="stat-tile__lbl">Awaiting Review</span>
+        </div>
+      }
+      <div class="stat-tile" [class.stat-tile--ok]="stats.resolved > 0">
+        <span class="stat-tile__num">{{ stats.resolved }}</span>
+        <span class="stat-tile__lbl">Approved / Recorded</span>
+      </div>
+      <div class="stat-tile" [class.stat-tile--danger]="stats.needsAttention > 0">
+        <span class="stat-tile__num">{{ stats.needsAttention }}</span>
+        <span class="stat-tile__lbl">Needs Attention</span>
+      </div>
+    </div>
+  }
+
+  <!-- ── Tabs ─────────────────────────────────────────────────────────────── -->
   <div class="tabs" role="tablist" aria-label="Submissions view">
-    <button role="tab" class="tab" [class.tab--active]="activeTab() === 'mine'"
-      [attr.aria-selected]="activeTab() === 'mine'" (click)="switchTab('mine')">My Submissions</button>
+    @if (isAdminOrSupervisor()) {
+      <button role="tab" class="tab" [class.tab--active]="activeTab() === 'all'"
+        [attr.aria-selected]="activeTab() === 'all'" (click)="switchTab('all')">
+        All Submissions
+        @if (allSubmissions().length > 0) {
+          <span class="tab-badge tab-badge--neutral">{{ allSubmissions().length }}</span>
+        }
+      </button>
+    }
     <button role="tab" class="tab" [class.tab--active]="activeTab() === 'review'"
       [attr.aria-selected]="activeTab() === 'review'" (click)="switchTab('review')">
       Pending Review
       @if (pendingReview().length > 0) { <span class="tab-badge">{{ pendingReview().length }}</span> }
     </button>
+    <button role="tab" class="tab" [class.tab--active]="activeTab() === 'mine'"
+      [attr.aria-selected]="activeTab() === 'mine'" (click)="switchTab('mine')">My Submissions</button>
   </div>
 
+  <!-- ── All Submissions (admin / supervisor) ──────────────────────────────── -->
+  @if (activeTab() === 'all') {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Form</th><th>Store</th><th>Submitted By</th>
+            <th>Status</th><th>Created</th><th>Submitted</th><th>Resolved</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (s of allSubmissions(); track s.id) {
+            <tr class="clickable-row" tabindex="0" role="button"
+              [attr.aria-label]="'View ' + (s.formTemplateName ?? 'submission')"
+              (click)="openSummary(s)"
+              (keydown.enter)="openSummary(s)"
+              (keydown.space)="openSummary(s)">
+              <td class="cell--form">{{ s.formTemplateName ?? '—' }}</td>
+              <td class="text-muted">{{ s.storeName ?? s.storeId }}</td>
+              <td class="text-muted mono-id">{{ s.submittedByUserId }}</td>
+              <td>
+                <span class="status-badge status-badge--{{ s.status.toLowerCase() }}">
+                  {{ pileLabel(s.status) }}
+                </span>
+              </td>
+              <td class="text-muted">{{ s.createdAt | date:'d MMM y' }}</td>
+              <td class="text-muted">{{ s.submittedAt ? (s.submittedAt | date:'d MMM y') : '—' }}</td>
+              <td class="text-muted">{{ s.resolvedAt ? (s.resolvedAt | date:'d MMM y') : '—' }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7" class="empty">No submissions found across all stores.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- ── Pending Review ────────────────────────────────────────────────────── -->
+  @if (activeTab() === 'review') {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>Form</th><th>Store</th><th>Step</th><th>Submitted</th></tr>
+        </thead>
+        <tbody>
+          @for (p of pendingReview(); track p.id) {
+            <tr class="clickable-row" tabindex="0" role="button"
+              [attr.aria-label]="'Review ' + (p.formTemplateName ?? 'submission')"
+              (click)="openReview(p)"
+              (keydown.enter)="openReview(p)"
+              (keydown.space)="openReview(p)">
+              <td class="cell--form">{{ p.formTemplateName ?? '—' }}</td>
+              <td class="text-muted">{{ p.storeName ?? '—' }}</td>
+              <td class="text-muted">Step {{ p.stepOrder }}</td>
+              <td class="text-muted">{{ p.submittedAt ? (p.submittedAt | date:'d MMM y') : '—' }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="4" class="empty">Nothing pending your review.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- ── My Submissions ────────────────────────────────────────────────────── -->
   @if (activeTab() === 'mine') {
     <div class="piles">
       @for (p of piles; track p) {
-        <button class="pile" [class.pile--active]="pile() === p" (click)="pile.set(p)">{{ pileLabel(p) }}</button>
+        <button class="pile" [class.pile--active]="pile() === p" (click)="pile.set(p)">
+          {{ pileLabel(p) }}
+        </button>
       }
     </div>
 
     @if (loading()) {
-      <div class="loading">Loading...</div>
+      <div class="loading">Loading…</div>
     } @else {
       <div class="table-wrap">
         <table class="table">
@@ -38,18 +147,20 @@
           </thead>
           <tbody>
             @for (s of filteredMine(); track s.id) {
-              <tr class="clickable-row"
-                tabindex="0"
-                role="button"
+              <tr class="clickable-row" tabindex="0" role="button"
                 [attr.aria-label]="'Open ' + (s.formTemplateName ?? 'submission')"
                 (click)="openMine(s)"
                 (keydown.enter)="openMine(s)"
                 (keydown.space)="openMine(s)">
-                <td>{{ s.formTemplateName ?? '—' }}</td>
-                <td><span class="status-badge status-badge--{{ s.status.toLowerCase() }}">{{ pileLabel(s.status) }}</span></td>
-                <td class="text-muted">{{ s.createdAt | date:'short' }}</td>
-                <td class="text-muted">{{ s.submittedAt ? (s.submittedAt | date:'short') : '—' }}</td>
-                <td class="text-muted">{{ s.resolvedAt ? (s.resolvedAt | date:'short') : '—' }}</td>
+                <td class="cell--form">{{ s.formTemplateName ?? '—' }}</td>
+                <td>
+                  <span class="status-badge status-badge--{{ s.status.toLowerCase() }}">
+                    {{ pileLabel(s.status) }}
+                  </span>
+                </td>
+                <td class="text-muted">{{ s.createdAt | date:'d MMM y' }}</td>
+                <td class="text-muted">{{ s.submittedAt ? (s.submittedAt | date:'d MMM y') : '—' }}</td>
+                <td class="text-muted">{{ s.resolvedAt ? (s.resolvedAt | date:'d MMM y') : '—' }}</td>
               </tr>
             } @empty {
               <tr><td colspan="5" class="empty">No submissions found.</td></tr>
@@ -59,160 +170,207 @@
       </div>
     }
   }
-
-  @if (activeTab() === 'review') {
-    <div class="table-wrap">
-      <table class="table">
-        <thead>
-          <tr><th>Form</th><th>Store</th><th>Step</th><th>Submitted</th></tr>
-        </thead>
-        <tbody>
-          @for (p of pendingReview(); track p.id) {
-            <tr class="clickable-row"
-              tabindex="0"
-              role="button"
-              [attr.aria-label]="'Review ' + (p.formTemplateName ?? 'submission')"
-              (click)="openReview(p)"
-              (keydown.enter)="openReview(p)"
-              (keydown.space)="openReview(p)">
-              <td>{{ p.formTemplateName ?? '—' }}</td>
-              <td class="text-muted">{{ p.storeName ?? '—' }}</td>
-              <td class="text-muted">Step {{ p.stepOrder }}</td>
-              <td class="text-muted">{{ p.submittedAt ? (p.submittedAt | date:'short') : '—' }}</td>
-            </tr>
-          } @empty {
-            <tr><td colspan="4" class="empty">Nothing pending your review.</td></tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  }
 </div>
 
-<!-- Create: template picker -->
+<!-- ── Create: template picker ──────────────────────────────────────────────── -->
 @if (showCreatePicker()) {
   <div class="overlay" (click)="closeCreatePicker()"></div>
-  <div class="slide-over"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="picker-title"
+  <div class="slide-over" role="dialog" aria-modal="true" aria-labelledby="picker-title"
     (keydown.escape)="closeCreatePicker()">
     <div class="slide-over__header">
-      <h2 id="picker-title">Choose a Form Template</h2>
-      <button class="slide-over__close" (click)="closeCreatePicker()">&#10005;</button>
+      <h2 id="picker-title" class="slide-over__title">Choose a Form Template</h2>
+      <button class="slide-over__close" (click)="closeCreatePicker()" aria-label="Close">&#10005;</button>
     </div>
     <div class="slide-over__body">
-      <lib-template-picker
-        [templates]="formTemplates()"
-        (templateSelected)="startNewSubmission($event)"
-      />
+      <lib-template-picker [templates]="formTemplates()" (templateSelected)="startNewSubmission($event)" />
     </div>
   </div>
 }
 
-<!-- Detail / fill / review slide-over -->
+<!-- ── Detail / fill / review slide-over ────────────────────────────────────── -->
 @if (detailMode() === 'fill' || detail()) {
   <div class="overlay" (click)="closeDetail()"></div>
-  <div class="slide-over slide-over--wide"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="detail-title"
-    (keydown.escape)="closeDetail()">
-    <div class="slide-over__header">
-      <h2 id="detail-title">
-        @if (detailMode() === 'fill') { Fill Out Form }
-        @if (detailMode() === 'review') { Review Submission }
-        @if (detailMode() === 'view') { Submission Detail }
-      </h2>
-      <div class="mode-badge mode-badge--{{ detailMode() }}">
-        @if (detailMode() === 'fill') { Filling in progress }
-        @if (detailMode() === 'review') { Awaiting your review }
-        @if (detailMode() === 'view') { Read-only }
+  <div class="slide-over slide-over--wide" role="dialog" aria-modal="true"
+    aria-labelledby="detail-title" (keydown.escape)="closeDetail()">
+
+    <!-- Header: form name + store + status -->
+    <div class="detail-hdr">
+      <div class="detail-hdr__top">
+        <div class="detail-hdr__name" id="detail-title">
+          {{ detail()?.formTemplateName ?? 'New Submission' }}
+        </div>
+        <button class="slide-over__close" (click)="closeDetail()" aria-label="Close">&#10005;</button>
       </div>
-      <button class="slide-over__close" (click)="closeDetail()">&#10005;</button>
+      <div class="detail-hdr__meta">
+        @if (detail()?.storeName) {
+          <span class="detail-hdr__store">{{ detail()?.storeName }}</span>
+          <span class="detail-hdr__sep">·</span>
+        }
+        <span class="status-badge status-badge--{{ (detail()?.status ?? 'draft').toLowerCase() }}">
+          {{ detail() ? pileLabel(detail()!.status) : 'Draft' }}
+        </span>
+        <span class="detail-hdr__sep">·</span>
+        <span class="mode-badge mode-badge--{{ detailMode() }}">
+          @if (detailMode() === 'fill') { Filling in progress }
+          @if (detailMode() === 'review') { Awaiting your review }
+          @if (detailMode() === 'view') { Read-only }
+        </span>
+      </div>
+      @if (detail(); as d) {
+        <div class="detail-hdr__dates">
+          <span>Created {{ d.createdAt | date:'d MMM y' }}</span>
+          @if (d.submittedAt) { <span>· Submitted {{ d.submittedAt | date:'d MMM y' }}</span> }
+          @if (d.resolvedAt) { <span>· Resolved {{ d.resolvedAt | date:'d MMM y' }}</span> }
+        </div>
+      }
     </div>
+
     <div class="slide-over__body">
       @if (detailError()) {
         <div class="alert alert--error">{{ detailError() }}</div>
       }
 
-      @if (detail(); as d) {
-        @if (d.status === 'Returned') {
-          <div class="returned-banner">
-            <strong>Returned for revision.</strong>
-            @for (step of d.approvalSteps; track step.stepOrder) {
-              @if (step.action === 'Returned' && step.comments) {
-                <p>{{ step.comments }}</p>
-              }
+      <!-- Store picker for admin without storeId (new submissions only) -->
+      @if (detailMode() === 'fill' && isAdminOrSupervisor() && !currentUser()?.storeId && !draftId()) {
+        <div class="field-group">
+          <label class="field-label">Store <span class="required-mark">*</span></label>
+          <select class="input" [value]="selectedStoreId() ?? ''"
+            (change)="selectedStoreId.set($any($event.target).value || null)">
+            <option value="">— Select a store —</option>
+            @for (s of stores(); track s.id) {
+              <option [value]="s.id">{{ s.name }}</option>
             }
-          </div>
-        }
-        @if (d.status === 'Rejected') {
-          <div class="rejected-banner">
-            <strong>Rejected.</strong>
-            @for (step of d.approvalSteps; track step.stepOrder) {
-              @if (step.action === 'Rejected' && step.comments) {
-                <p>{{ step.comments }}</p>
-              }
-            }
-          </div>
-        }
-      }
-
-      @for (field of draftTemplateFields(); track field.id) {
-        <div class="field">
-          <label class="label">
-            {{ field.label }}
-            @if (field.required) { <span class="required-mark">*</span> }
-          </label>
-
-          @if (detailMode() === 'fill') {
-            @if (field.type === 'Numeric' || field.type === 'Text') {
-              <input class="input" [type]="field.type === 'Numeric' ? 'number' : 'text'"
-                [value]="getFieldValue(field.id)" (input)="setFieldValue(field.id, $any($event.target).value)" />
-            }
-            @if (field.type === 'Boolean') {
-              <div class="bool-toggle" role="group" [attr.aria-labelledby]="field.id + '-label'">
-                <span [id]="field.id + '-label'" class="sr-only">{{ field.label }}</span>
-                <button type="button" class="bool-btn"
-                  [class.bool-btn--active]="getFieldValue(field.id) === 'true'"
-                  [attr.aria-pressed]="getFieldValue(field.id) === 'true'"
-                  (click)="setFieldValue(field.id, 'true')">Yes</button>
-                <button type="button" class="bool-btn bool-btn--no"
-                  [class.bool-btn--active]="getFieldValue(field.id) === 'false'"
-                  [attr.aria-pressed]="getFieldValue(field.id) === 'false'"
-                  (click)="setFieldValue(field.id, 'false')">No</button>
-              </div>
-            }
-          } @else {
-            <p class="readonly-value">{{ getFieldValue(field.id) || '—' }}</p>
-          }
+          </select>
         </div>
       }
 
+      <!-- Returned / Rejected banners -->
       @if (detail(); as d) {
-        @if (detailMode() !== 'fill') {
-          <div class="approval-trail">
-            <h3 class="section-title">Approval Trail</h3>
-            @for (step of d.approvalSteps; track step.stepOrder) {
-              <div class="trail-step">
-                <span class="trail-step__order">Step {{ step.stepOrder }}</span>
-                <span class="trail-step__role">{{ step.role }}</span>
-                <span class="trail-step__action trail-step__action--{{ step.action.toLowerCase() }}">{{ step.action }}</span>
-                @if (step.actionAt) { <span class="trail-step__date">{{ step.actionAt | date:'short' }}</span> }
-              </div>
-            }
+        @if (d.status === 'Returned') {
+          <div class="status-banner status-banner--returned">
+            <span class="status-banner__icon">↩</span>
+            <div>
+              <strong>Returned for revision</strong>
+              @for (step of d.approvalSteps; track step.stepOrder) {
+                @if (step.action === 'Returned' && step.comments) {
+                  <p class="status-banner__note">{{ step.comments }}</p>
+                }
+              }
+            </div>
+          </div>
+        }
+        @if (d.status === 'Rejected') {
+          <div class="status-banner status-banner--rejected">
+            <span class="status-banner__icon">✕</span>
+            <div>
+              <strong>Rejected</strong>
+              @for (step of d.approvalSteps; track step.stepOrder) {
+                @if (step.action === 'Rejected' && step.comments) {
+                  <p class="status-banner__note">{{ step.comments }}</p>
+                }
+              }
+            </div>
           </div>
         }
       }
 
+      <!-- Fields -->
+      <div class="fields-section">
+        @for (field of draftTemplateFields(); track field.id) {
+          <div class="field-group">
+            <label class="field-label">
+              {{ field.label }}
+              @if (field.required) { <span class="required-mark">*</span> }
+            </label>
+
+            @if (detailMode() === 'fill') {
+              @if (field.type === 'Numeric' || field.type === 'Text') {
+                <input class="input" [type]="field.type === 'Numeric' ? 'number' : 'text'"
+                  [value]="getFieldValue(field.id)"
+                  (input)="setFieldValue(field.id, $any($event.target).value)" />
+              }
+              @if (field.type === 'Boolean') {
+                <div class="bool-toggle" role="group" [attr.aria-labelledby]="field.id + '-lbl'">
+                  <span [id]="field.id + '-lbl'" class="sr-only">{{ field.label }}</span>
+                  <button type="button" class="bool-btn"
+                    [class.bool-btn--active]="getFieldValue(field.id) === 'true'"
+                    [attr.aria-pressed]="getFieldValue(field.id) === 'true'"
+                    (click)="setFieldValue(field.id, 'true')">Yes</button>
+                  <button type="button" class="bool-btn bool-btn--no"
+                    [class.bool-btn--active]="getFieldValue(field.id) === 'false'"
+                    [attr.aria-pressed]="getFieldValue(field.id) === 'false'"
+                    (click)="setFieldValue(field.id, 'false')">No</button>
+                </div>
+              }
+            } @else {
+              @if (field.type === 'Boolean') {
+                <div class="field-value"
+                  [class.field-value--yes]="getFieldValue(field.id) === 'true'"
+                  [class.field-value--no]="getFieldValue(field.id) === 'false'"
+                  [class.field-value--empty]="!getFieldValue(field.id)">
+                  @if (getFieldValue(field.id) === 'true') { Yes }
+                  @else if (getFieldValue(field.id) === 'false') { No }
+                  @else { — }
+                </div>
+              } @else {
+                <div class="field-value" [class.field-value--empty]="!getFieldValue(field.id)">
+                  {{ getFieldValue(field.id) || '—' }}
+                </div>
+              }
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Approval trail -->
+      @if (detail(); as d) {
+        @if (detailMode() !== 'fill' && d.approvalSteps.length > 0) {
+          <div class="trail-section">
+            <p class="trail-section__eyebrow">Approval Trail</p>
+            <div class="trail">
+              @for (step of d.approvalSteps; track step.stepOrder; let last = $last) {
+                <div class="trail-node trail-node--{{ step.action.toLowerCase() }}">
+                  <div class="trail-node__aside">
+                    <div class="trail-node__dot"></div>
+                    @if (!last) { <div class="trail-node__line"></div> }
+                  </div>
+                  <div class="trail-node__content">
+                    <div class="trail-node__row">
+                      <span class="trail-node__role">{{ roleLabel(step.role) }}</span>
+                      <span class="trail-action trail-action--{{ step.action.toLowerCase() }}">{{ step.action }}</span>
+                      @if (step.actionAt) {
+                        <span class="trail-node__date">{{ step.actionAt | date:'d MMM y, HH:mm' }}</span>
+                      }
+                    </div>
+                    @if (step.comments) {
+                      <p class="trail-node__comment">"{{ step.comments }}"</p>
+                    }
+                    @if (step.action === 'Pending') {
+                      <p class="trail-node__pending">Awaiting action</p>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      }
+
+      <!-- Reject / Return comment modal -->
       @if (actionModal()) {
         <div class="action-modal">
-          <label class="label">{{ actionModal() === 'reject' ? 'Rejection reason' : 'Return comments' }} *</label>
-          <textarea class="input" rows="3" [value]="actionComment()" (input)="actionComment.set($any($event.target).value)"></textarea>
+          <label class="field-label">
+            {{ actionModal() === 'reject' ? 'Rejection reason' : 'Return comments' }}
+            <span class="required-mark">*</span>
+          </label>
+          <textarea class="input" rows="3"
+            [value]="actionComment()"
+            (input)="actionComment.set($any($event.target).value)"></textarea>
           <div class="form-actions">
             <button class="btn btn--ghost" (click)="actionModal.set(null)">Cancel</button>
-            <button class="btn btn--danger" [disabled]="!actionComment().trim() || detailBusy()" (click)="confirmAction()">
+            <button class="btn btn--danger"
+              [disabled]="!actionComment().trim() || detailBusy()"
+              (click)="confirmAction()">
               Confirm {{ actionModal() === 'reject' ? 'Reject' : 'Return' }}
             </button>
           </div>

@@ -1,7 +1,7 @@
 import type { TemplateScope } from './template.models.js';
 
 export type PropagationType = 'Sequential' | 'Parallel' | 'NotificationOnly';
-export type ApprovalRole = 'store_employee' | 'store_manager' | 'supervisor' | 'admin';
+export type ApprovalRole = 'store_employee' | 'store_manager' | 'supervisor' | 'admin' | 'super_admin';
 
 export interface ApprovalStep {
   role: ApprovalRole;

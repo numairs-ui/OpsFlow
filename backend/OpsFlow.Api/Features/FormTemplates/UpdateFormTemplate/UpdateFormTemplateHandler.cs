@@ -1,6 +1,7 @@
 using MediatR;
+using OpsFlow.Api.Security;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Infrastructure;
-using System.Security.Claims;
 using System.Text.Json;
 
 namespace OpsFlow.Api.Features.FormTemplates.UpdateFormTemplate;
@@ -11,17 +12,13 @@ internal sealed class UpdateFormTemplateHandler(
 {
     public async Task Handle(UpdateFormTemplateCommand cmd, CancellationToken ct)
     {
-        var user = httpContextAccessor.HttpContext!.User;
-        var role = user.FindFirstValue("role") ?? user.FindFirstValue(ClaimTypes.Role) ?? "";
+        var spec = httpContextAccessor.HttpContext!.User.ToCaller().Scope();
 
         await using var db = await factory.CreateAsync(ct);
         var template = await db.FormTemplates.FindAsync([cmd.Id], ct)
             ?? throw new KeyNotFoundException($"Form template {cmd.Id} not found.");
 
-        if (template.Scope == "System" && role != "admin")
-            throw new UnauthorizedAccessException("Only admins can edit System-scope form templates.");
-        if (template.Scope == "Regional" && role != "admin" && role != "supervisor")
-            throw new UnauthorizedAccessException("Regional form templates require supervisor or admin role.");
+        spec.AssertCanWriteScope(template.Scope, template.RegionId);
 
         template.Name = cmd.Name;
         template.Description = cmd.Description;

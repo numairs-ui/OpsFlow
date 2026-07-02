@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Security;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Infrastructure;
-using System.Security.Claims;
 
 namespace OpsFlow.Api.Features.Templates.UpdateTemplate;
 
@@ -11,17 +12,13 @@ internal sealed class UpdateTemplateHandler(
 {
     public async Task Handle(UpdateTemplateCommand cmd, CancellationToken ct)
     {
-        var user = httpContextAccessor.HttpContext!.User;
-        var role = user.FindFirstValue("role") ?? user.FindFirstValue(ClaimTypes.Role) ?? "";
+        var spec = httpContextAccessor.HttpContext!.User.ToCaller().Scope();
 
         await using var db = await factory.CreateAsync(ct);
         var template = await db.TaskTemplates.FindAsync([cmd.Id], ct)
             ?? throw new KeyNotFoundException($"Template {cmd.Id} not found.");
 
-        if (template.Scope == "System" && role != "admin")
-            throw new UnauthorizedAccessException("Only admins can edit System-scope templates.");
-        if (template.Scope == "Regional" && role != "admin" && role != "supervisor")
-            throw new UnauthorizedAccessException("Regional templates require supervisor or admin role.");
+        spec.AssertCanWriteScope(template.Scope, template.RegionId);
 
         // Block fields update if active recurring assignments exist (TB-23 constraint)
         if (cmd.FieldsJson != null && cmd.FieldsJson != template.FieldsJson)

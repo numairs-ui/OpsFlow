@@ -1,7 +1,8 @@
 import { SlicePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { OrgService, type Region, type Store } from '@org/data-access-org';
+import { ActivatedRoute } from '@angular/router';
+import { OrgService, type Region, type Store, type StoreEmployee } from '@org/data-access-org';
 import { noWhitespace } from '@org/ui-core';
 
 @Component({
@@ -13,6 +14,7 @@ import { noWhitespace } from '@org/ui-core';
 export class StoresComponent implements OnInit {
   private readonly org = inject(OrgService);
   private readonly fb = inject(FormBuilder);
+  private readonly route = inject(ActivatedRoute);
 
   readonly stores = signal<Store[]>([]);
   readonly regions = signal<Region[]>([]);
@@ -23,6 +25,10 @@ export class StoresComponent implements OnInit {
   readonly showForm = signal(false);
   readonly editingStore = signal<Store | null>(null);
 
+  readonly detailStore = signal<Store | null>(null);
+  readonly storeEmployees = signal<StoreEmployee[]>([]);
+  readonly storeEmployeesLoading = signal(false);
+
   readonly form = this.fb.group({
     name: ['', [Validators.required, noWhitespace]],
     address: [''],
@@ -32,6 +38,10 @@ export class StoresComponent implements OnInit {
   ngOnInit(): void {
     this.loadRegions();
     this.load();
+    this.route.queryParams.subscribe((params) => {
+      const detailId = params['detail'];
+      if (detailId) this.openDetailById(detailId);
+    });
   }
 
   private loadRegions(): void {
@@ -98,5 +108,49 @@ export class StoresComponent implements OnInit {
   deactivate(store: Store): void {
     if (!confirm(`Deactivate store "${store.name}"?`)) return;
     this.org.deactivateStore(store.id).subscribe({ next: () => this.load() });
+  }
+
+  openDetail(store: Store): void {
+    this.detailStore.set(store);
+    this.storeEmployees.set([]);
+    this.storeEmployeesLoading.set(true);
+    this.org.getStoreEmployees(store.id).subscribe({
+      next: (employees) => { this.storeEmployees.set(employees); this.storeEmployeesLoading.set(false); },
+      error: () => this.storeEmployeesLoading.set(false),
+    });
+  }
+
+  private openDetailById(storeId: string): void {
+    const existing = this.stores().find((s) => s.id === storeId);
+    if (existing) { this.openDetail(existing); return; }
+    this.org.getStores(undefined, false).subscribe({
+      next: (all) => {
+        this.stores.set(all);
+        const match = all.find((s) => s.id === storeId);
+        if (match) this.openDetail(match);
+      },
+    });
+  }
+
+  closeDetail(): void {
+    this.detailStore.set(null);
+    this.storeEmployees.set([]);
+  }
+
+  editFromDetail(): void {
+    const store = this.detailStore();
+    if (!store) return;
+    this.closeDetail();
+    this.openEdit(store);
+  }
+
+  roleLabel(role: string): string {
+    const map: Record<string, string> = {
+      store_employee: 'Employee',
+      store_manager: 'Manager',
+      supervisor: 'Supervisor',
+      admin: 'Admin',
+    };
+    return map[role] ?? role;
   }
 }

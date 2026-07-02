@@ -25,6 +25,8 @@ export interface User {
   storeName?: string;
   regionId?: string;
   regionName?: string;
+  /** Full region set — one entry for supervisor, several for a region-scoped admin. */
+  regionIds: string[];
   isActive: boolean;
   mustChangePassword: boolean;
   createdAt: string;
@@ -46,4 +48,17 @@ export interface StoreEmployee {
   createdAt: string;
 }
 
-export type UserRole = 'store_employee' | 'store_manager' | 'supervisor' | 'admin';
+export type UserRole =
+  | 'super_admin'
+  | 'admin'
+  | 'supervisor'
+  | 'store_manager'
+  | 'store_employee'
+  | 'store_kiosk';
+
+export interface UserActivity {
+  type: 'form' | 'task';
+  title: string;
+  status: string;
+  date: string;
+}

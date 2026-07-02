@@ -1,7 +1,8 @@
 import { SlicePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { OrgService, type Region } from '@org/data-access-org';
+import { Router } from '@angular/router';
+import { OrgService, type Region, type Store } from '@org/data-access-org';
 import { noWhitespace } from '@org/ui-core';
 
 @Component({
@@ -13,6 +14,7 @@ import { noWhitespace } from '@org/ui-core';
 export class RegionsComponent implements OnInit {
   private readonly org = inject(OrgService);
   private readonly fb = inject(FormBuilder);
+  private readonly router = inject(Router);
 
   readonly regions = signal<Region[]>([]);
   readonly loading = signal(false);
@@ -21,6 +23,10 @@ export class RegionsComponent implements OnInit {
   readonly saved = signal(false);
   readonly showForm = signal(false);
   readonly editingRegion = signal<Region | null>(null);
+
+  readonly detailRegion = signal<Region | null>(null);
+  readonly regionStores = signal<Store[]>([]);
+  readonly regionStoresLoading = signal(false);
 
   readonly form = this.fb.group({
     name: ['', [Validators.required, noWhitespace]],
@@ -75,5 +81,32 @@ export class RegionsComponent implements OnInit {
   deactivate(region: Region): void {
     if (!confirm(`Deactivate region "${region.name}"?`)) return;
     this.org.deactivateRegion(region.id).subscribe({ next: () => this.load() });
+  }
+
+  openDetail(region: Region): void {
+    this.detailRegion.set(region);
+    this.regionStores.set([]);
+    this.regionStoresLoading.set(true);
+    this.org.getStores(region.id, false).subscribe({
+      next: (stores) => { this.regionStores.set(stores); this.regionStoresLoading.set(false); },
+      error: () => this.regionStoresLoading.set(false),
+    });
+  }
+
+  closeDetail(): void {
+    this.detailRegion.set(null);
+    this.regionStores.set([]);
+  }
+
+  editFromDetail(): void {
+    const region = this.detailRegion();
+    if (!region) return;
+    this.closeDetail();
+    this.openEdit(region);
+  }
+
+  viewStore(store: Store): void {
+    this.closeDetail();
+    this.router.navigate(['/admin/stores'], { queryParams: { detail: store.id } });
   }
 }

@@ -1,14 +1,18 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Security;
 using OpsFlow.Infrastructure;
 
 namespace OpsFlow.Api.Features.Dashboard.GetRegionDashboard;
 
 internal sealed class GetRegionDashboardHandler(
-    TenantDbContextFactory factory) : IRequestHandler<GetRegionDashboardQuery, RegionDashboardDto>
+    TenantDbContextFactory factory,
+    IHttpContextAccessor httpContextAccessor) : IRequestHandler<GetRegionDashboardQuery, RegionDashboardDto>
 {
     public async Task<RegionDashboardDto> Handle(GetRegionDashboardQuery query, CancellationToken ct)
     {
+        httpContextAccessor.HttpContext!.User.ToCaller().Scope().AssertCanViewRegion(query.RegionId);
+
         await using var db = await factory.CreateAsync(ct);
 
         var now        = DateTimeOffset.UtcNow;

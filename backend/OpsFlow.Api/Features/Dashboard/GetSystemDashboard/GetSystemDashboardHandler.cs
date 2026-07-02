@@ -1,14 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Security;
 using OpsFlow.Infrastructure;
 
 namespace OpsFlow.Api.Features.Dashboard.GetSystemDashboard;
 
 internal sealed class GetSystemDashboardHandler(
-    TenantDbContextFactory factory) : IRequestHandler<GetSystemDashboardQuery, SystemDashboardDto>
+    TenantDbContextFactory factory,
+    IHttpContextAccessor httpContextAccessor) : IRequestHandler<GetSystemDashboardQuery, SystemDashboardDto>
 {
     public async Task<SystemDashboardDto> Handle(GetSystemDashboardQuery query, CancellationToken ct)
     {
+        // The system rollup spans every region — super_admin only.
+        httpContextAccessor.HttpContext!.User.ToCaller().Scope().AssertGlobal();
+
         await using var db = await factory.CreateAsync(ct);
 
         var now        = DateTimeOffset.UtcNow;

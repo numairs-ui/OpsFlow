@@ -8,4 +8,4 @@ internal sealed record CreateUserCommand(
     string DisplayName,
     string Role,
     Guid? StoreId,
-    Guid? RegionId) : IRequest<string>;
+    IReadOnlyList<Guid>? RegionIds) : IRequest<string>;

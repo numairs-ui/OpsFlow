@@ -26,7 +26,7 @@ internal sealed class LoginHandler(
             TokenHash = hash,
             UserRole = auth.Role,
             StoreId = auth.StoreId,
-            RegionId = auth.RegionId,
+            RegionIdsCsv = auth.RegionIds.Count > 0 ? string.Join(',', auth.RegionIds) : null,
             ExpiresAt = expiresAt,
         });
         await tenantDb.SaveChangesAsync(ct);

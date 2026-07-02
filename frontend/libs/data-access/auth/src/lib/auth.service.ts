@@ -61,12 +61,20 @@ export class AuthService {
     try {
       const payload = token.split('.')[1];
       const decoded = JSON.parse(atob(payload));
+      // The JWT carries one "regionId" claim per region: a string when single, an array when many.
+      const rawRegion = decoded.regionId;
+      const regionIds: string[] = Array.isArray(rawRegion)
+        ? rawRegion
+        : rawRegion
+          ? [rawRegion]
+          : [];
       return {
         sub: decoded.sub,
         tenantId: decoded.tenantId,
         role: decoded.role,
         storeId: decoded.storeId,
-        regionId: decoded.regionId,
+        regionId: regionIds[0],
+        regionIds,
       };
     } catch {
       return null;

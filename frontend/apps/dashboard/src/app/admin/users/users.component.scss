@@ -6,30 +6,99 @@
   margin-bottom: 16px;
 
   &__search { flex: 1; }
-  &__role { width: 180px; }
+  &__role { width: 180px; flex-shrink: 0; }
 }
 
+// ─── Table column widths ──────────────────────────────────────────────────────
+.col--name     { width: 170px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+.col--role     { width: 140px; white-space: nowrap; }
+.col--location { min-width: 120px; }
+.col--status   { width: 90px;  white-space: nowrap; }
+.col--actions  { width: 230px; white-space: nowrap; }
+
+// ─── Row actions ─────────────────────────────────────────────────────────────
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: nowrap;
+}
+
+// ─── Danger filled button (for two-step confirm) ──────────────────────────────
+.btn--danger {
+  background: var(--rust);
+  color: var(--cream);
+  border-color: var(--rust);
+  &:hover:not(:disabled) { filter: brightness(0.88); }
+}
+
+// ─── Role badges ──────────────────────────────────────────────────────────────
 .role-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 100px;
+
+  &--super_admin    { background: rgba(21,19,31,0.16);   color: var(--ink); }
+  &--admin          { background: rgba(21,19,31,0.08);   color: var(--ink); }
+  &--supervisor     { background: rgba(93,79,255,0.1);   color: var(--indigo); }
+  &--store_manager  { background: rgba(251,190,61,0.18); color: var(--amber-deep); }
+  &--store_employee { background: rgba(42,127,79,0.12);  color: var(--green); }
+  &--store_kiosk    { background: rgba(93,79,255,0.06);  color: var(--muted); }
+}
+
+// ─── Multi-region select + field hint ─────────────────────────────────────────
+.input--multi {
+  height: auto;
+  padding: 0.35rem;
+}
+
+.field__hint {
+  margin-top: 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+// ─── Password-change warning ──────────────────────────────────────────────────
+.pw-warn {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  background: #f1f5f9;
-  color: #475569;
-
-  &--admin { background: #ede9fe; color: #7c3aed; }
-  &--supervisor { background: #dbeafe; color: #1d4ed8; }
-  &--store_manager { background: #fef9c3; color: #92400e; }
-  &--store_employee { background: #f0fdf4; color: #15803d; }
+  margin-left: 6px;
+  color: var(--amber-deep);
+  font-size: 0.75rem;
+  vertical-align: middle;
+  cursor: default;
 }
 
-.badge--warn {
-  background: #fef3c7;
-  color: #d97706;
-  margin-left: 4px;
+.pw-warn-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--amber-deep);
+  background: rgba(251,190,61,0.1);
+  border: 1px solid rgba(251,190,61,0.35);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
 }
 
+// ─── Detail panel ─────────────────────────────────────────────────────────────
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+// ─── Store assignment list ────────────────────────────────────────────────────
 .assignment-list {
   display: flex;
   flex-direction: column;
@@ -41,19 +110,92 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 
   &__name {
-    font-size: 14px;
+    font-size: 0.88rem;
     font-weight: 500;
-    color: #0f172a;
+    color: var(--ink);
   }
 
   &__meta {
-    font-size: 12px;
-    color: #94a3b8;
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    color: var(--muted);
     margin-top: 2px;
+  }
+}
+
+.assign-add {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+
+  .input { flex: 1; }
+}
+
+// ─── Activity history list ────────────────────────────────────────────────────
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.activity-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.875rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.84rem;
+
+  &:last-child { border-bottom: none; }
+  &:nth-child(even) { background: var(--cream); }
+
+  &__type {
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.15rem 0.45rem;
+    border-radius: 100px;
+
+    &--form { background: rgba(93,79,255,0.1);  color: var(--indigo); }
+    &--task { background: rgba(42,127,79,0.12); color: var(--green); }
+  }
+
+  &__title {
+    color: var(--ink);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__status {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    white-space: nowrap;
+
+    &--submitted, &--approved, &--completed, &--verified { color: var(--green); }
+    &--draft, &--pending, &--inprogress                  { color: var(--indigo); }
+    &--returned, &--rejected, &--cancelled               { color: var(--rust); }
+  }
+
+  &__date {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    color: var(--muted);
+    white-space: nowrap;
   }
 }

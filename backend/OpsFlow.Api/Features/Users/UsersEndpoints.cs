@@ -4,6 +4,7 @@ using OpsFlow.Api.Features.Users.CreateUser;
 using OpsFlow.Api.Features.Users.DeactivateUser;
 using OpsFlow.Api.Features.Users.GetStoreAssignments;
 using OpsFlow.Api.Features.Users.GetUser;
+using OpsFlow.Api.Features.Users.GetUserActivity;
 using OpsFlow.Api.Features.Users.GetUsers;
 using OpsFlow.Api.Features.Users.ReactivateUser;
 using OpsFlow.Api.Features.Users.RemoveStoreAssignment;
@@ -31,7 +32,7 @@ internal static class UsersEndpoints
 
         group.MapPut("/{userId}", async (string userId, UpdateUserBody body, IMediator m) =>
         {
-            await m.Send(new UpdateUserCommand(userId, body.DisplayName, body.Role, body.StoreId, body.RegionId));
+            await m.Send(new UpdateUserCommand(userId, body.DisplayName, body.Role, body.StoreId, body.RegionIds));
             return Results.NoContent();
         });
 
@@ -46,6 +47,9 @@ internal static class UsersEndpoints
             await m.Send(new ReactivateUserCommand(userId));
             return Results.NoContent();
         });
+
+        group.MapGet("/{userId}/activity", async (string userId, IMediator m) =>
+            Results.Ok(await m.Send(new GetUserActivityQuery(userId))));
 
         group.MapGet("/{userId}/store-assignments", async (string userId, IMediator m) =>
             Results.Ok(await m.Send(new GetStoreAssignmentsQuery(userId))));
@@ -66,5 +70,5 @@ internal static class UsersEndpoints
     }
 }
 
-internal sealed record UpdateUserBody(string DisplayName, string Role, Guid? StoreId, Guid? RegionId);
+internal sealed record UpdateUserBody(string DisplayName, string Role, Guid? StoreId, IReadOnlyList<Guid>? RegionIds);
 internal sealed record StoreAssignmentBody(Guid StoreId);

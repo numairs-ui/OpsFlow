@@ -1,8 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using OpsFlow.Domain.Entities;
+using OpsFlow.Api.Security;
+using OpsFlow.Domain.Forms;
 using OpsFlow.Infrastructure;
-using System.Security.Claims;
 
 namespace OpsFlow.Api.Features.FormSubmissions.GetPendingReview;
 
@@ -13,9 +13,7 @@ internal sealed class GetPendingReviewHandler(
     public async Task<List<PendingReviewDto>> Handle(GetPendingReviewQuery query, CancellationToken ct)
     {
         var user = httpContextAccessor.HttpContext!.User;
-        var role = user.FindFirstValue("role") ?? user.FindFirstValue(ClaimTypes.Role) ?? "";
-        var userStoreId = user.FindFirstValue("storeId");
-        var userRegionId = user.FindFirstValue("regionId");
+        var spec = user.ToCaller().Scope();
 
         await using var db = await factory.CreateAsync(ct);
 
@@ -29,18 +27,12 @@ internal sealed class GetPendingReviewHandler(
         var results = new List<PendingReviewDto>();
         foreach (var s in submissions)
         {
-            var isParallel = s.FormTemplate?.PropagationType == "Parallel";
-            FormSubmissionApprovalStep? step = isParallel
-                ? s.ApprovalSteps.FirstOrDefault(a => a.Action == "Pending" && a.Role == role)
-                : s.ApprovalSteps.FirstOrDefault(a => a.Action == "Pending" && a.StepOrder == s.CurrentStepOrder && a.Role == role);
+            // The step this caller would act on (parallel/sequential resolution lives in the module)…
+            var step = ApprovalWorkflow.ResolveCurrentStep(s, spec.Role);
+            if (step is null) continue;
 
-            if (step == null) continue;
-
-            if (role != "admin")
-            {
-                if (step.Role is "store_manager" or "store_employee" && userStoreId != s.StoreId.ToString()) continue;
-                if (step.Role == "supervisor" && (userRegionId == null || s.Store == null || userRegionId != s.Store.RegionId.ToString())) continue;
-            }
+            // …and they must be scoped to the submission's store (super_admin sees all).
+            if (!spec.CanViewStore(s.Store!.RegionId, s.StoreId)) continue;
 
             results.Add(new PendingReviewDto(
                 s.Id, s.FormTemplateId, s.FormTemplate?.Name, s.StoreId, s.Store?.Name,

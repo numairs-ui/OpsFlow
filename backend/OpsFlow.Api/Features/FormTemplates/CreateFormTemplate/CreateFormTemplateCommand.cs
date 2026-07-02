@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using OpsFlow.Domain.Authorization;
 
 namespace OpsFlow.Api.Features.FormTemplates.CreateFormTemplate;
 
@@ -19,7 +20,9 @@ internal sealed class CreateFormTemplateValidator : AbstractValidator<CreateForm
 {
     private static readonly string[] ValidScopes = ["System", "Regional", "Store"];
     private static readonly string[] ValidPropagation = ["Sequential", "Parallel", "NotificationOnly"];
-    private static readonly string[] ValidRoles = ["store_employee", "store_manager", "supervisor", "admin"];
+    // Approver roles for form workflow steps — the shared station (store_kiosk) is never an approver.
+    private static readonly string[] ValidRoles =
+        [Roles.StoreEmployee, Roles.StoreManager, Roles.Supervisor, Roles.Admin, Roles.SuperAdmin];
 
     public CreateFormTemplateValidator()
     {

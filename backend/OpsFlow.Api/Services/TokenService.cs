@@ -29,7 +29,9 @@ internal sealed class TokenService(IConfiguration configuration, IWebHostEnviron
             new("role", auth.Role),
         };
         if (auth.StoreId is not null) claims.Add(new("storeId", auth.StoreId));
-        if (auth.RegionId is not null) claims.Add(new("regionId", auth.RegionId));
+        // Region scope is a set — one "regionId" claim per assigned region (supervisor: 1, admin: N).
+        foreach (var regionId in auth.RegionIds)
+            claims.Add(new("regionId", regionId));
 
         var token = new JwtSecurityToken(
             issuer, audience, claims,

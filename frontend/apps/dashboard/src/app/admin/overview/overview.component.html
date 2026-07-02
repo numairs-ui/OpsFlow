@@ -1,79 +1,243 @@
-<div class="page">
-  <div class="page__header">
-    <div>
-      <h1 class="page__title">System Dashboard</h1>
-      <p class="page__subtitle">System-wide health across all regions and stores.</p>
-    </div>
-  </div>
+<div class="page dash-page">
 
-  @if (loading()) { <div class="state-loading">Loading...</div> }
-  @if (error(); as err) { <div class="state-error">{{ err }}</div> }
+  <header class="dash-hdr">
+    <div class="dash-hdr__left">
+      <p class="page__eyebrow">Admin · System View</p>
+      <h1 class="page__title">Operations <em>Health</em></h1>
+    </div>
+    <div class="dash-hdr__right">
+      @if (isDemo()) {
+        <span class="demo-badge">Demo data</span>
+      }
+      <span class="refresh-meta">Live · 60 s refresh</span>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <div class="state-loading">Reading stores…</div>
+  }
+  @if (error(); as err) {
+    <div class="state-error">{{ err }}</div>
+  }
 
   @if (data(); as d) {
-    <!-- System stat cards -->
-    <div class="stat-row">
-      <div class="stat-card">
-        <div class="stat-value {{ scoreColor(d.systemCompletionRate) }}">{{ d.systemCompletionRate | percent }}</div>
-        <div class="stat-label">System Completion</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">{{ d.totalOpenCount }}</div>
-        <div class="stat-label">Open Tasks</div>
-      </div>
-      <div class="stat-card" [class.stat-card--warn]="d.totalOverdueCount > 0">
-        <div class="stat-value" [class.text-warn]="d.totalOverdueCount > 0">{{ d.totalOverdueCount }}</div>
-        <div class="stat-label">Overdue</div>
-      </div>
-      <div class="stat-card" [class.stat-card--danger]="d.storesWithMissedDeposits.length > 0">
-        <div class="stat-value" [class.text-danger]="d.storesWithMissedDeposits.length > 0">{{ d.storesWithMissedDeposits.length }}</div>
-        <div class="stat-label">Missed Deposits</div>
-      </div>
-    </div>
+    <div class="dash-grid">
 
-    <!-- Missed deposits -->
-    @if (d.storesWithMissedDeposits.length > 0) {
-      <section class="alerts-panel">
-        <div class="alerts-header">
-          <span class="alerts-title">&#9888; Stores Without Today's Deposit</span>
+      <!-- ── Gauge hero ──────────────────────────────────────────────────── -->
+      <div class="dash-card gauge-card">
+        <p class="card-eyebrow">Network task completion</p>
+        <div class="gauge-wrap">
+          <svg viewBox="0 0 200 190" class="gauge-svg" aria-label="System completion rate gauge">
+            <!-- Track (270° arc, starts at 7:30 position) -->
+            <circle class="gauge-track"
+              cx="100" cy="105" r="78"
+              stroke-dasharray="367.57 122.52"
+              transform="rotate(135 100 105)" />
+            <!-- Fill (animated) -->
+            <circle class="gauge-fill"
+              cx="100" cy="105" r="78"
+              [style.strokeDasharray]="arcDasharray()"
+              [attr.stroke]="arcColor()"
+              transform="rotate(135 100 105)" />
+            <!-- Percentage -->
+            <text x="100" y="94" class="gauge-num" text-anchor="middle">{{ pct() }}</text>
+            <text x="100" y="116" class="gauge-sym" text-anchor="middle">%</text>
+          </svg>
         </div>
-        <div class="tag-list">
-          @for (s of d.storesWithMissedDeposits; track s.storeId) {
-            <span class="store-tag">{{ s.storeName }}</span>
+        <p class="gauge-caption">
+          <span [class]="pct() >= 80 ? 'cap--green' : pct() >= 60 ? 'cap--amber' : 'cap--red'">{{ storesOnTarget() }} of {{ totalStores() }} stores</span>&nbsp;above 80% target
+        </p>
+      </div>
+
+      <!-- ── Open Tasks ──────────────────────────────────────────────────── -->
+      <div class="dash-card stat-card stat-open stat-card--link" [routerLink]="['/admin/stores']"
+           title="View stores to manage open tasks">
+        <p class="stat-eyebrow">Open Tasks</p>
+        <div class="stat-val">{{ d.totalOpenCount }}</div>
+        <p class="stat-sub">active across all stores</p>
+        <span class="stat-nav-hint">View stores &#8599;</span>
+      </div>
+
+      <!-- ── Overdue ─────────────────────────────────────────────────────── -->
+      <div class="dash-card stat-card stat-overdue stat-card--link"
+           [class.stat-card--warn]="d.totalOverdueCount > 0"
+           [routerLink]="['/admin/stores']"
+           title="View stores to review overdue tasks">
+        <p class="stat-eyebrow">Overdue</p>
+        <div class="stat-val" [class.val--danger]="d.totalOverdueCount > 0">{{ d.totalOverdueCount }}</div>
+        <p class="stat-sub">{{ d.totalOverdueCount === 1 ? 'task' : 'tasks' }} past deadline</p>
+        <span class="stat-nav-hint">View stores &#8599;</span>
+      </div>
+
+      <!-- ── Deposits ────────────────────────────────────────────────────── -->
+      <div class="dash-card stat-card stat-deposits stat-card--link"
+           [class.stat-card--danger]="d.storesWithMissedDeposits.length > 0"
+           [class.stat-card--ok]="d.storesWithMissedDeposits.length === 0"
+           [routerLink]="['/admin/stores']"
+           title="View all stores and deposit status">
+        <p class="stat-eyebrow">Today's Deposits</p>
+        @if (d.storesWithMissedDeposits.length === 0) {
+          <div class="stat-val val--green">All in</div>
+          <p class="stat-sub">every store logged</p>
+        } @else {
+          <div class="stat-val val--danger">{{ d.storesWithMissedDeposits.length }}</div>
+          <p class="stat-sub missed-list">
+            @for (s of d.storesWithMissedDeposits; track s.storeId; let last = $last) {
+              {{ s.storeName }}{{ !last ? ', ' : '' }}
+            }
+          </p>
+        }
+        <span class="stat-nav-hint">View stores &#8599;</span>
+      </div>
+
+      <!-- ── Active Stores ───────────────────────────────────────────────── -->
+      <div class="dash-card stat-card stat-stores stat-card--link"
+           [routerLink]="['/admin/stores']"
+           title="Manage all active stores">
+        <p class="stat-eyebrow">Active Stores</p>
+        <div class="stat-val">{{ totalStores() }}</div>
+        <p class="stat-sub">across {{ d.regionalSummary.length }} region{{ d.regionalSummary.length !== 1 ? 's' : '' }}</p>
+        <span class="stat-nav-hint">View stores &#8599;</span>
+      </div>
+
+      <!-- ── Quick Actions ───────────────────────────────────────────────── -->
+      <div class="dash-card actions-card">
+        <p class="card-eyebrow">Quick Actions</p>
+        <nav class="actions-nav">
+          <a routerLink="/admin/users" class="action-item">
+            <span class="action-icon">&#43;</span>
+            <span class="action-lbl">Add User</span>
+            <span class="action-arr">&#8599;</span>
+          </a>
+          <a routerLink="/admin/templates" class="action-item">
+            <span class="action-icon">&#9654;</span>
+            <span class="action-lbl">New Template</span>
+            <span class="action-arr">&#8599;</span>
+          </a>
+          <a routerLink="/admin/recurring-assignments" class="action-item">
+            <span class="action-icon">&#8635;</span>
+            <span class="action-lbl">Set Recurrence</span>
+            <span class="action-arr">&#8599;</span>
+          </a>
+          <a routerLink="/admin/checklists" class="action-item">
+            <span class="action-icon">&#10003;</span>
+            <span class="action-lbl">Manage Checklists</span>
+            <span class="action-arr">&#8599;</span>
+          </a>
+          <a routerLink="/admin/template-import" class="action-item">
+            <span class="action-icon">&#8659;</span>
+            <span class="action-lbl">Import Templates</span>
+            <span class="action-arr">&#8599;</span>
+          </a>
+          <a routerLink="/admin/store-settings" class="action-item">
+            <span class="action-icon">&#9965;</span>
+            <span class="action-lbl">Store Settings</span>
+            <span class="action-arr">&#8599;</span>
+          </a>
+        </nav>
+      </div>
+
+      <!-- ── Regional Leaderboard ────────────────────────────────────────── -->
+      <div class="dash-card leaderboard-card">
+        <div class="lb-hdr">
+          <p class="card-eyebrow">Regional Performance</p>
+          <a routerLink="/admin/regions" class="lb-link">Manage regions &#8599;</a>
+        </div>
+
+        <div class="lb-list">
+          @for (r of sortedRegions(); track r.regionId; let i = $index) {
+            <div class="lb-row lb-row--clickable" (click)="openRegionDetail(r)">
+              <span class="lb-rank">{{ (i + 1).toString().padStart(2, '0') }}</span>
+              <span class="lb-name">{{ r.regionName }}</span>
+              <div class="lb-track">
+                <div class="lb-bar"
+                  [class.lb-bar--green]="r.averageCompletionRate >= 0.8"
+                  [class.lb-bar--amber]="r.averageCompletionRate >= 0.6 && r.averageCompletionRate < 0.8"
+                  [class.lb-bar--red]="r.averageCompletionRate < 0.6"
+                  [style.width.%]="r.averageCompletionRate * 100">
+                </div>
+              </div>
+              <span class="lb-pct {{ scoreClass(r.averageCompletionRate) }}">{{ (r.averageCompletionRate * 100).toFixed(0) }}%</span>
+              <span class="lb-stores">{{ r.storeCount }} store{{ r.storeCount !== 1 ? 's' : '' }}</span>
+              @if (r.criticalAlertCount > 0) {
+                <span class="lb-alert">{{ r.criticalAlertCount }} alert{{ r.criticalAlertCount > 1 ? 's' : '' }}</span>
+              } @else {
+                <span class="lb-ok">&#10003;</span>
+              }
+            </div>
+          }
+          @if (d.regionalSummary.length === 0) {
+            <p class="lb-empty">No regions set up yet. <a routerLink="/admin/regions">Add your first region →</a></p>
           }
         </div>
-      </section>
-    }
-
-    <!-- Regional summary -->
-    <section class="section">
-      <h2 class="section-title">Regional Summary</h2>
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Region</th>
-              <th>Stores</th>
-              <th>Avg Completion</th>
-              <th>Critical Alerts</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (r of d.regionalSummary; track r.regionId) {
-              <tr>
-                <td>{{ r.regionName }}</td>
-                <td>{{ r.storeCount }}</td>
-                <td>
-                  <span class="score-inline {{ scoreColor(r.averageCompletionRate) }}">{{ r.averageCompletionRate | percent }}</span>
-                </td>
-                <td [class.text-danger]="r.criticalAlertCount > 0">{{ r.criticalAlertCount }}</td>
-              </tr>
-            }
-            @if (d.regionalSummary.length === 0) {
-              <tr><td colspan="4" class="empty">No regions configured.</td></tr>
-            }
-          </tbody>
-        </table>
       </div>
-    </section>
+
+    </div>
   }
 </div>
+
+<!-- ── Region detail slide-over ──────────────────────────────────────────── -->
+@if (selectedRegion(); as region) {
+  <div class="overlay" (click)="closeRegionDetail()"></div>
+  <div class="slide-over">
+    <div class="slide-over__header">
+      <div class="detail-title">
+        <span class="detail-title__eyebrow">Regional Performance</span>
+        <h2>{{ region.regionName }}</h2>
+      </div>
+      <button class="slide-over__close" (click)="closeRegionDetail()">&#10005;</button>
+    </div>
+
+    <div class="slide-over__body">
+
+      <!-- Score summary -->
+      <div class="detail-section">
+        <h3 class="detail-section__title">Completion Score</h3>
+        <div class="region-score">
+          <div class="region-score__track">
+            <div class="region-score__bar"
+              [class.lb-bar--green]="region.averageCompletionRate >= 0.8"
+              [class.lb-bar--amber]="region.averageCompletionRate >= 0.6 && region.averageCompletionRate < 0.8"
+              [class.lb-bar--red]="region.averageCompletionRate < 0.6"
+              [style.width.%]="region.averageCompletionRate * 100">
+            </div>
+          </div>
+          <span class="region-score__pct {{ scoreClass(region.averageCompletionRate) }}">
+            {{ (region.averageCompletionRate * 100).toFixed(0) }}%
+          </span>
+        </div>
+        <p class="region-score__meta">{{ region.storeCount }} store{{ region.storeCount !== 1 ? 's' : '' }} in this region</p>
+      </div>
+
+      <!-- Alerts -->
+      @if (region.criticalAlertCount > 0) {
+        <div class="detail-section">
+          <h3 class="detail-section__title">Critical Alerts</h3>
+          <div class="region-alert-box">
+            <div class="region-alert-box__count">
+              <span class="lb-alert">{{ region.criticalAlertCount }} alert{{ region.criticalAlertCount > 1 ? 's' : '' }}</span>
+            </div>
+            <p class="region-alert-box__desc">
+              Alerts are raised when stores have open corrective actions or have not logged today's cash deposit.
+              Visit the stores in this region to resolve outstanding items.
+            </p>
+          </div>
+        </div>
+      } @else {
+        <div class="detail-section">
+          <div class="region-ok-banner">
+            <span class="region-ok-banner__icon">&#10003;</span>
+            <span>No critical alerts — all stores are on track.</span>
+          </div>
+        </div>
+      }
+
+    </div>
+
+    <div class="slide-over__footer">
+      <button class="btn btn--ghost" (click)="closeRegionDetail()">Close</button>
+      <a class="btn btn--ghost" routerLink="/admin/regions" (click)="closeRegionDetail()">Manage Region</a>
+      <a class="btn btn--primary" routerLink="/admin/stores" (click)="closeRegionDetail()">View Stores</a>
+    </div>
+  </div>
+}

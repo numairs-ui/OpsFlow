@@ -7,7 +7,8 @@ public sealed class RefreshToken
     public string TokenHash { get; init; } = default!;
     public string UserRole { get; init; } = default!;
     public string? StoreId { get; init; }
-    public string? RegionId { get; init; }
+    /// <summary>Comma-separated region ids for region-scoped roles (admin: many, supervisor: one). Null for global/store roles.</summary>
+    public string? RegionIdsCsv { get; init; }
     public DateTimeOffset ExpiresAt { get; init; }
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public bool IsUsed { get; set; }
