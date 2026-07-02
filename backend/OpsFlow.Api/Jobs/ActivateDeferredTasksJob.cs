@@ -9,33 +9,16 @@ namespace OpsFlow.Api.Jobs;
 [DisallowConcurrentExecution]
 internal sealed class ActivateDeferredTasksJob(
     IServiceScopeFactory scopeFactory,
-    ILogger<ActivateDeferredTasksJob> logger) : IJob
+    ILogger<ActivateDeferredTasksJob> logger) : TenantIteratingJob(scopeFactory, logger)
 {
-    public async Task Execute(IJobExecutionContext context)
+    protected override string JobName => "Activate deferred tasks";
+
+    protected override async Task RunForTenantAsync(string tenantId, IServiceProvider services, CancellationToken ct)
     {
-        var ct = context.CancellationToken;
         var today = DateTimeOffset.UtcNow.Date;
+        var factory = services.GetRequiredService<TenantDbContextFactory>();
+        var hub = services.GetRequiredService<IHubContext<TaskBoardHub>>();
 
-        await using var scope = scopeFactory.CreateAsyncScope();
-        var masterDb = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
-        var factory = scope.ServiceProvider.GetRequiredService<TenantDbContextFactory>();
-        var hub = scope.ServiceProvider.GetRequiredService<IHubContext<TaskBoardHub>>();
-
-        var tenants = await masterDb.Tenants.Where(t => t.IsActive).ToListAsync(ct);
-
-        foreach (var tenant in tenants)
-        {
-            try { await ActivateForTenantAsync(tenant.Id, today, factory, hub, ct); }
-            catch (Exception ex) { logger.LogError(ex, "Activate deferred tasks failed for tenant {TenantId}", tenant.Id); }
-        }
-    }
-
-    private static async Task ActivateForTenantAsync(
-        string tenantId, DateTimeOffset today,
-        TenantDbContextFactory factory,
-        IHubContext<TaskBoardHub> hub,
-        CancellationToken ct)
-    {
         await using var db = await factory.CreateForTenantAsync(tenantId, ct);
 
         var deferred = await db.TaskInstances

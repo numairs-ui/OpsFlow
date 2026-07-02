@@ -94,10 +94,10 @@
     <div class="field-list">
       @for (field of draftTemplateFields(); track field.id) {
         <div class="field-item">
-          <label class="field-label">
+          <span class="field-label">
             {{ field.label }}
             @if (field.required) { <span class="field-required-mark">*</span> }
-          </label>
+          </span>
 
           @if (detailMode() === 'fill') {
             @if (field.type === 'Numeric' || field.type === 'Text') {
@@ -132,8 +132,8 @@
 
     @if (actionModal()) {
       <div class="action-modal">
-        <label class="field-label">{{ actionModal() === 'reject' ? 'Rejection reason' : 'Return comments' }} *</label>
-        <textarea class="input-textarea" rows="3" [value]="actionComment()" (input)="actionComment.set($any($event.target).value)"></textarea>
+        <label class="field-label" for="submissionActionComment">{{ actionModal() === 'reject' ? 'Rejection reason' : 'Return comments' }} *</label>
+        <textarea id="submissionActionComment" class="input-textarea" rows="3" [value]="actionComment()" (input)="actionComment.set($any($event.target).value)"></textarea>
         <div class="modal-actions">
           <button class="btn btn--danger" [disabled]="!actionComment().trim() || detailBusy()" (click)="confirmAction()">
             Confirm {{ actionModal() === 'reject' ? 'Reject' : 'Return' }}

@@ -339,3 +339,120 @@ select.input {
   background-position: right 0.9rem center;
   padding-right: 2rem;
 }
+
+// ─── Clickable table rows ─────────────────────────────────────────────────────
+.table--clickable tbody tr {
+  cursor: pointer;
+  &:hover { background: var(--cream-deep); }
+}
+
+.td--name {
+  font-family: var(--sans);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+// ─── Compact table (inside slide-over) ───────────────────────────────────────
+.table--compact {
+  th, td { padding: 0.6rem 0.875rem; font-size: 0.82rem; }
+}
+
+// ─── Detail slide-over content ────────────────────────────────────────────────
+.detail-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+
+  &__eyebrow {
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--indigo);
+  }
+}
+
+.detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+
+  &__desc {
+    font-family: var(--sans);
+    font-size: 0.88rem;
+    color: var(--muted);
+    margin: 0;
+  }
+}
+
+.detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  &__title {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin: 0;
+  }
+}
+
+.loading-inline, .empty-inline {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+// ─── Employee roster in store detail ─────────────────────────────────────────
+.emp-name {
+  display: block;
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.emp-email {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+
+.roster-count {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-align: right;
+  margin: 0;
+}
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 100px;
+
+  &--store_manager  { background: rgba(251,190,61,0.18); color: var(--amber-deep); }
+  &--store_employee { background: rgba(42,127,79,0.12);  color: var(--green); }
+  &--supervisor     { background: rgba(93,79,255,0.1);   color: var(--indigo); }
+  &--admin          { background: rgba(21,19,31,0.08);   color: var(--ink); }
+}

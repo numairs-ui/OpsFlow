@@ -1,7 +1,8 @@
 using MediatR;
+using OpsFlow.Api.Security;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Domain.Entities;
 using OpsFlow.Infrastructure;
-using System.Security.Claims;
 
 namespace OpsFlow.Api.Features.Tasks.CreateTask;
 
@@ -12,19 +13,15 @@ internal sealed class CreateTaskHandler(
     public async Task<Guid> Handle(CreateTaskCommand cmd, CancellationToken ct)
     {
         var user = httpContextAccessor.HttpContext!.User;
-        var tenantId = user.FindFirstValue("tenantId")!;
-        var role = user.FindFirstValue("role") ?? "";
-        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub")!;
+        var tenantId = user.GetTenantId();
+        var userId = user.GetUserId();
 
         await using var db = await factory.CreateAsync(ct);
 
-        // store_manager can only create tasks for their own store
-        if (role == "store_manager")
-        {
-            var up = await db.UserProfiles.FindAsync([userId], ct);
-            if (up?.StoreId != cmd.StoreId)
-                throw new UnauthorizedAccessException("Store managers can only create tasks for their own store.");
-        }
+        // Authorize the target store by role scope (super_admin unrestricted; employee/kiosk denied)
+        var store = await db.Stores.FindAsync([cmd.StoreId], ct)
+            ?? throw new KeyNotFoundException($"Store {cmd.StoreId} not found.");
+        user.ToCaller().Scope().AssertCanManageStore(store.RegionId, store.Id);
 
         var checklist = await db.Checklists.FindAsync([cmd.ChecklistId], ct)
             ?? throw new KeyNotFoundException($"Checklist {cmd.ChecklistId} not found.");

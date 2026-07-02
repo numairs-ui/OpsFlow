@@ -1,8 +1,12 @@
 import { SlicePipe } from '@angular/common';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { OrgService, type Region, type Store, type StoreAssignment, type User, type UserRole } from '@org/data-access-org';
-import { noWhitespace } from '@org/ui-core';
+import { AuthService } from '@org/data-access-auth';
+import { OrgService, type Region, type Store, type StoreAssignment, type User, type UserActivity, type UserRole } from '@org/data-access-org';
+import { noWhitespace, nonEmptyArray, roleLabel } from '@org/ui-core';
+
+const STORE_SCOPED_ROLES: UserRole[] = ['store_manager', 'store_employee', 'store_kiosk'];
+const REGION_SCOPED_ROLES: UserRole[] = ['supervisor', 'admin'];
 
 @Component({
   selector: 'app-users',
@@ -13,6 +17,10 @@ import { noWhitespace } from '@org/ui-core';
 export class UsersComponent implements OnInit {
   private readonly org = inject(OrgService);
   private readonly fb = inject(FormBuilder);
+  private readonly auth = inject(AuthService);
+
+  readonly roleLabel = roleLabel;
+  readonly isSuperAdmin = computed(() => this.auth.currentUser()?.role === 'super_admin');
 
   readonly users = signal<User[]>([]);
   readonly regions = signal<Region[]>([]);
@@ -23,11 +31,16 @@ export class UsersComponent implements OnInit {
   readonly showForm = signal(false);
   readonly editingUser = signal<User | null>(null);
 
-  // Detail / assignment panel
-  readonly selectedUser = signal<User | null>(null);
+  // Detail panel
+  readonly detailUser = signal<User | null>(null);
   readonly assignments = signal<StoreAssignment[]>([]);
   readonly loadingAssignments = signal(false);
   readonly assigningStore = signal<string>('');
+  readonly activity = signal<UserActivity[]>([]);
+  readonly loadingActivity = signal(false);
+
+  // Inline two-step deactivate confirmation (no browser confirm())
+  readonly confirmingUserId = signal<string | null>(null);
 
   readonly roleFilter = signal<string>('');
   readonly searchQuery = signal<string>('');
@@ -54,29 +67,42 @@ export class UsersComponent implements OnInit {
     displayName: ['', [Validators.required, noWhitespace]],
     role: ['store_employee' as UserRole, Validators.required],
     storeId: [''],
-    regionId: [''],
+    regionIds: [[] as string[]],
   });
 
   readonly selectedRole = signal<string>('store_employee');
+
+  // super_admin can mint any role; a region-scoped admin can only create roles below admin.
+  readonly availableRoles = computed(() =>
+    this.isSuperAdmin() ? this.roles : this.roles.filter((r) => r.value !== 'super_admin' && r.value !== 'admin')
+  );
+
+  readonly needsStore = computed(() => STORE_SCOPED_ROLES.includes(this.selectedRole() as UserRole));
+  readonly needsRegions = computed(() => REGION_SCOPED_ROLES.includes(this.selectedRole() as UserRole));
+  readonly singleRegionOnly = computed(() => this.selectedRole() === 'supervisor');
 
   ngOnInit(): void {
     this.load();
     this.org.getRegions(true).subscribe({ next: (r) => this.regions.set(r) });
     this.org.getStores(undefined, true).subscribe({ next: (s) => this.stores.set(s) });
     this.form.controls['role'].valueChanges.subscribe((v) => {
-      const role = v ?? '';
+      const role = (v ?? '') as UserRole;
       this.selectedRole.set(role);
       const storeCtrl = this.form.controls['storeId'];
-      const regionCtrl = this.form.controls['regionId'];
-      if (role === 'store_employee' || role === 'store_manager') {
+      const regionCtrl = this.form.controls['regionIds'];
+
+      if (STORE_SCOPED_ROLES.includes(role)) {
         storeCtrl.setValidators(Validators.required);
       } else {
         storeCtrl.clearValidators();
+        storeCtrl.setValue('');
       }
-      if (role === 'supervisor') {
-        regionCtrl.setValidators(Validators.required);
+
+      if (REGION_SCOPED_ROLES.includes(role)) {
+        regionCtrl.setValidators(nonEmptyArray);
       } else {
         regionCtrl.clearValidators();
+        regionCtrl.setValue([]);
       }
       storeCtrl.updateValueAndValidity();
       regionCtrl.updateValueAndValidity();
@@ -91,13 +117,15 @@ export class UsersComponent implements OnInit {
     });
   }
 
-  storesForRegion(regionId: string): Store[] {
-    return this.stores().filter((s) => s.regionId === regionId);
+  activityTypeLabel(type: string): string {
+    return type === 'form' ? 'Form Submission' : 'Task';
   }
+
+  // ── Create / Edit form ──────────────────────────────────────────────────────
 
   openCreate(): void {
     this.editingUser.set(null);
-    this.form.reset({ role: 'store_employee' });
+    this.form.reset({ role: 'store_employee', storeId: '', regionIds: [] });
     this.selectedRole.set('store_employee');
     this.form.controls['password'].setValidators(Validators.required);
     this.form.controls['password'].updateValueAndValidity();
@@ -112,7 +140,7 @@ export class UsersComponent implements OnInit {
       displayName: user.displayName,
       role: user.role as UserRole,
       storeId: user.storeId ?? '',
-      regionId: user.regionId ?? '',
+      regionIds: user.regionIds ?? [],
     });
     this.selectedRole.set(user.role);
     this.form.controls['password'].clearValidators();
@@ -126,17 +154,27 @@ export class UsersComponent implements OnInit {
     this.form.reset();
   }
 
+  editFromDetail(): void {
+    const user = this.detailUser();
+    if (!user) return;
+    this.closeDetail();
+    this.openEdit(user);
+  }
+
   onSubmit(): void {
     if (this.form.invalid || this.saving()) return;
-    const { email, password, displayName, role, storeId, regionId } = this.form.getRawValue();
+    const { email, password, displayName, role, storeId, regionIds } = this.form.getRawValue();
+    const scopedStore = STORE_SCOPED_ROLES.includes(role as UserRole) ? (storeId || undefined) : undefined;
+    const scopedRegions = REGION_SCOPED_ROLES.includes(role as UserRole) ? (regionIds ?? []) : [];
     this.saving.set(true);
+    this.error.set(null);
     const editing = this.editingUser();
     if (editing) {
       this.org.updateUser(editing.userId, {
         displayName: displayName!,
         role: role!,
-        storeId: storeId || undefined,
-        regionId: regionId || undefined,
+        storeId: scopedStore,
+        regionIds: scopedRegions,
       }).subscribe({
         next: () => { this.saving.set(false); this.closeForm(); this.load(); },
         error: () => { this.error.set('Failed to update user.'); this.saving.set(false); },
@@ -147,8 +185,8 @@ export class UsersComponent implements OnInit {
         password: password!,
         displayName: displayName!,
         role: role!,
-        storeId: storeId || undefined,
-        regionId: regionId || undefined,
+        storeId: scopedStore,
+        regionIds: scopedRegions,
       }).subscribe({
         next: () => { this.saving.set(false); this.closeForm(); this.load(); },
         error: () => { this.error.set('Failed to create user.'); this.saving.set(false); },
@@ -156,35 +194,77 @@ export class UsersComponent implements OnInit {
     }
   }
 
-  // TB-18: Deactivate / Reactivate
-  deactivate(user: User): void {
-    if (!confirm(`Deactivate "${user.displayName}"? They will lose access immediately.`)) return;
-    this.org.deactivateUser(user.userId).subscribe({ next: () => this.load() });
+  // ── Inline two-step deactivate (no browser confirm) ─────────────────────────
+
+  beginDeactivate(userId: string): void {
+    this.confirmingUserId.set(userId);
   }
 
-  reactivate(user: User): void {
-    if (!confirm(`Reactivate "${user.displayName}"?`)) return;
-    this.org.reactivateUser(user.userId).subscribe({ next: () => this.load() });
+  cancelDeactivate(): void {
+    this.confirmingUserId.set(null);
   }
 
-  // TB-17: Store assignments panel
-  openAssignments(user: User): void {
-    this.selectedUser.set(user);
-    this.assigningStore.set('');
-    this.loadingAssignments.set(true);
-    this.org.getStoreAssignments(user.userId).subscribe({
-      next: (a) => { this.assignments.set(a); this.loadingAssignments.set(false); },
+  executeDeactivate(user: User): void {
+    this.confirmingUserId.set(null);
+    this.error.set(null);
+    this.org.deactivateUser(user.userId).subscribe({
+      next: () => {
+        // If deactivated from within the detail panel, close it first
+        if (this.detailUser()?.userId === user.userId) this.closeDetail();
+        this.load();
+      },
+      error: () => this.error.set(`Failed to deactivate "${user.displayName}". Please try again.`),
     });
   }
 
-  closeAssignments(): void {
-    this.selectedUser.set(null);
+  reactivate(user: User): void {
+    this.error.set(null);
+    this.org.reactivateUser(user.userId).subscribe({
+      next: () => {
+        if (this.detailUser()?.userId === user.userId) this.closeDetail();
+        this.load();
+      },
+      error: () => this.error.set(`Failed to reactivate "${user.displayName}". Please try again.`),
+    });
+  }
+
+  // ── Detail panel ────────────────────────────────────────────────────────────
+
+  openDetail(user: User): void {
+    this.detailUser.set(user);
+    this.confirmingUserId.set(null);
+    this.assigningStore.set('');
+    this.activity.set([]);
+
+    // Load store assignments for managers
+    if (user.role === 'store_manager') {
+      this.loadingAssignments.set(true);
+      this.org.getStoreAssignments(user.userId).subscribe({
+        next: (a) => { this.assignments.set(a); this.loadingAssignments.set(false); },
+        error: () => this.loadingAssignments.set(false),
+      });
+    } else {
+      this.assignments.set([]);
+    }
+
+    // Load activity history
+    this.loadingActivity.set(true);
+    this.org.getUserActivity(user.userId).subscribe({
+      next: (items) => { this.activity.set(items); this.loadingActivity.set(false); },
+      error: () => this.loadingActivity.set(false),
+    });
+  }
+
+  closeDetail(): void {
+    this.detailUser.set(null);
     this.assignments.set([]);
+    this.activity.set([]);
+    this.confirmingUserId.set(null);
   }
 
   addAssignment(): void {
     const storeId = this.assigningStore();
-    const user = this.selectedUser();
+    const user = this.detailUser();
     if (!storeId || !user) return;
     this.org.addStoreAssignment(user.userId, storeId).subscribe({
       next: () => {
@@ -195,9 +275,8 @@ export class UsersComponent implements OnInit {
   }
 
   removeAssignment(storeId: string): void {
-    const user = this.selectedUser();
+    const user = this.detailUser();
     if (!user) return;
-    if (!confirm('Remove this store assignment?')) return;
     this.org.removeStoreAssignment(user.userId, storeId).subscribe({
       next: () => {
         this.org.getStoreAssignments(user.userId).subscribe({ next: (a) => this.assignments.set(a) });
@@ -206,9 +285,11 @@ export class UsersComponent implements OnInit {
   }
 
   readonly roles: { value: UserRole; label: string }[] = [
-    { value: 'store_employee', label: 'Store Employee' },
-    { value: 'store_manager', label: 'Store Manager' },
+    { value: 'super_admin', label: 'Super Admin' },
+    { value: 'admin', label: 'Administrator' },
     { value: 'supervisor', label: 'Supervisor' },
-    { value: 'admin', label: 'Admin' },
+    { value: 'store_manager', label: 'Store Manager' },
+    { value: 'store_employee', label: 'Store Employee' },
+    { value: 'store_kiosk', label: 'Store Kiosk' },
   ];
 }

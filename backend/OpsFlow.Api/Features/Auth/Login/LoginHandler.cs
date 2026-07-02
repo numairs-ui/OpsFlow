@@ -1,5 +1,6 @@
 using MediatR;
 using OpsFlow.Api.Services;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Domain.Entities;
 using OpsFlow.Domain.Interfaces;
 using OpsFlow.Infrastructure;
@@ -26,7 +27,7 @@ internal sealed class LoginHandler(
             TokenHash = hash,
             UserRole = auth.Role,
             StoreId = auth.StoreId,
-            RegionId = auth.RegionId,
+            RegionIdsCsv = UserRegionScope.ToCsv(auth.RegionIds),
             ExpiresAt = expiresAt,
         });
         await tenantDb.SaveChangesAsync(ct);

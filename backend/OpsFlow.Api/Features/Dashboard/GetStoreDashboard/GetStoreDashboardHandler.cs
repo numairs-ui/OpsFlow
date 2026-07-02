@@ -1,26 +1,37 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Features.Dashboard.Shared;
+using OpsFlow.Api.Security;
 using OpsFlow.Infrastructure;
 
 namespace OpsFlow.Api.Features.Dashboard.GetStoreDashboard;
 
 internal sealed class GetStoreDashboardHandler(
-    TenantDbContextFactory factory) : IRequestHandler<GetStoreDashboardQuery, StoreDashboardDto>
+    TenantDbContextFactory factory,
+    IHttpContextAccessor httpContextAccessor) : IRequestHandler<GetStoreDashboardQuery, StoreDashboardDto>
 {
     public async Task<StoreDashboardDto> Handle(GetStoreDashboardQuery query, CancellationToken ct)
     {
+        var user = httpContextAccessor.HttpContext!.User;
+        var spec = user.ToCaller().Scope();
+
         await using var db = await factory.CreateAsync(ct);
 
-        var now        = DateTimeOffset.UtcNow;
-        var todayStart = new DateTimeOffset(now.Date, TimeSpan.Zero);
-        var todayEnd   = todayStart.AddDays(1);
+        // Only those who can view this store may see its dashboard.
+        var store = await db.Stores.FindAsync([query.StoreId], ct)
+            ?? throw new KeyNotFoundException($"Store {query.StoreId} not found.");
+        var assigned = spec.IsStoreScoped
+            && await db.UserStoreAssignments.AnyAsync(a => a.UserId == user.GetUserId() && a.StoreId == query.StoreId, ct);
+        spec.AssertCanViewStore(store.RegionId, store.Id, assigned);
+
+        var window = DashboardWindow.Today();
 
         // All tasks for today for this store
         var tasks = await db.TaskInstances
             .Include(t => t.Checklist)
             .Where(t => t.StoreId == query.StoreId
-                && t.DueAt >= todayStart
-                && t.DueAt < todayEnd)
+                && t.DueAt >= window.Start
+                && t.DueAt < window.End)
             .Select(t => new { t.Id, t.Status, t.DueAt, Name = t.Checklist != null ? t.Checklist.Name : "Task" })
             .ToListAsync(ct);
 
@@ -40,12 +51,12 @@ internal sealed class GetStoreDashboardHandler(
                 t.Name,
                 t.DueAt,
                 t.Status,
-                (int)(now - t.DueAt).TotalMinutes))
+                (int)(window.Now - t.DueAt).TotalMinutes))
             .ToList();
 
         // Today's deposit
         var deposit = await db.DepositLogs
-            .Where(d => d.StoreId == query.StoreId && d.SubmittedAt >= todayStart && d.SubmittedAt < todayEnd)
+            .Where(d => d.StoreId == query.StoreId && d.SubmittedAt >= window.Start && d.SubmittedAt < window.End)
             .Select(d => new { d.Amount })
             .FirstOrDefaultAsync(ct);
 

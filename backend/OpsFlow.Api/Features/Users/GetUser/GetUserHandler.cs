@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using OpsFlow.Api.Features.Users.GetUsers;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Infrastructure;
 
 namespace OpsFlow.Api.Features.Users.GetUser;
@@ -19,6 +20,7 @@ internal sealed class GetUserHandler(TenantDbContextFactory factory)
         return new UserDto(
             u.UserId, u.Email, u.DisplayName, u.Role,
             u.StoreId, u.Store?.Name, u.RegionId, u.Region?.Name,
-            u.IsActive, u.MustChangePassword, u.CreatedAt);
+            u.IsActive, u.MustChangePassword, u.CreatedAt,
+            UserRegionScope.Decode(u.RegionIdsCsv, u.RegionId?.ToString()));
     }
 }

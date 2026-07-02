@@ -1,4 +1,5 @@
 using MediatR;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Domain.Entities;
 using OpsFlow.Infrastructure;
 using System.Security.Claims;
@@ -19,7 +20,7 @@ internal sealed class ImportTemplatesHandler(
         var role = user.FindFirstValue("role") ?? user.FindFirstValue(ClaimTypes.Role) ?? "";
         var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub")!;
 
-        if (role != "admin") throw new UnauthorizedAccessException("Admin role required.");
+        if (!Roles.IsSuperAdmin(role)) throw new UnauthorizedAccessException("Super admin role required.");
 
         await using var db = await factory.CreateAsync(ct);
 

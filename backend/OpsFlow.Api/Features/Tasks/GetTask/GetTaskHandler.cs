@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Security;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Infrastructure;
-using System.Security.Claims;
 
 namespace OpsFlow.Api.Features.Tasks.GetTask;
 
@@ -12,8 +13,8 @@ internal sealed class GetTaskHandler(
     public async Task<TaskDetailDto> Handle(GetTaskQuery query, CancellationToken ct)
     {
         var user = httpContextAccessor.HttpContext!.User;
-        var role = user.FindFirstValue("role") ?? "";
-        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub")!;
+        var spec = user.ToCaller().Scope();
+        var userId = user.GetUserId();
 
         await using var db = await factory.CreateAsync(ct);
 
@@ -26,15 +27,10 @@ internal sealed class GetTaskHandler(
             .FirstOrDefaultAsync(t => t.Id == query.TaskId, ct)
             ?? throw new KeyNotFoundException($"Task {query.TaskId} not found.");
 
-        // Auth: verify user has access to this store
-        if (role == "store_manager" || role == "store_employee")
-        {
-            var up = await db.UserProfiles.FindAsync([userId], ct);
-            var isAssigned = up?.StoreId == task.StoreId
-                || await db.UserStoreAssignments.AnyAsync(a => a.UserId == userId && a.StoreId == task.StoreId, ct);
-            if (!isAssigned)
-                throw new UnauthorizedAccessException("You do not have access to this task.");
-        }
+        // Auth: verify the caller may view the task's store (region set, or own/assigned store)
+        var assigned = spec.IsStoreScoped
+            && await db.UserStoreAssignments.AnyAsync(a => a.UserId == userId && a.StoreId == task.StoreId, ct);
+        spec.AssertCanViewStore(task.Store!.RegionId, task.StoreId, assigned);
 
         var templates = task.Checklist?.Items
             .Select(i => new TaskTemplateItemDto(

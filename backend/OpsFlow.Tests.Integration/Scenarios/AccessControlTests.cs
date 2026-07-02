@@ -102,7 +102,7 @@ public sealed class AccessControlTests : IClassFixture<TenantAwareWebApplication
     public async Task GetStoreDashboard_AsAuthenticatedUser_Returns200()
     {
         await _factory.SeedCommonDataAsync();
-        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin"));
+        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin"));
 
         var response = await _client.GetAsync(
             $"/dashboard/store/{TenantAwareWebApplicationFactory.StoreId}");
@@ -136,7 +136,7 @@ public sealed class AccessControlTests : IClassFixture<TenantAwareWebApplication
     public async Task GetSystemDashboard_AsAdmin_Returns200()
     {
         await _factory.SeedCommonDataAsync();
-        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin"));
+        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin"));
 
         var response = await _client.GetAsync("/dashboard/system");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -150,7 +150,7 @@ public sealed class AccessControlTests : IClassFixture<TenantAwareWebApplication
     public async Task CreateChecklist_WithEmptyName_Returns400()
     {
         await _factory.SeedCommonDataAsync();
-        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin"));
+        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin"));
 
         var response = await _client.PostAsJsonAsync("/checklists", new
         {

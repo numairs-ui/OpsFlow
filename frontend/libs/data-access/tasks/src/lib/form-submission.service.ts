@@ -15,6 +15,10 @@ export class FormSubmissionService {
     return this.http.post<{ id: string }>(this.base, body);
   }
 
+  updateDraft(id: string, fieldValues: Record<string, unknown>): Observable<void> {
+    return this.http.patch<void>(`${this.base}/${id}`, { fieldValues });
+  }
+
   submitSubmission(id: string, body?: SubmitFormSubmissionRequest): Observable<void> {
     return this.http.post<void>(`${this.base}/${id}/submit`, body ?? {});
   }

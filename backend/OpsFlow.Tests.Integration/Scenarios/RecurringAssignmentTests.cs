@@ -52,7 +52,7 @@ public sealed class RecurringAssignmentTests : IClassFixture<TenantAwareWebAppli
     public async Task Admin_CreatesPausesResumesDeletes_RecurringAssignment()
     {
         var checklistId = await SeedChecklistAsync("Daily Opening");
-        var adminToken = _factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin");
+        var adminToken = _factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin");
         UseToken(adminToken);
 
         // Create
@@ -174,7 +174,7 @@ public sealed class RecurringAssignmentTests : IClassFixture<TenantAwareWebAppli
     public async Task GetRecurringAssignments_FilteredByStoreId_ReturnsOnlyThatStore()
     {
         var checklistId = await SeedChecklistAsync("Filter Test Checklist");
-        var adminToken = _factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin");
+        var adminToken = _factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin");
         UseToken(adminToken);
 
         // Create assignment for primary store

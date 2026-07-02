@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import type { Region, Store, StoreAssignment, StoreEmployee, User } from './org.models.js';
+import type { Region, Store, StoreAssignment, StoreEmployee, User, UserActivity } from './org.models.js';
 
 @Injectable({ providedIn: 'root' })
 export class OrgService {
@@ -63,15 +63,19 @@ export class OrgService {
 
   createUser(body: {
     email: string; password: string; displayName: string;
-    role: string; storeId?: string; regionId?: string;
+    role: string; storeId?: string; regionIds?: string[];
   }): Observable<{ userId: string }> {
     return this.http.post<{ userId: string }>(`${this.base}/users`, body);
   }
 
   updateUser(userId: string, body: {
-    displayName: string; role: string; storeId?: string; regionId?: string;
+    displayName: string; role: string; storeId?: string; regionIds?: string[];
   }): Observable<void> {
     return this.http.put<void>(`${this.base}/users/${userId}`, body);
+  }
+
+  getUserActivity(userId: string): Observable<UserActivity[]> {
+    return this.http.get<UserActivity[]>(`${this.base}/users/${userId}/activity`);
   }
 
   deactivateUser(userId: string): Observable<void> {

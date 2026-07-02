@@ -20,10 +20,12 @@ namespace OpsFlow.Tests.Integration;
 public sealed class TenantAwareWebApplicationFactory : WebApplicationFactory<Program>
 {
     public const string TenantId = "test-tenant";
+    public const string SuperAdminUserId = "super-admin-user-id";
     public const string AdminUserId = "admin-user-id";
     public const string EmployeeUserId = "employee-user-id";
     public const string SupervisorUserId = "supervisor-user-id";
     public const string StoreManagerUserId = "store-manager-user-id";
+    public const string KioskUserId = "kiosk-user-id";
 
     // Fixed GUIDs for shared reference entities seeded by SeedCommonDataAsync
     public static readonly Guid RegionId = Guid.Parse("10000000-0000-0000-0000-000000000001");
@@ -135,10 +137,12 @@ public sealed class TenantAwareWebApplicationFactory : WebApplicationFactory<Pro
         // UserProfiles needed for role-scoped handler checks
         var profiles = new[]
         {
-            new UserProfile { UserId = AdminUserId,       Email = "admin@test.com",    DisplayName = "Test Admin",    Role = "admin" },
+            new UserProfile { UserId = SuperAdminUserId,  Email = "superadmin@test.com",DisplayName = "Test Super Admin", Role = "super_admin" },
+            new UserProfile { UserId = AdminUserId,       Email = "admin@test.com",    DisplayName = "Test Admin",    Role = "admin", RegionId = RegionId, RegionIdsCsv = RegionId.ToString() },
             new UserProfile { UserId = EmployeeUserId,    Email = "employee@test.com",  DisplayName = "Test Employee", Role = "store_employee", StoreId = StoreId },
             new UserProfile { UserId = SupervisorUserId,  Email = "supervisor@test.com",DisplayName = "Test Supervisor", Role = "supervisor", RegionId = RegionId },
             new UserProfile { UserId = StoreManagerUserId,Email = "manager@test.com",   DisplayName = "Test Manager",  Role = "store_manager", StoreId = StoreId },
+            new UserProfile { UserId = KioskUserId,       Email = "kiosk@test.com",     DisplayName = "Test Kiosk",    Role = "store_kiosk", StoreId = StoreId },
         };
 
         foreach (var profile in profiles)
@@ -156,6 +160,10 @@ public sealed class TenantAwareWebApplicationFactory : WebApplicationFactory<Pro
     }
 
     public string MintToken(string userId, string role, string? storeId = null, string? regionId = null)
+        => MintMultiRegionToken(userId, role, storeId, regionId is null ? [] : [regionId]);
+
+    /// <summary>Mints a token with a region SET — one "regionId" claim per region (admin: many, supervisor: one).</summary>
+    public string MintMultiRegionToken(string userId, string role, string? storeId, params string[] regionIds)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtSecret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -167,7 +175,7 @@ public sealed class TenantAwareWebApplicationFactory : WebApplicationFactory<Pro
             new("role", role),
         };
         if (storeId is not null) claims.Add(new("storeId", storeId));
-        if (regionId is not null) claims.Add(new("regionId", regionId));
+        foreach (var regionId in regionIds) claims.Add(new("regionId", regionId));
 
         var token = new JwtSecurityToken(
             JwtIssuer, JwtAudience, claims,
@@ -194,8 +202,12 @@ public sealed class TenantAwareWebApplicationFactory : WebApplicationFactory<Pro
     {
         public Task<AuthResult?> AuthenticateAsync(string email, string password, string tenantId, CancellationToken ct = default)
             => Task.FromResult<AuthResult?>(null);
+        // Unique id per call — tenant in-memory DBs are shared across the whole test run,
+        // so a constant id would collide on the UserProfiles primary key across tests.
         public Task<string> CreateUserAsync(CreateUserRequest request, CancellationToken ct = default)
-            => Task.FromResult("test-user-id");
+            => Task.FromResult(Guid.NewGuid().ToString());
+        public Task UpdateUserAsync(UpdateUserRequest request, CancellationToken ct = default) => Task.CompletedTask;
         public Task ResetPasswordAsync(string userId, string newPassword, CancellationToken ct = default) => Task.CompletedTask;
     }
 }
+

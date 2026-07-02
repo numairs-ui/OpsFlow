@@ -15,6 +15,9 @@
       "path": "../../libs/ui/core/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/data-access/org/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/ui/field-builder/tsconfig.lib.json"
     },
     {

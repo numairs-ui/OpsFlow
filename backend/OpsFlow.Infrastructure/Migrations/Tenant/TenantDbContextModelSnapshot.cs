@@ -513,6 +513,9 @@ namespace OpsFlow.Migrations.Tenant
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AssignedToUserId")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("ChecklistId")
                         .HasColumnType("uuid");
 
@@ -571,7 +574,7 @@ namespace OpsFlow.Migrations.Tenant
                     b.Property<bool>("IsUsed")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("RegionId")
+                    b.Property<string>("RegionIdsCsv")
                         .HasColumnType("text");
 
                     b.Property<string>("StoreId")
@@ -891,6 +894,9 @@ namespace OpsFlow.Migrations.Tenant
 
                     b.Property<Guid?>("RegionId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("RegionIdsCsv")
+                        .HasColumnType("text");
 
                     b.Property<string>("Role")
                         .IsRequired()

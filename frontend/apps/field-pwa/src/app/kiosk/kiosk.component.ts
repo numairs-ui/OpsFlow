@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, ElementRef, AfterViewChecked, inject, signal, computed } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -15,10 +15,13 @@ const FINANCIAL_CHECKLIST_KEYWORDS = ['financial', 'cash', 'sales', 'revenue', '
   templateUrl: './kiosk.component.html',
   styleUrl: './kiosk.component.scss',
 })
-export class KioskComponent implements OnInit, OnDestroy {
+export class KioskComponent implements OnInit, OnDestroy, AfterViewChecked {
   private readonly auth = inject(AuthService);
   private readonly taskSvc = inject(TaskService);
   private readonly router = inject(Router);
+
+  @ViewChild('nameInput') private nameInput?: ElementRef<HTMLInputElement>;
+  private nameInputFocused = false;
 
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
@@ -51,6 +54,15 @@ export class KioskComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     clearInterval(this.pollTimer);
+  }
+
+  ngAfterViewChecked(): void {
+    if (this.claimStep() === 'name' && this.nameInput && !this.nameInputFocused) {
+      this.nameInputFocused = true;
+      this.nameInput.nativeElement.focus();
+    } else if (this.claimStep() !== 'name') {
+      this.nameInputFocused = false;
+    }
   }
 
   load(): void {

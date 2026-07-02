@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Security;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Infrastructure;
-using System.Security.Claims;
 
 namespace OpsFlow.Api.Features.Checklists.GetChecklists;
 
@@ -12,9 +13,7 @@ internal sealed class GetChecklistsHandler(
     public async Task<List<ChecklistDto>> Handle(GetChecklistsQuery query, CancellationToken ct)
     {
         var user = httpContextAccessor.HttpContext!.User;
-        var role = user.FindFirstValue("role") ?? user.FindFirstValue(ClaimTypes.Role) ?? "";
-        var userStoreId = user.FindFirstValue("storeId");
-        var userRegionId = user.FindFirstValue("regionId");
+        var spec = user.ToCaller().Scope();
 
         await using var db = await factory.CreateAsync(ct);
 
@@ -22,15 +21,7 @@ internal sealed class GetChecklistsHandler(
             .Include(c => c.Region)
             .Include(c => c.Store)
             .Include(c => c.Items).ThenInclude(i => i.Template)
-            .AsQueryable();
-
-        if (role != "admin")
-        {
-            q = q.Where(c =>
-                c.Scope == "System"
-                || (c.Scope == "Regional" && userRegionId != null && c.RegionId.ToString() == userRegionId)
-                || (c.Scope == "Store" && userStoreId != null && c.StoreId.ToString() == userStoreId));
-        }
+            .WhereScopedVisible(spec, c => c.Scope, c => c.RegionId, c => c.StoreId);
 
         if (query.Scope != null) q = q.Where(c => c.Scope == query.Scope);
         if (query.IsActive.HasValue) q = q.Where(c => c.IsActive == query.IsActive.Value);

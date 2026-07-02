@@ -75,7 +75,7 @@ public sealed class TaskLifecycleTests : IClassFixture<TenantAwareWebApplication
     public async Task AdminCreatesChecklist_Returns201WithId()
     {
         await _factory.SeedCommonDataAsync();
-        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin"));
+        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin"));
 
         var response = await _client.PostAsJsonAsync("/checklists", new
         {
@@ -97,7 +97,7 @@ public sealed class TaskLifecycleTests : IClassFixture<TenantAwareWebApplication
     public async Task AdminCreatesTask_Returns201WithId()
     {
         var checklistId = await SeedChecklistAsync("Closing Checklist");
-        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin"));
+        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin"));
 
         var response = await _client.PostAsJsonAsync("/tasks", new
         {
@@ -121,7 +121,7 @@ public sealed class TaskLifecycleTests : IClassFixture<TenantAwareWebApplication
         await _factory.SeedCommonDataAsync();
 
         // Admin creates checklist
-        var adminToken = _factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin");
+        var adminToken = _factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin");
         UseToken(adminToken);
         var createChecklistResp = await _client.PostAsJsonAsync("/checklists", new
         {
@@ -269,7 +269,7 @@ public sealed class TaskLifecycleTests : IClassFixture<TenantAwareWebApplication
         var checklistId = await SeedChecklistAsync();
         var taskId = await SeedTaskAsync(checklistId);
 
-        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin"));
+        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin"));
 
         var response = await _client.PostAsJsonAsync($"/tasks/{taskId}/cancel", new
         {
@@ -294,7 +294,7 @@ public sealed class TaskLifecycleTests : IClassFixture<TenantAwareWebApplication
         var checklistId = await SeedChecklistAsync();
         var taskId = await SeedTaskAsync(checklistId);
 
-        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin"));
+        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin"));
 
         var deferredTo = DateTimeOffset.UtcNow.AddDays(1);
         var response = await _client.PostAsJsonAsync($"/tasks/{taskId}/defer", new
@@ -321,7 +321,7 @@ public sealed class TaskLifecycleTests : IClassFixture<TenantAwareWebApplication
         var checklistId = await SeedChecklistAsync();
         var taskId = await SeedTaskAsync(checklistId, status: "Pending");
 
-        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin"));
+        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin"));
 
         var response = await _client.PostAsJsonAsync<object?>($"/tasks/{taskId}/verify", null);
 

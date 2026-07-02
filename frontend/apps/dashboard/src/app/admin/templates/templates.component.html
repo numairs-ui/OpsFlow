@@ -78,7 +78,7 @@
 </div>
 
 @if (showForm()) {
-  <div class="overlay" (click)="closeForm()"></div>
+  <div class="overlay" role="presentation" (click)="closeForm()"></div>
   <div class="slide-over slide-over--wide">
     <div class="slide-over__header">
       <h2>{{ editingTemplate() ? 'Edit Template' : 'New Template' }}</h2>
@@ -134,7 +134,7 @@
       }
 
       <div class="field">
-        <label class="label">Fields</label>
+        <span class="label">Fields</span>
         <lib-field-builder
           [initialFields]="fields()"
           (fieldsChange)="onFieldsChange($event)" />

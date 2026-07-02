@@ -118,16 +118,16 @@
             </div>
             @for (field of group.fields; track field.id) {
               <div class="field-item">
-                <label class="field-label">
+                <span class="field-label">
                   {{ field.label }}
                   @if (field.required) { <span class="field-required-mark">*</span> }
-                  @if (field.rangeMin != null || field.rangeMax != null) {
+                  @if (field.rangeMin !== undefined || field.rangeMax !== undefined) {
                     <span class="field-range-hint">
                       ({{ field.rangeMin ?? '—' }}–{{ field.rangeMax ?? '—' }}
                       @if (field.type === 'Numeric') { numeric })
                     </span>
                   }
-                </label>
+                </span>
 
                 @if (field.type === 'Numeric' || field.type === 'Text') {
                   <div class="input-wrapper">

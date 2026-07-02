@@ -49,7 +49,9 @@ export class LoginComponent {
         password: password!,
         tenantId: tenantId!,
       });
-      await this.router.navigate(['/tasks']);
+      // The shared kiosk station account lands on the kiosk board; individuals go to their task list.
+      const isKiosk = this.auth.currentUser()?.role === 'store_kiosk';
+      await this.router.navigate([isKiosk ? '/kiosk' : '/tasks']);
     } catch {
       this.errorMessage.set('Invalid email or password.');
     } finally {

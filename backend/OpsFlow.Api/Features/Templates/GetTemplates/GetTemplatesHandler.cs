@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Security;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Infrastructure;
-using System.Security.Claims;
 using System.Text.Json;
 
 namespace OpsFlow.Api.Features.Templates.GetTemplates;
@@ -13,25 +14,14 @@ internal sealed class GetTemplatesHandler(
     public async Task<TemplateListResult> Handle(GetTemplatesQuery query, CancellationToken ct)
     {
         var user = httpContextAccessor.HttpContext!.User;
-        var role = user.FindFirstValue("role") ?? user.FindFirstValue(ClaimTypes.Role) ?? "";
-        var userStoreId = user.FindFirstValue("storeId");
-        var userRegionId = user.FindFirstValue("regionId");
+        var spec = user.ToCaller().Scope();
 
         await using var db = await factory.CreateAsync(ct);
 
         var q = db.TaskTemplates
             .Include(t => t.Region)
             .Include(t => t.Store)
-            .AsQueryable();
-
-        // Visibility scoping
-        if (role != "admin")
-        {
-            q = q.Where(t =>
-                t.Scope == "System"
-                || (t.Scope == "Regional" && userRegionId != null && t.RegionId.ToString() == userRegionId)
-                || (t.Scope == "Store" && userStoreId != null && t.StoreId.ToString() == userStoreId));
-        }
+            .WhereScopedVisible(spec, t => t.Scope, t => t.RegionId, t => t.StoreId);
 
         // Filters
         if (query.Scope != null) q = q.Where(t => t.Scope == query.Scope);

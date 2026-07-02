@@ -26,7 +26,7 @@ public sealed class UserManagementTests : IClassFixture<TenantAwareWebApplicatio
     private void UseAdminToken()
         => _client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",
-                _factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin"));
+                _factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin"));
 
     // ────────────────────────────────────────────────────────────────
     // Scenario 1: Admin creates a store_employee user
@@ -68,7 +68,7 @@ public sealed class UserManagementTests : IClassFixture<TenantAwareWebApplicatio
             password = "TempPass1!",
             displayName = "New Supervisor",
             role = "supervisor",
-            regionId = TenantAwareWebApplicationFactory.RegionId,
+            regionIds = new[] { TenantAwareWebApplicationFactory.RegionId },
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -127,13 +127,13 @@ public sealed class UserManagementTests : IClassFixture<TenantAwareWebApplicatio
         await _factory.SeedCommonDataAsync();
         UseAdminToken();
 
-        // Create user
+        // Create user — only store_manager users may hold multiple store assignments
         var createResp = await _client.PostAsJsonAsync("/users", new
         {
             email = $"assignment-test-{Guid.NewGuid():N}@test.com",
             password = "TempPass1!",
             displayName = "Assignment Test User",
-            role = "store_employee",
+            role = "store_manager",
             storeId = TenantAwareWebApplicationFactory.StoreId,
         });
         var userId = (await createResp.Content.ReadFromJsonAsync<JsonElement>())
@@ -173,12 +173,50 @@ public sealed class UserManagementTests : IClassFixture<TenantAwareWebApplicatio
             password = "TempPass1!",
             displayName = "Filter Supervisor",
             role = "supervisor",
-            regionId = TenantAwareWebApplicationFactory.RegionId,
+            regionIds = new[] { TenantAwareWebApplicationFactory.RegionId },
         });
 
         var response = await _client.GetAsync("/users?role=supervisor&activeOnly=false");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var users = await response.Content.ReadFromJsonAsync<JsonElement>();
         users.GetArrayLength().Should().BeGreaterThan(0);
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // Scenario 6: Updating a user changes role + region scope (profile mirror)
+    // ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Admin_UpdatesUser_RoleAndRegion_Reflected()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseAdminToken();
+
+        var createResp = await _client.PostAsJsonAsync("/users", new
+        {
+            email = $"update-test-{Guid.NewGuid():N}@test.com",
+            password = "TempPass1!",
+            displayName = "Original Name",
+            role = "store_employee",
+            storeId = TenantAwareWebApplicationFactory.StoreId,
+        });
+        var userId = (await createResp.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("userId").GetString()!;
+
+        // Promote to supervisor over a region — store scope should drop, region scope appear.
+        var putResp = await _client.PutAsJsonAsync($"/users/{userId}", new
+        {
+            displayName = "Updated Name",
+            role = "supervisor",
+            regionIds = new[] { TenantAwareWebApplicationFactory.RegionId },
+        });
+        putResp.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var getResp = await _client.GetAsync($"/users/{userId}");
+        var dto = await getResp.Content.ReadFromJsonAsync<JsonElement>();
+        dto.GetProperty("displayName").GetString().Should().Be("Updated Name");
+        dto.GetProperty("role").GetString().Should().Be("supervisor");
+        dto.GetProperty("storeId").ValueKind.Should().Be(JsonValueKind.Null);
+        dto.GetProperty("regionIds")[0].GetString().Should().Be(TenantAwareWebApplicationFactory.RegionId.ToString());
     }
 }

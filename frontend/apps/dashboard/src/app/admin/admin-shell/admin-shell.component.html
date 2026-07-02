@@ -3,84 +3,92 @@
     <div class="sidebar__brand">
       <span class="sidebar__logo-mark"><em>O</em></span>
       <span class="sidebar__logo-name">OpsFlow</span>
-      <span class="sidebar__role-tag">Admin</span>
+      <span class="sidebar__role-tag">{{ roleLabel(user()?.role) }}</span>
     </div>
 
     <ul class="sidebar__nav">
       <li class="sidebar__section-label">Overview</li>
       <li>
         <a routerLink="overview" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon">&#9679;</span> System Dashboard
+          <span class="sidebar__icon"></span> System Dashboard
         </a>
       </li>
       <li>
         <a routerLink="submissions" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon">&#9679;</span> Form Submissions
+          <span class="sidebar__icon"></span> Form Submissions
         </a>
       </li>
       <li class="sidebar__section-label">Organisation</li>
-      <li>
-        <a routerLink="regions" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon">&#9679;</span> Regions
-        </a>
-      </li>
+      @if (isSuperAdmin()) {
+        <li>
+          <a routerLink="regions" routerLinkActive="active" class="sidebar__link">
+            <span class="sidebar__icon"></span> Regions
+          </a>
+        </li>
+      }
       <li>
         <a routerLink="stores" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon">&#9679;</span> Stores
+          <span class="sidebar__icon"></span> Stores
         </a>
       </li>
       <li>
         <a routerLink="users" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon">&#9679;</span> Users
+          <span class="sidebar__icon"></span> Users
         </a>
       </li>
       <li>
         <a routerLink="roster" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon">&#9679;</span> Store Roster
+          <span class="sidebar__icon"></span> Store Roster
         </a>
       </li>
       <li class="sidebar__section-label">Templates</li>
-      <li>
-        <a routerLink="system-templates" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon">&#9679;</span> System Templates
-        </a>
-      </li>
+      @if (isSuperAdmin()) {
+        <li>
+          <a routerLink="system-templates" routerLinkActive="active" class="sidebar__link">
+            <span class="sidebar__icon"></span> System Templates
+          </a>
+        </li>
+      }
       <li>
         <a routerLink="templates" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon">&#9679;</span> All Templates
+          <span class="sidebar__icon"></span> All Templates
         </a>
       </li>
       <li>
         <a routerLink="checklists" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon">&#9679;</span> Checklists
+          <span class="sidebar__icon"></span> Checklists
         </a>
       </li>
       <li>
         <a routerLink="recurring-assignments" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon">&#9679;</span> Recurring Assignments
+          <span class="sidebar__icon"></span> Recurring Assignments
         </a>
       </li>
       <li>
         <a routerLink="form-templates" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon">&#9679;</span> Form Templates
+          <span class="sidebar__icon"></span> Form Templates
         </a>
       </li>
-      <li>
-        <a routerLink="template-import" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon">&#9679;</span> Template Import
-        </a>
-      </li>
+      @if (isSuperAdmin()) {
+        <li>
+          <a routerLink="template-import" routerLinkActive="active" class="sidebar__link">
+            <span class="sidebar__icon"></span> Template Import
+          </a>
+        </li>
+      }
       <li class="sidebar__section-label">Configuration</li>
       <li>
         <a routerLink="store-settings" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon">&#9679;</span> Store Settings
+          <span class="sidebar__icon"></span> Store Settings
         </a>
       </li>
-      <li>
-        <a routerLink="tenant-settings" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon">&#9679;</span> Tenant Settings
-        </a>
-      </li>
+      @if (isSuperAdmin()) {
+        <li>
+          <a routerLink="tenant-settings" routerLinkActive="active" class="sidebar__link">
+            <span class="sidebar__icon"></span> Tenant Settings
+          </a>
+        </li>
+      }
     </ul>
 
     <div class="sidebar__footer">

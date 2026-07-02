@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Domain.Interfaces;
 using Supabase.Gotrue;
 
@@ -24,9 +25,18 @@ internal sealed class SupabaseAuthProvider(
             TenantId: tenantId,
             Role: meta?.GetValueOrDefault("role")?.ToString() ?? "store_employee",
             StoreId: meta?.GetValueOrDefault("store_id")?.ToString(),
-            RegionId: meta?.GetValueOrDefault("region_id")?.ToString()
+            RegionIds: ParseRegionIds(meta)
         );
     }
+
+    // Region scope is stored as a comma-separated "region_ids" string (admin: many, supervisor: one),
+    // falling back to the legacy single "region_id" key for pre-multi-region accounts.
+    private static IReadOnlyList<string> ParseRegionIds(IReadOnlyDictionary<string, object>? meta) =>
+        meta is null
+            ? []
+            : UserRegionScope.Decode(
+                meta.GetValueOrDefault("region_ids")?.ToString(),
+                meta.GetValueOrDefault("region_id")?.ToString());
 
     public async Task<string> CreateUserAsync(CreateUserRequest request, CancellationToken ct = default)
     {
@@ -43,10 +53,32 @@ internal sealed class SupabaseAuthProvider(
         };
 
         if (request.StoreId is not null) attrs.UserMetadata["store_id"] = request.StoreId;
-        if (request.RegionId is not null) attrs.UserMetadata["region_id"] = request.RegionId;
+        var csv = UserRegionScope.ToCsv(request.RegionIds);
+        if (csv is not null) attrs.UserMetadata["region_ids"] = csv;
 
         var user = await admin.CreateUser(attrs);
         return user?.Id ?? throw new InvalidOperationException("Supabase returned null user after CreateUser.");
+    }
+
+    public async Task UpdateUserAsync(UpdateUserRequest request, CancellationToken ct = default)
+    {
+        var admin = supabase.AdminAuth(_serviceKey);
+
+        // Send every scope key (null clears) so the result is correct whether Gotrue merges or
+        // replaces user_metadata — e.g. switching a manager to a supervisor must drop store_id.
+        var metadata = new Dictionary<string, object?>
+        {
+            ["tenant_id"] = request.TenantId,
+            ["role"] = request.Role,
+            ["store_id"] = request.StoreId,
+            ["region_ids"] = UserRegionScope.ToCsv(request.RegionIds),
+            ["region_id"] = null, // retire the legacy single-region key
+        };
+
+        await admin.UpdateUserById(request.UserId, new AdminUserAttributes
+        {
+            UserMetadata = metadata.ToDictionary(kv => kv.Key, kv => kv.Value!),
+        });
     }
 
     public async Task ResetPasswordAsync(string userId, string newPassword, CancellationToken ct = default)

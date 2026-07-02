@@ -26,6 +26,31 @@ using OpsFlow.Api.Services;
 using Quartz;
 using Scalar.AspNetCore;
 
+// Load .env file from the workspace root (walk up from the running directory)
+var envDir = Directory.GetCurrentDirectory();
+for (var i = 0; i < 6; i++)
+{
+    var candidate = Path.Combine(envDir, ".env");
+    if (File.Exists(candidate))
+    {
+        foreach (var line in File.ReadAllLines(candidate))
+        {
+            var trimmed = line.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#')) continue;
+            var sep = trimmed.IndexOf('=');
+            if (sep < 1) continue;
+            var key = trimmed[..sep].Trim();
+            var val = trimmed[(sep + 1)..].Trim();
+            if (Environment.GetEnvironmentVariable(key) is null)
+                Environment.SetEnvironmentVariable(key, val);
+        }
+        break;
+    }
+    var parent = Directory.GetParent(envDir);
+    if (parent is null) break;
+    envDir = parent.FullName;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
