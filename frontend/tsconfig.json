@@ -47,6 +47,9 @@
     },
     {
       "path": "./libs/ui/template-builder"
+    },
+    {
+      "path": "./libs/util/http"
     }
   ]
 }

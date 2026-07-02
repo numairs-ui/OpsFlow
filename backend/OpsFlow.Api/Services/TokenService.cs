@@ -53,13 +53,16 @@ internal sealed class TokenService(IConfiguration configuration, IWebHostEnviron
 
     public void SetRefreshCookie(HttpResponse response, string tenantId, string rawToken, DateTimeOffset expiresAt)
     {
-        // Cookie value = "{tenantId}:{rawToken}" so we can resolve the tenant DB on refresh
+        // Cookie value = "{tenantId}:{rawToken}" so we can resolve the tenant DB on refresh.
+        // Frontend and API are deployed to different origins (Vercel + Render), so the cookie
+        // must be SameSite=None to survive the cross-site fetch; that requires Secure=true, which
+        // browsers enforce anyway. Dev keeps Lax since localhost:4200 -> localhost:5000 is same-site.
         var isSecure = !env.IsDevelopment();
         response.Cookies.Append(RefreshCookieName, $"{tenantId}:{rawToken}", new CookieOptions
         {
             HttpOnly = true,
             Secure = isSecure,
-            SameSite = isSecure ? SameSiteMode.Strict : SameSiteMode.Lax,
+            SameSite = isSecure ? SameSiteMode.None : SameSiteMode.Lax,
             Expires = expiresAt,
         });
     }

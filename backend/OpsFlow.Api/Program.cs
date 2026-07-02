@@ -107,21 +107,30 @@ builder.Services.AddQuartz(q =>
 });
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
-// CORS (allow Angular dev servers)
+// CORS — dev origins plus any deployed frontend origins from CORS_ALLOWED_ORIGINS
+// (comma-separated, e.g. "https://opsflow.vercel.app,https://opsflow-git-main.vercel.app").
+var corsOrigins = new List<string> { "http://localhost:4200", "http://localhost:4201" };
+var extraOrigins = Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS");
+if (!string.IsNullOrWhiteSpace(extraOrigins))
+{
+    corsOrigins.AddRange(extraOrigins.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+}
+
 builder.Services.AddCors(opts =>
-    opts.AddPolicy("DevCors", p =>
-        p.WithOrigins("http://localhost:4200", "http://localhost:4201")
+    opts.AddPolicy("AppCors", p =>
+        p.WithOrigins(corsOrigins.ToArray())
          .AllowAnyHeader()
          .AllowAnyMethod()
          .AllowCredentials()));
 
 var app = builder.Build();
 
+app.UseCors("AppCors");
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
-    app.UseCors("DevCors");
 }
 
 app.UseExceptionHandler(errorApp =>

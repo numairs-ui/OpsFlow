@@ -15,6 +15,9 @@
       "path": "../../libs/util/guards/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/util/http/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/ui/cron-picker/tsconfig.lib.json"
     },
     {
