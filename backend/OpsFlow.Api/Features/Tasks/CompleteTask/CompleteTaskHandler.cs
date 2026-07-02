@@ -1,5 +1,4 @@
 using FluentValidation;
-using FluentValidation.Results;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -51,101 +50,13 @@ internal sealed class CompleteTaskHandler(
         if (task.Status is "Cancelled" or "Deferred")
             throw new InvalidOperationException($"Cannot complete a task in status '{task.Status}'.");
 
-        // Validate fields against template specs
-        var fieldErrors = new List<ValidationFailure>();
-        var corrective = new List<CorrectiveActionDto>();
+        var storeSettings = await db.StoreSettings.FindAsync([task.StoreId], ct);
+        var validation = TaskFieldValidator.Validate(task.Checklist?.Items ?? [], cmd.FieldValues, storeSettings);
 
-        foreach (var item in task.Checklist?.Items ?? [])
-        {
-            var specs = JsonSerializer.Deserialize<List<TemplateFieldSpec>>(item.Template.FieldsJson, JsonOptions) ?? [];
+        if (validation.Errors.Count > 0)
+            throw new ValidationException(validation.Errors);
 
-            foreach (var spec in specs)
-            {
-                var submitted = cmd.FieldValues.FirstOrDefault(f => f.TemplateId == item.TemplateId && f.FieldId == spec.Id);
-
-                if (spec.Required && (submitted == null || string.IsNullOrWhiteSpace(submitted.Value)))
-                {
-                    if (spec.Type == "Checklist" && spec.SubItems?.Count > 0)
-                    {
-                        var checkedIds = submitted?.Value?.Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet()
-                            ?? [];
-                        var missing = spec.SubItems.Where(s => s.Required && !checkedIds.Contains(s.Id));
-                        foreach (var m in missing)
-                            fieldErrors.Add(new ValidationFailure($"FieldValues[{spec.Id}]", $"Required checklist item '{m.Label}' in '{spec.Label}' must be checked."));
-                    }
-                    else
-                    {
-                        fieldErrors.Add(new ValidationFailure($"FieldValues[{spec.Id}]", $"Field '{spec.Label}' is required."));
-                    }
-                    continue;
-                }
-
-                if (submitted == null) continue;
-
-                if (spec.Type == "Numeric" && double.TryParse(submitted.Value, out var numVal))
-                {
-                    var outOfRange = (spec.RangeMin.HasValue && numVal < spec.RangeMin.Value)
-                        || (spec.RangeMax.HasValue && numVal > spec.RangeMax.Value);
-                    if (outOfRange && !string.IsNullOrEmpty(spec.CorrectiveActionText))
-                        corrective.Add(new CorrectiveActionDto(spec.Label, spec.CorrectiveActionText));
-                }
-
-                if (spec.Type == "Boolean"
-                    && submitted.Value.Equals("false", StringComparison.OrdinalIgnoreCase)
-                    && !string.IsNullOrEmpty(spec.CorrectiveActionText))
-                {
-                    corrective.Add(new CorrectiveActionDto(spec.Label, spec.CorrectiveActionText));
-                }
-            }
-        }
-
-        // Safe-category: dynamic till variance check against StoreSettings
-        var safeItems = task.Checklist?.Items.Where(i => i.Template?.Category == "Safe").ToList() ?? [];
-        if (safeItems.Count > 0)
-        {
-            var settings = await db.StoreSettings.FindAsync([task.StoreId], ct);
-            if (settings != null)
-            {
-                bool tillVarianceDetected = false;
-                foreach (var safeItem in safeItems)
-                {
-                    var safeSpecs = JsonSerializer.Deserialize<List<TemplateFieldSpec>>(safeItem.Template!.FieldsJson, JsonOptions) ?? [];
-                    foreach (var spec in safeSpecs.Where(s => s.Type == "Numeric"))
-                    {
-                        decimal? baseAmount = spec.Id switch
-                        {
-                            "till_a" => settings.TillABase,
-                            "till_b" => settings.TillBBase,
-                            _ => null
-                        };
-                        if (baseAmount == null) continue;
-
-                        var sub = cmd.FieldValues.FirstOrDefault(f => f.TemplateId == safeItem.TemplateId && f.FieldId == spec.Id);
-                        if (sub == null || !double.TryParse(sub.Value, out var subVal)) continue;
-
-                        if (Math.Abs(subVal - (double)baseAmount.Value) > 0.01)
-                        {
-                            tillVarianceDetected = true;
-                            if (!corrective.Any(c => c.FieldLabel == spec.Label))
-                                corrective.Add(new CorrectiveActionDto(spec.Label, spec.CorrectiveActionText ?? "Variance detected"));
-                        }
-                    }
-
-                    if (tillVarianceDetected)
-                    {
-                        var noteKey = cmd.FieldValues.FirstOrDefault(f => f.TemplateId == safeItem.TemplateId && f.FieldId == "variance_note");
-                        var initialsKey = cmd.FieldValues.FirstOrDefault(f => f.TemplateId == safeItem.TemplateId && f.FieldId == "manager_initials");
-                        if (string.IsNullOrWhiteSpace(noteKey?.Value))
-                            fieldErrors.Add(new ValidationFailure("FieldValues[variance_note]", "Variance Reason is required when till amounts deviate from the base."));
-                        if (string.IsNullOrWhiteSpace(initialsKey?.Value))
-                            fieldErrors.Add(new ValidationFailure("FieldValues[manager_initials]", "Manager Initials are required when till amounts deviate from the base."));
-                    }
-                }
-            }
-        }
-
-        if (fieldErrors.Count > 0)
-            throw new ValidationException(fieldErrors);
+        var corrective = validation.CorrectiveActions;
 
         var completion = new TaskCompletion
         {
@@ -178,25 +89,6 @@ internal sealed class CompleteTaskHandler(
             corrective);
     }
 
-    private sealed class TemplateFieldSpec
-    {
-        public string Id { get; init; } = "";
-        public string Type { get; init; } = "";
-        public string Label { get; init; } = "";
-        public bool Required { get; init; }
-        public double? RangeMin { get; init; }
-        public double? RangeMax { get; init; }
-        public string? CorrectiveActionText { get; init; }
-        public List<SubItemSpec>? SubItems { get; init; }
-    }
-
-    private sealed class SubItemSpec
-    {
-        public string Id { get; init; } = "";
-        public string Label { get; init; } = "";
-        public bool Required { get; init; }
-    }
-
     private static async Task WriteInventorySnapshotsAsync(
         TenantDbContext db,
         string tenantId,
@@ -215,7 +107,7 @@ internal sealed class CompleteTaskHandler(
 
         foreach (var item in inventoryItems)
         {
-            var specs = JsonSerializer.Deserialize<List<TemplateFieldSpec>>(item.Template!.FieldsJson, JsonOptions) ?? [];
+            var specs = JsonSerializer.Deserialize<List<TaskFieldValidator.TemplateFieldSpec>>(item.Template!.FieldsJson, JsonOptions) ?? [];
             foreach (var spec in specs.Where(s => s.Type == "Numeric"))
             {
                 var submitted = cmd.FieldValues.FirstOrDefault(f => f.TemplateId == item.TemplateId && f.FieldId == spec.Id);

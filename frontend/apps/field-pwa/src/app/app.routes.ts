@@ -1,8 +1,14 @@
 import { Route } from '@angular/router';
-import { authGuard } from '@org/data-access-auth';
+import { authGuard, kioskRedirectGuard } from '@org/data-access-auth';
 
 export const appRoutes: Route[] = [
-  { path: '', redirectTo: 'tasks', pathMatch: 'full' },
+  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+  {
+    path: 'dashboard',
+    canActivate: [authGuard, kioskRedirectGuard],
+    loadComponent: () =>
+      import('./dashboard/dashboard.component.js').then((m) => m.DashboardComponent),
+  },
   {
     path: 'login',
     loadComponent: () =>
@@ -10,17 +16,18 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'tasks',
-    canActivate: [authGuard],
+    canActivate: [authGuard, kioskRedirectGuard],
     loadComponent: () =>
       import('./tasks/tasks.component.js').then((m) => m.TasksComponent),
   },
   {
     path: 'tasks/:id',
-    canActivate: [authGuard],
+    canActivate: [authGuard, kioskRedirectGuard],
     loadComponent: () =>
       import('./task-detail/task-detail.component.js').then((m) => m.TaskDetailComponent),
   },
   {
+    // Shared station board — any authenticated field user (incl. the store_kiosk account) may view it.
     path: 'kiosk',
     canActivate: [authGuard],
     loadComponent: () =>
@@ -28,7 +35,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'quick-template',
-    canActivate: [authGuard],
+    canActivate: [authGuard, kioskRedirectGuard],
     loadComponent: () =>
       import('./quick-template/quick-template.component.js').then(
         (m) => m.QuickTemplateComponent
@@ -36,7 +43,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'submissions',
-    canActivate: [authGuard],
+    canActivate: [authGuard, kioskRedirectGuard],
     loadComponent: () =>
       import('./submissions/submissions.component.js').then(
         (m) => m.SubmissionsComponent

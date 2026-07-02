@@ -10,7 +10,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'admin',
-    canActivate: [authGuard, roleGuard('admin')],
+    canActivate: [authGuard, roleGuard('super_admin', 'admin')],
     loadComponent: () =>
       import('./admin/admin-shell/admin-shell.component.js').then(
         (m) => m.AdminShellComponent

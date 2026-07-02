@@ -6,42 +6,17 @@ using Quartz;
 namespace OpsFlow.Api.Jobs;
 
 [DisallowConcurrentExecution]
-internal sealed class GenerateTaskInstancesJob(IServiceScopeFactory scopeFactory, ILogger<GenerateTaskInstancesJob> logger) : IJob
+internal sealed class GenerateTaskInstancesJob(IServiceScopeFactory scopeFactory, ILogger<GenerateTaskInstancesJob> logger)
+    : TenantIteratingJob(scopeFactory, logger)
 {
-    public async Task Execute(IJobExecutionContext context)
+    protected override string JobName => "Generate task instances";
+
+    protected override async Task RunForTenantAsync(string tenantId, IServiceProvider services, CancellationToken ct)
     {
-        var ct = context.CancellationToken;
         var now = DateTimeOffset.UtcNow;
         var windowEnd = now.AddHours(1);
+        var factory = services.GetRequiredService<TenantDbContextFactory>();
 
-        await using var scope = scopeFactory.CreateAsyncScope();
-        var masterDb = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
-        var factory = scope.ServiceProvider.GetRequiredService<TenantDbContextFactory>();
-
-        var tenants = await masterDb.Tenants
-            .Where(t => t.IsActive)
-            .ToListAsync(ct);
-
-        foreach (var tenant in tenants)
-        {
-            try
-            {
-                await GenerateForTenantAsync(tenant.Id, now, windowEnd, factory, ct);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to generate task instances for tenant {TenantId}", tenant.Id);
-            }
-        }
-    }
-
-    private static async Task GenerateForTenantAsync(
-        string tenantId,
-        DateTimeOffset now,
-        DateTimeOffset windowEnd,
-        TenantDbContextFactory factory,
-        CancellationToken ct)
-    {
         await using var db = await factory.CreateForTenantAsync(tenantId, ct);
 
         var assignments = await db.RecurringAssignments

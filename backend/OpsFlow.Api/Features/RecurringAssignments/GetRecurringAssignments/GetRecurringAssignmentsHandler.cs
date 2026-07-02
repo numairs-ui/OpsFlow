@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Security;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Infrastructure;
-using System.Security.Claims;
 
 namespace OpsFlow.Api.Features.RecurringAssignments.GetRecurringAssignments;
 
@@ -12,9 +13,7 @@ internal sealed class GetRecurringAssignmentsHandler(
     public async Task<List<RecurringAssignmentDto>> Handle(GetRecurringAssignmentsQuery query, CancellationToken ct)
     {
         var user = httpContextAccessor.HttpContext!.User;
-        var role = user.FindFirstValue("role") ?? "";
-        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub")!;
-        var regionId = user.FindFirstValue("regionId");
+        var spec = user.ToCaller().Scope();
 
         await using var db = await factory.CreateAsync(ct);
 
@@ -29,16 +28,7 @@ internal sealed class GetRecurringAssignmentsHandler(
         if (query.IsPaused.HasValue)
             q = q.Where(r => r.IsPaused == query.IsPaused.Value);
 
-        if (role == "store_manager")
-        {
-            var up = await db.UserProfiles.FindAsync([userId], ct);
-            if (up?.StoreId != null) q = q.Where(r => r.StoreId == up.StoreId);
-        }
-        else if (role == "supervisor" && regionId != null)
-        {
-            var rid = Guid.Parse(regionId);
-            q = q.Where(r => r.Store!.RegionId == rid);
-        }
+        q = q.WhereStoreInScope(spec, r => r.StoreId, r => r.Store!.RegionId);
 
         return await q.OrderByDescending(r => r.CreatedAt).Select(r => new RecurringAssignmentDto(
             r.Id, r.Name,

@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Security;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Infrastructure;
-using System.Security.Claims;
 
 namespace OpsFlow.Api.Features.Tasks.GetTasks;
 
@@ -12,9 +13,7 @@ internal sealed class GetTasksHandler(
     public async Task<List<TaskInstanceDto>> Handle(GetTasksQuery query, CancellationToken ct)
     {
         var user = httpContextAccessor.HttpContext!.User;
-        var role = user.FindFirstValue("role") ?? "";
-        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub")!;
-        var regionId = user.FindFirstValue("regionId");
+        var spec = user.ToCaller().Scope();
 
         await using var db = await factory.CreateAsync(ct);
 
@@ -33,16 +32,7 @@ internal sealed class GetTasksHandler(
         if (query.To.HasValue)
             q = q.Where(t => t.DueAt <= query.To.Value);
 
-        if (role == "store_manager" || role == "store_employee")
-        {
-            var up = await db.UserProfiles.FindAsync([userId], ct);
-            if (up?.StoreId != null) q = q.Where(t => t.StoreId == up.StoreId);
-        }
-        else if (role == "supervisor" && regionId != null)
-        {
-            var rid = Guid.Parse(regionId);
-            q = q.Where(t => t.Store!.RegionId == rid);
-        }
+        q = q.WhereStoreInScope(spec, t => t.StoreId, t => t.Store!.RegionId);
 
         var list = await q.OrderBy(t => t.DueAt).ToListAsync(ct);
 

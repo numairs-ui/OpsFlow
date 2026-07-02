@@ -28,15 +28,22 @@ public sealed class TemplateSeederService(
 
     public async Task StartAsync(CancellationToken ct)
     {
-        await using var scope = scopeFactory.CreateAsyncScope();
-        var masterDb = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
-        var factory = scope.ServiceProvider.GetRequiredService<TenantDbContextFactory>();
-
-        var tenants = await masterDb.Tenants.Where(t => t.IsActive).ToListAsync(ct);
-        foreach (var tenant in tenants)
+        try
         {
-            try { await SeedForTenantAsync(tenant.Id, factory, ct); }
-            catch (Exception ex) { logger.LogError(ex, "System template seed failed for tenant {TenantId}", tenant.Id); }
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var masterDb = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
+            var factory = scope.ServiceProvider.GetRequiredService<TenantDbContextFactory>();
+
+            var tenants = await masterDb.Tenants.Where(t => t.IsActive).ToListAsync(ct);
+            foreach (var tenant in tenants)
+            {
+                try { await SeedForTenantAsync(tenant.Id, factory, ct); }
+                catch (Exception ex) { logger.LogError(ex, "System template seed failed for tenant {TenantId}", tenant.Id); }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "TemplateSeederService could not reach the database — skipping system template seed. Host will continue.");
         }
     }
 

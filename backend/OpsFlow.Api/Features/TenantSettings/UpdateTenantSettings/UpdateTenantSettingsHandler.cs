@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Infrastructure;
 using System.Security.Claims;
 
@@ -17,7 +18,7 @@ internal sealed class UpdateTenantSettingsHandler(
 
         var role = httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.Role)
             ?? httpContextAccessor.HttpContext.User.FindFirstValue("role");
-        if (role != "admin") throw new UnauthorizedAccessException("Admin role required.");
+        if (!Roles.IsSuperAdmin(role)) throw new UnauthorizedAccessException("Super admin role required.");
 
         var tenant = await masterDb.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, ct)
             ?? throw new KeyNotFoundException($"Tenant '{tenantId}' not found.");

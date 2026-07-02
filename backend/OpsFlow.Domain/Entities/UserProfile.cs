@@ -8,6 +8,8 @@ public sealed class UserProfile
     public string Role { get; set; } = default!;
     public Guid? StoreId { get; set; }
     public Guid? RegionId { get; set; }
+    /// <summary>Comma-separated region ids for the region-scoped admin role. Supervisors use the single <see cref="RegionId"/>.</summary>
+    public string? RegionIdsCsv { get; set; }
     public bool IsActive { get; set; } = true;
     public bool MustChangePassword { get; set; } = true;
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;

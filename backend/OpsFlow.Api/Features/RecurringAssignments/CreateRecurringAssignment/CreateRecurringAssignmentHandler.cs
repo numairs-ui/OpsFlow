@@ -1,7 +1,8 @@
 using MediatR;
+using OpsFlow.Api.Security;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Domain.Entities;
 using OpsFlow.Infrastructure;
-using System.Security.Claims;
 
 namespace OpsFlow.Api.Features.RecurringAssignments.CreateRecurringAssignment;
 
@@ -12,28 +13,16 @@ internal sealed class CreateRecurringAssignmentHandler(
     public async Task<Guid> Handle(CreateRecurringAssignmentCommand cmd, CancellationToken ct)
     {
         var user = httpContextAccessor.HttpContext!.User;
-        var tenantId = user.FindFirstValue("tenantId")!;
-        var role = user.FindFirstValue("role") ?? "";
-        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub")!;
-        var regionId = user.FindFirstValue("regionId");
+        var tenantId = user.GetTenantId();
+        var userId = user.GetUserId();
 
         await using var db = await factory.CreateAsync(ct);
 
         var store = await db.Stores.FindAsync([cmd.StoreId], ct)
             ?? throw new KeyNotFoundException($"Store {cmd.StoreId} not found.");
 
-        // Role-based store access check
-        if (role == "store_manager")
-        {
-            var userProfile = await db.UserProfiles.FindAsync([userId], ct);
-            if (userProfile?.StoreId != cmd.StoreId)
-                throw new UnauthorizedAccessException("Store managers can only create assignments for their own store.");
-        }
-        else if (role == "supervisor" && regionId != null)
-        {
-            if (store.RegionId.ToString() != regionId)
-                throw new UnauthorizedAccessException("Supervisors can only create assignments for stores in their region.");
-        }
+        // Manager (own store), region role (in-region), or super_admin may create assignments.
+        user.ToCaller().Scope().AssertCanManageStore(store.RegionId, store.Id);
 
         var checklist = await db.Checklists.FindAsync([cmd.ChecklistId], ct)
             ?? throw new KeyNotFoundException($"Checklist {cmd.ChecklistId} not found.");

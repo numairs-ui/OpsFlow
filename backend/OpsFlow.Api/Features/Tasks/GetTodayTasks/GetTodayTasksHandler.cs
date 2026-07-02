@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Security;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Infrastructure;
-using System.Security.Claims;
 
 namespace OpsFlow.Api.Features.Tasks.GetTodayTasks;
 
@@ -12,29 +13,18 @@ internal sealed class GetTodayTasksHandler(
     public async Task<TodayTasksDto> Handle(GetTodayTasksQuery query, CancellationToken ct)
     {
         var user = httpContextAccessor.HttpContext!.User;
-        var role = user.FindFirstValue("role") ?? "";
-        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub")!;
-        var regionId = user.FindFirstValue("regionId");
+        var spec = user.ToCaller().Scope();
+        var userId = user.GetUserId();
 
         await using var db = await factory.CreateAsync(ct);
 
-        // Auth: verify user has access to this store
+        // Auth: verify the caller may view this store (region set, or own/assigned store)
         var store = await db.Stores.FindAsync([query.StoreId], ct)
             ?? throw new KeyNotFoundException($"Store {query.StoreId} not found.");
 
-        if (role == "store_manager" || role == "store_employee")
-        {
-            var up = await db.UserProfiles.FindAsync([userId], ct);
-            var isAssigned = up?.StoreId == query.StoreId
-                || await db.UserStoreAssignments.AnyAsync(a => a.UserId == userId && a.StoreId == query.StoreId, ct);
-            if (!isAssigned)
-                throw new UnauthorizedAccessException("You do not have access to this store.");
-        }
-        else if (role == "supervisor" && regionId != null)
-        {
-            if (store.RegionId.ToString() != regionId)
-                throw new UnauthorizedAccessException("Store is not in your region.");
-        }
+        var assigned = spec.IsStoreScoped
+            && await db.UserStoreAssignments.AnyAsync(a => a.UserId == userId && a.StoreId == query.StoreId, ct);
+        spec.AssertCanViewStore(store.RegionId, store.Id, assigned);
 
         var today = DateTimeOffset.UtcNow.Date;
         var tomorrow = today.AddDays(1);

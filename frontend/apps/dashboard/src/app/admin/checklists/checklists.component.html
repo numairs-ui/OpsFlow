@@ -75,7 +75,7 @@
 </div>
 
 @if (showForm()) {
-  <div class="overlay" (click)="closeForm()"></div>
+  <div class="overlay" role="presentation" (click)="closeForm()"></div>
   <aside class="slide-over">
     <div class="slide-over__header">
       <h2 class="slide-over__title">
@@ -129,7 +129,7 @@
       }
 
       <div class="field">
-        <label class="label">Template Items</label>
+        <span class="label">Template Items</span>
         <div class="item-picker">
           <select
             class="input item-picker__select"

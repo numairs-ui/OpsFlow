@@ -43,15 +43,16 @@ internal sealed class RefreshHandler(
             TokenHash = newHash,
             UserRole = stored.UserRole,
             StoreId = stored.StoreId,
-            RegionId = stored.RegionId,
+            RegionIdsCsv = stored.RegionIdsCsv,
             ExpiresAt = newExpiresAt,
         });
         await tenantDb.SaveChangesAsync(ct);
 
         tokenService.SetRefreshCookie(ctx.Response, tenantId, newRaw, newExpiresAt);
 
+        var regionIds = OpsFlow.Domain.Authorization.UserRegionScope.Decode(stored.RegionIdsCsv, null);
         var accessToken = tokenService.MintAccessToken(new AuthResult(
-            stored.UserId, tenantId, stored.UserRole, stored.StoreId, stored.RegionId));
+            stored.UserId, tenantId, stored.UserRole, stored.StoreId, regionIds));
 
         return new RefreshResult(accessToken, 15 * 60);
     }

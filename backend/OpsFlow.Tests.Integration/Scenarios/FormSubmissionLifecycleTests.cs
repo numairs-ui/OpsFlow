@@ -121,7 +121,7 @@ public sealed class FormSubmissionLifecycleTests : IClassFixture<TenantAwareWebA
         (await db.FormSubmissions.FindAsync(submissionId))!.Status.Should().Be("PendingApproval");
 
         // Admin approves
-        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin"));
+        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin", regionId: TenantAwareWebApplicationFactory.RegionId.ToString()));
         (await _client.PostAsJsonAsync<object?>($"/form-submissions/{submissionId}/approve", null))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
 
@@ -142,48 +142,51 @@ public sealed class FormSubmissionLifecycleTests : IClassFixture<TenantAwareWebA
             propagationType: "Sequential",
             approvalStepsJson: """[{"role":"admin","order":1}]""");
 
-        var submissionId = await CreateDraftAsync(templateId);
+        var adminRegionToken = _factory.MintToken(
+            TenantAwareWebApplicationFactory.AdminUserId, "admin",
+            regionId: TenantAwareWebApplicationFactory.RegionId.ToString());
+        var employeeToken = _factory.MintToken(
+            TenantAwareWebApplicationFactory.EmployeeUserId, "store_employee",
+            storeId: TenantAwareWebApplicationFactory.StoreId.ToString());
 
-        // Employee submits
-        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.EmployeeUserId, "store_employee",
-            storeId: TenantAwareWebApplicationFactory.StoreId.ToString()));
-        await _client.PostAsJsonAsync<object?>($"/form-submissions/{submissionId}/submit", null);
+        // ── Part 1: rejection is terminal ────────────────────────────────────────
+        var rejectedId = await CreateDraftAsync(templateId);
+        UseToken(employeeToken);
+        await _client.PostAsJsonAsync<object?>($"/form-submissions/{rejectedId}/submit", null);
 
-        // Admin rejects
-        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin"));
-        (await _client.PostAsJsonAsync($"/form-submissions/{submissionId}/reject", new { reason = "Incomplete information" }))
+        UseToken(adminRegionToken);
+        (await _client.PostAsJsonAsync($"/form-submissions/{rejectedId}/reject", new { reason = "Incomplete information" }))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var db = await _factory.GetTenantDbAsync();
-        (await db.FormSubmissions.FindAsync(submissionId))!.Status.Should().Be("Rejected");
+        (await db.FormSubmissions.FindAsync(rejectedId))!.Status.Should().Be("Rejected");
 
-        // Employee updates and resubmits
-        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.EmployeeUserId, "store_employee",
-            storeId: TenantAwareWebApplicationFactory.StoreId.ToString()));
+        // ── Part 2: return → employee resubmits → admin approves ─────────────────
+        var returnedId = await CreateDraftAsync(templateId);
+        UseToken(employeeToken);
+        await _client.PostAsJsonAsync<object?>($"/form-submissions/{returnedId}/submit", null);
 
-        // Cannot resubmit a Rejected submission — need Return first. Let's test Return → resubmit flow instead.
-        // Admin returns it to employee
-        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin"));
-        (await _client.PostAsJsonAsync($"/form-submissions/{submissionId}/return", new { comments = "Please add more detail" }))
+        // Admin returns it to the employee (Returned is non-terminal — resubmit re-enters the step)
+        UseToken(adminRegionToken);
+        (await _client.PostAsJsonAsync($"/form-submissions/{returnedId}/return", new { comments = "Please add more detail" }))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         db = await _factory.GetTenantDbAsync();
-        (await db.FormSubmissions.FindAsync(submissionId))!.Status.Should().Be("Returned");
+        (await db.FormSubmissions.FindAsync(returnedId))!.Status.Should().Be("Returned");
 
-        // Employee resubmits (from Returned status)
-        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.EmployeeUserId, "store_employee",
-            storeId: TenantAwareWebApplicationFactory.StoreId.ToString()));
-        (await _client.PostAsJsonAsync($"/form-submissions/{submissionId}/submit",
+        // Employee resubmits from Returned
+        UseToken(employeeToken);
+        (await _client.PostAsJsonAsync($"/form-submissions/{returnedId}/submit",
             new { fieldValues = new Dictionary<string, string> { ["notes"] = "Updated with full detail" } }))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         // Admin approves the resubmission
-        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "admin"));
-        (await _client.PostAsJsonAsync<object?>($"/form-submissions/{submissionId}/approve", null))
+        UseToken(adminRegionToken);
+        (await _client.PostAsJsonAsync<object?>($"/form-submissions/{returnedId}/approve", null))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         db = await _factory.GetTenantDbAsync();
-        (await db.FormSubmissions.FindAsync(submissionId))!.Status.Should().Be("Approved");
+        (await db.FormSubmissions.FindAsync(returnedId))!.Status.Should().Be("Approved");
     }
 
     // ────────────────────────────────────────────────────────────────

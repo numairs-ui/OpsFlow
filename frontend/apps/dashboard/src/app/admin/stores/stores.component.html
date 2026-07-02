@@ -21,7 +21,7 @@
       <div class="region-group">
         <h3 class="region-group__title">{{ group.region?.name ?? 'Unknown Region' }}</h3>
         <div class="table-wrap">
-          <table class="table">
+          <table class="table table--clickable">
             <thead>
               <tr>
                 <th>Name</th>
@@ -33,8 +33,8 @@
             </thead>
             <tbody>
               @for (store of group.stores; track store.id) {
-                <tr [class.table__row--inactive]="!store.isActive">
-                  <td>{{ store.name }}</td>
+                <tr [class.table__row--inactive]="!store.isActive" (click)="openDetail(store)">
+                  <td class="td--name">{{ store.name }}</td>
                   <td class="text-muted">{{ store.address || '—' }}</td>
                   <td>
                     <span class="badge" [class.badge--active]="store.isActive" [class.badge--inactive]="!store.isActive">
@@ -42,7 +42,7 @@
                     </span>
                   </td>
                   <td class="text-muted">{{ store.createdAt | slice:0:10 }}</td>
-                  <td class="table__actions">
+                  <td class="table__actions" (click)="$event.stopPropagation()">
                     <button class="btn btn--sm btn--ghost" (click)="openEdit(store)">Edit</button>
                     @if (store.isActive) {
                       <button class="btn btn--sm btn--danger-ghost" (click)="deactivate(store)">Deactivate</button>
@@ -64,8 +64,71 @@
   }
 </div>
 
+@if (detailStore()) {
+  <div class="overlay" role="presentation" (click)="closeDetail()"></div>
+  <div class="slide-over">
+    <div class="slide-over__header">
+      <div class="detail-title">
+        <span class="detail-title__eyebrow">{{ detailStore()!.regionName }}</span>
+        <h2>{{ detailStore()!.name }}</h2>
+      </div>
+      <button class="slide-over__close" (click)="closeDetail()">&#10005;</button>
+    </div>
+    <div class="slide-over__body">
+      <div class="detail-meta">
+        <span class="badge" [class.badge--active]="detailStore()!.isActive" [class.badge--inactive]="!detailStore()!.isActive">
+          {{ detailStore()!.isActive ? 'Active' : 'Inactive' }}
+        </span>
+        @if (detailStore()!.address) {
+          <p class="detail-meta__desc">{{ detailStore()!.address }}</p>
+        }
+      </div>
+
+      <div class="detail-section">
+        <h3 class="detail-section__title">Store Roster</h3>
+        @if (storeEmployeesLoading()) {
+          <p class="loading-inline">Loading roster…</p>
+        } @else if (storeEmployees().length === 0) {
+          <p class="empty-inline">No staff assigned to this store.</p>
+        } @else {
+          <table class="table table--compact">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (emp of storeEmployees(); track emp.userId) {
+                <tr [class.table__row--inactive]="!emp.isActive">
+                  <td>
+                    <span class="emp-name">{{ emp.displayName }}</span>
+                    <span class="emp-email">{{ emp.email }}</span>
+                  </td>
+                  <td><span class="role-badge role-badge--{{ emp.role }}">{{ roleLabel(emp.role) }}</span></td>
+                  <td>
+                    <span class="badge" [class.badge--active]="emp.isActive" [class.badge--inactive]="!emp.isActive">
+                      {{ emp.isActive ? 'Active' : 'Inactive' }}
+                    </span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          <p class="roster-count">{{ storeEmployees().length }} staff member{{ storeEmployees().length === 1 ? '' : 's' }}</p>
+        }
+      </div>
+    </div>
+    <div class="slide-over__footer">
+      <button class="btn btn--ghost" (click)="closeDetail()">Close</button>
+      <button class="btn btn--primary" (click)="editFromDetail()">Edit Store</button>
+    </div>
+  </div>
+}
+
 @if (showForm()) {
-  <div class="overlay" (click)="closeForm()"></div>
+  <div class="overlay" role="presentation" (click)="closeForm()"></div>
   <div class="slide-over">
     <div class="slide-over__header">
       <h2>{{ editingStore() ? 'Edit Store' : 'New Store' }}</h2>

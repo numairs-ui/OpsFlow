@@ -9,35 +9,18 @@ namespace OpsFlow.Api.Jobs;
 [DisallowConcurrentExecution]
 internal sealed class OverduePromotionJob(
     IServiceScopeFactory scopeFactory,
-    ILogger<OverduePromotionJob> logger) : IJob
+    ILogger<OverduePromotionJob> logger) : TenantIteratingJob(scopeFactory, logger)
 {
     private const int GraceMinutes = 30;
 
-    public async Task Execute(IJobExecutionContext context)
+    protected override string JobName => "Overdue promotion";
+
+    protected override async Task RunForTenantAsync(string tenantId, IServiceProvider services, CancellationToken ct)
     {
-        var ct = context.CancellationToken;
         var now = DateTimeOffset.UtcNow;
+        var factory = services.GetRequiredService<TenantDbContextFactory>();
+        var hub = services.GetRequiredService<IHubContext<TaskBoardHub>>();
 
-        await using var scope = scopeFactory.CreateAsyncScope();
-        var masterDb = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
-        var factory = scope.ServiceProvider.GetRequiredService<TenantDbContextFactory>();
-        var hub = scope.ServiceProvider.GetRequiredService<IHubContext<TaskBoardHub>>();
-
-        var tenants = await masterDb.Tenants.Where(t => t.IsActive).ToListAsync(ct);
-
-        foreach (var tenant in tenants)
-        {
-            try { await PromoteForTenantAsync(tenant.Id, now, factory, hub, ct); }
-            catch (Exception ex) { logger.LogError(ex, "Overdue promotion failed for tenant {TenantId}", tenant.Id); }
-        }
-    }
-
-    private static async Task PromoteForTenantAsync(
-        string tenantId, DateTimeOffset now,
-        TenantDbContextFactory factory,
-        IHubContext<TaskBoardHub> hub,
-        CancellationToken ct)
-    {
         await using var db = await factory.CreateForTenantAsync(tenantId, ct);
 
         // Pass 1: Pending/InProgress past due → Overdue

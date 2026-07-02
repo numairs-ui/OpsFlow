@@ -22,6 +22,7 @@
       "@org/ui-core": ["./libs/ui/core/src/index.ts"],
       "@org/data-access-auth": ["./libs/data-access/auth/src/index.ts"],
       "@org/util-guards": ["./libs/util/guards/src/index.ts"],
+      "@org/util-http": ["./libs/util/http/src/index.ts"],
       "@org/data-access-org": ["./libs/data-access/org/src/index.ts"],
       "@org/ui-field-builder": ["./libs/ui/field-builder/src/index.ts"],
       "@org/data-access-templates": [

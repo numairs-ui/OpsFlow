@@ -26,6 +26,31 @@ using OpsFlow.Api.Services;
 using Quartz;
 using Scalar.AspNetCore;
 
+// Load .env file from the workspace root (walk up from the running directory)
+var envDir = Directory.GetCurrentDirectory();
+for (var i = 0; i < 6; i++)
+{
+    var candidate = Path.Combine(envDir, ".env");
+    if (File.Exists(candidate))
+    {
+        foreach (var line in File.ReadAllLines(candidate))
+        {
+            var trimmed = line.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#')) continue;
+            var sep = trimmed.IndexOf('=');
+            if (sep < 1) continue;
+            var key = trimmed[..sep].Trim();
+            var val = trimmed[(sep + 1)..].Trim();
+            if (Environment.GetEnvironmentVariable(key) is null)
+                Environment.SetEnvironmentVariable(key, val);
+        }
+        break;
+    }
+    var parent = Directory.GetParent(envDir);
+    if (parent is null) break;
+    envDir = parent.FullName;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
@@ -82,21 +107,30 @@ builder.Services.AddQuartz(q =>
 });
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
-// CORS (allow Angular dev servers)
+// CORS — dev origins plus any deployed frontend origins from CORS_ALLOWED_ORIGINS
+// (comma-separated, e.g. "https://opsflow.vercel.app,https://opsflow-git-main.vercel.app").
+var corsOrigins = new List<string> { "http://localhost:4200", "http://localhost:4201" };
+var extraOrigins = Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS");
+if (!string.IsNullOrWhiteSpace(extraOrigins))
+{
+    corsOrigins.AddRange(extraOrigins.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+}
+
 builder.Services.AddCors(opts =>
-    opts.AddPolicy("DevCors", p =>
-        p.WithOrigins("http://localhost:4200", "http://localhost:4201")
+    opts.AddPolicy("AppCors", p =>
+        p.WithOrigins(corsOrigins.ToArray())
          .AllowAnyHeader()
          .AllowAnyMethod()
          .AllowCredentials()));
 
 var app = builder.Build();
 
+app.UseCors("AppCors");
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
-    app.UseCors("DevCors");
 }
 
 app.UseExceptionHandler(errorApp =>

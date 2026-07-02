@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Security;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Infrastructure;
-using System.Security.Claims;
 
 namespace OpsFlow.Api.Features.FormSubmissions.GetFormSubmissions;
 
@@ -12,11 +13,10 @@ internal sealed class GetFormSubmissionsHandler(
     public async Task<List<FormSubmissionSummaryDto>> Handle(GetFormSubmissionsQuery query, CancellationToken ct)
     {
         var user = httpContextAccessor.HttpContext!.User;
-        var role = user.FindFirstValue("role") ?? user.FindFirstValue(ClaimTypes.Role) ?? "";
-        var userRegionId = user.FindFirstValue("regionId");
+        var spec = user.ToCaller().Scope();
 
-        if (role != "admin" && role != "supervisor")
-            throw new UnauthorizedAccessException("Only admin or supervisor roles can view store/region submission lists.");
+        if (!(spec.IsGlobal || spec.IsRegionScoped))
+            throw new UnauthorizedAccessException("Only super_admin, admin, or supervisor roles can view store/region submission lists.");
 
         await using var db = await factory.CreateAsync(ct);
 
@@ -29,9 +29,8 @@ internal sealed class GetFormSubmissionsHandler(
         if (query.RegionId.HasValue) q = q.Where(s => s.Store!.RegionId == query.RegionId.Value);
         if (!string.IsNullOrWhiteSpace(query.Status)) q = q.Where(s => s.Status == query.Status);
 
-        // Supervisors restricted to their own region unless a specific store/region filter already narrows it
-        if (role == "supervisor" && userRegionId != null)
-            q = q.Where(s => s.Store!.RegionId.ToString() == userRegionId);
+        // admin / supervisor restricted to their region set; super_admin sees all.
+        q = q.WhereStoreInScope(spec, s => s.StoreId, s => s.Store!.RegionId);
 
         var items = await q
             .OrderByDescending(s => s.CreatedAt)

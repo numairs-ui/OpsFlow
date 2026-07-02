@@ -1,8 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using OpsFlow.Domain.Entities;
+using OpsFlow.Api.Security;
+using OpsFlow.Domain.Forms;
 using OpsFlow.Infrastructure;
-using System.Security.Claims;
 
 namespace OpsFlow.Api.Features.FormSubmissions.GetPendingReview;
 
@@ -13,11 +13,20 @@ internal sealed class GetPendingReviewHandler(
     public async Task<List<PendingReviewDto>> Handle(GetPendingReviewQuery query, CancellationToken ct)
     {
         var user = httpContextAccessor.HttpContext!.User;
-        var role = user.FindFirstValue("role") ?? user.FindFirstValue(ClaimTypes.Role) ?? "";
-        var userStoreId = user.FindFirstValue("storeId");
-        var userRegionId = user.FindFirstValue("regionId");
+        var spec = user.ToCaller().Scope();
+        var userId = user.GetUserId();
 
         await using var db = await factory.CreateAsync(ct);
+
+        // Store-scoped reviewers (e.g. a manager) may hold several stores via UserStoreAssignments,
+        // not just their JWT storeId — load that set once so CanViewStore counts assigned stores too.
+        var assignedStoreIds = spec.IsStoreScoped
+            ? (await db.UserStoreAssignments
+                .Where(a => a.UserId == userId)
+                .Select(a => a.StoreId)
+                .ToListAsync(ct))
+                .ToHashSet()
+            : [];
 
         var submissions = await db.FormSubmissions
             .Include(s => s.FormTemplate)
@@ -29,18 +38,13 @@ internal sealed class GetPendingReviewHandler(
         var results = new List<PendingReviewDto>();
         foreach (var s in submissions)
         {
-            var isParallel = s.FormTemplate?.PropagationType == "Parallel";
-            FormSubmissionApprovalStep? step = isParallel
-                ? s.ApprovalSteps.FirstOrDefault(a => a.Action == "Pending" && a.Role == role)
-                : s.ApprovalSteps.FirstOrDefault(a => a.Action == "Pending" && a.StepOrder == s.CurrentStepOrder && a.Role == role);
+            // The step this caller would act on (parallel/sequential resolution lives in the module)…
+            var step = ApprovalWorkflow.ResolveCurrentStep(s, spec.Role);
+            if (step is null) continue;
 
-            if (step == null) continue;
-
-            if (role != "admin")
-            {
-                if (step.Role is "store_manager" or "store_employee" && userStoreId != s.StoreId.ToString()) continue;
-                if (step.Role == "supervisor" && (userRegionId == null || s.Store == null || userRegionId != s.Store.RegionId.ToString())) continue;
-            }
+            // …and they must be scoped to the submission's store (super_admin sees all,
+            // a store role counts its own or an assigned store).
+            if (!spec.CanViewStore(s.Store!.RegionId, s.StoreId, assignedStoreIds.Contains(s.StoreId))) continue;
 
             results.Add(new PendingReviewDto(
                 s.Id, s.FormTemplateId, s.FormTemplate?.Name, s.StoreId, s.Store?.Name,

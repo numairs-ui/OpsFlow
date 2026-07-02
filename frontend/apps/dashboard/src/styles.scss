@@ -14,8 +14,8 @@
   --amber-deep:  #E89F00;
   --rust:        #C84A2C;
   --green:       #2A7F4F;
-  --serif: 'Fraunces', Georgia, serif;
-  --sans:  'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+  --serif: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --mono:  'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
   --radius:    14px;
   --radius-lg: 22px;
@@ -25,11 +25,11 @@
 // ─── Reset ───────────────────────────────────────────────────────────────────
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+html { font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
 body {
   font-family: var(--sans);
-  font-size: 1rem;
+  font-size: 0.9375rem; /* 15px */
   line-height: 1.55;
   background: var(--cream);
   color: var(--ink-soft);
@@ -115,15 +115,17 @@ a  { color: var(--indigo); text-decoration: none; &:hover { text-decoration: und
     background: transparent;
     color: var(--ink);
     border-color: var(--line);
-    &:hover { border-color: var(--ink); background: var(--paper); }
+    &:hover:not(:disabled) { border-color: var(--ink); background: var(--paper); }
   }
   &-danger {
     background: var(--rust);
     color: var(--cream);
-    &:hover { opacity: 0.85; }
+    &:hover:not(:disabled) { opacity: 0.85; }
   }
 
-  &:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+  &:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+  &:active:not(:disabled) { transform: scale(0.98); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; transform: none !important; }
 }
 
 // ─── Cards ───────────────────────────────────────────────────────────────────
@@ -268,3 +270,36 @@ a  { color: var(--indigo); text-decoration: none; &:hover { text-decoration: und
   animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+// ─── Forms (app-wide standard — prefer over the legacy .field) ─────────────────
+// .field label (mono uppercase) is more specific, so existing .field forms are unaffected.
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-family: var(--sans);
+  font-size: 0.9375rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  transition: all 0.2s var(--ease);
+  outline: none;
+
+  &::placeholder { color: var(--muted); }
+  &:hover { border-color: var(--muted); }
+  &:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px var(--indigo-glow); }
+  &:disabled { background: var(--cream-deep); color: var(--muted); cursor: not-allowed; }
+}

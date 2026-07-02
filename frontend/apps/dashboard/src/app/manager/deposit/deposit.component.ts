@@ -16,7 +16,7 @@ export class DepositComponent implements OnInit {
   private readonly auth = inject(AuthService);
 
   readonly storeId = computed(() => this.auth.currentUser()?.storeId ?? '');
-  readonly currentUserId = computed(() => this.auth.currentUser()?.userId ?? '');
+  readonly currentUserId = computed(() => this.auth.currentUser()?.sub ?? '');
   readonly amount = signal('');
   readonly confirming = signal(false);
   readonly submitting = signal(false);

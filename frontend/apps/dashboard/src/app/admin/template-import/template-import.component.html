@@ -9,12 +9,12 @@
       <section class="settings-section">
         <h2 class="section-title">1. Load JSON</h2>
         <div class="field-group">
-          <label class="field-label">Upload JSON File</label>
-          <input class="input" type="file" accept=".json,application/json" (change)="onFileChange($event)" />
+          <label class="field-label" for="jsonFile">Upload JSON File</label>
+          <input id="jsonFile" class="input" type="file" accept=".json,application/json" (change)="onFileChange($event)" />
         </div>
         <div class="field-group">
-          <label class="field-label">Or paste JSON directly</label>
-          <textarea class="textarea" rows="10" placeholder='[{ "type": "Task", "name": "...", ... }]'
+          <label class="field-label" for="jsonPaste">Or paste JSON directly</label>
+          <textarea id="jsonPaste" class="textarea" rows="10" placeholder='[{ "type": "Task", "name": "...", ... }]'
             [value]="jsonText()" (input)="onTextChange($event)"></textarea>
         </div>
 
