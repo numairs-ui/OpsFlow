@@ -1363,7 +1363,7 @@ AI Generated Code ──▶ Human Review ──▶ Adjustments ──▶ Unit Te
 
 ## Appendix A: UI Reference
 
-The existing V1 UI screens (62 images in `V1 MealDynamics OpsFlow Mobile App/`) provide reference for:
+The existing V1 UI screens (62 images in `design/v1-mobile-screenshots/`) provide reference for:
 - Dashboard layouts and visualizations
 - Task and checklist UI patterns
 - Navigation and tab structures

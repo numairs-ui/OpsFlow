@@ -147,7 +147,8 @@ Current directives: `backend_setup.md`, `bajco_template_onboarding.md`, `f0890_f
 - `Tracer_Bullets_V1.md` — the build plan (vertical slices)
 - `UI_Completion_Roadmap.md` — frontend roadmap
 - `GitHub_Issues_V1.md` — issue backlog snapshot
-- `.design/`, `frontend-design/`, `Design Process/`, `V1 MealDynamics OpsFlow Mobile App/` — design assets/mockups
+- `design/` — design assets/mockups (MVP design briefs, information architecture, V1 mobile screenshots)
+- `frontend-design/`, `Design Process/` — vendored skill packages, not project design docs
 
 ---
 
