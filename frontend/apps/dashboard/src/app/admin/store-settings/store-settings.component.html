@@ -5,8 +5,8 @@
   </div>
 
   <div class="store-selector">
-    <label class="field-label">Select Store</label>
-    <select class="select" (change)="selectStore($any($event.target).value)">
+    <label class="field-label" for="storeSelect">Select Store</label>
+    <select id="storeSelect" class="select" (change)="selectStore($any($event.target).value)">
       <option value="">— Choose a store —</option>
       @for (store of stores(); track store.id) {
         <option [value]="store.id">{{ store.name }}</option>
@@ -63,15 +63,15 @@
         <p class="section-hint">Base float amounts for Till A and Till B. Used for variance detection in till count tasks.</p>
         <div class="field-row">
           <div class="field-group">
-            <label class="field-label">Till A Base ($)</label>
-            <input class="input-text" type="number" min="0" step="0.01" formControlName="tillABase" placeholder="e.g. 200.00" />
+            <label class="field-label" for="tillABase">Till A Base ($)</label>
+            <input id="tillABase" class="input-text" type="number" min="0" step="0.01" formControlName="tillABase" placeholder="e.g. 200.00" />
             @if (form.controls.tillABase.invalid && form.controls.tillABase.touched) {
               <span class="field-error">Must be 0 or greater.</span>
             }
           </div>
           <div class="field-group">
-            <label class="field-label">Till B Base ($)</label>
-            <input class="input-text" type="number" min="0" step="0.01" formControlName="tillBBase" placeholder="e.g. 200.00" />
+            <label class="field-label" for="tillBBase">Till B Base ($)</label>
+            <input id="tillBBase" class="input-text" type="number" min="0" step="0.01" formControlName="tillBBase" placeholder="e.g. 200.00" />
             @if (form.controls.tillBBase.invalid && form.controls.tillBBase.touched) {
               <span class="field-error">Must be 0 or greater.</span>
             }
@@ -84,16 +84,16 @@
         <h2 class="section-title">Operational Settings</h2>
         <div class="field-row">
           <div class="field-group">
-            <label class="field-label">Timezone</label>
-            <select class="select" formControlName="timezoneId">
+            <label class="field-label" for="timezoneId">Timezone</label>
+            <select id="timezoneId" class="select" formControlName="timezoneId">
               @for (tz of timezones; track tz) {
                 <option [value]="tz">{{ tz }}</option>
               }
             </select>
           </div>
           <div class="field-group">
-            <label class="field-label">Overdue Grace Period (minutes)</label>
-            <input class="input-text" type="number" min="0" max="480" formControlName="overdueGraceMinutes" />
+            <label class="field-label" for="overdueGraceMinutes">Overdue Grace Period (minutes)</label>
+            <input id="overdueGraceMinutes" class="input-text" type="number" min="0" max="480" formControlName="overdueGraceMinutes" />
           </div>
         </div>
       </section>

@@ -48,7 +48,10 @@
 
           <ul class="task-list">
             @for (task of sortedTasks(group.tasks); track task.id) {
-              <li class="task-item task-item--{{ task.status.toLowerCase() }}" (click)="openTask(task.id)">
+              <li class="task-item task-item--{{ task.status.toLowerCase() }}" role="button" tabindex="0"
+                (click)="openTask(task.id)"
+                (keydown.enter)="openTask(task.id)"
+                (keydown.space)="openTask(task.id)">
                 <span class="task-status-dot"></span>
                 <div class="task-info">
                   @if (task.recurringAssignmentName) {

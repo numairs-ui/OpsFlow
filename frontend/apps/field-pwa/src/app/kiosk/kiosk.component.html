@@ -7,12 +7,12 @@
         <p class="modal-subtitle">{{ selectedGroupName() }}</p>
         <p class="modal-hint">Enter your name to claim this task (optional):</p>
         <input
+          #nameInput
           class="input-name"
           type="text"
           placeholder="Your name"
           [value]="volunteerName()"
           (input)="volunteerName.set($any($event.target).value)"
-          autofocus
         />
         <div class="modal-actions">
           <button class="btn btn--large btn--primary" [disabled]="claiming()" (click)="submitClaim()">

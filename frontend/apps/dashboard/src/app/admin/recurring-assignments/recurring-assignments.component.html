@@ -60,7 +60,7 @@
 </div>
 
 @if (showForm()) {
-  <div class="overlay" (click)="closeForm()"></div>
+  <div class="overlay" role="presentation" (click)="closeForm()"></div>
   <aside class="slide-over">
     <div class="slide-over__header">
       <h2 class="slide-over__title">New Recurring Assignment</h2>
@@ -104,7 +104,7 @@
       </div>
 
       <div class="field">
-        <label class="label">Schedule</label>
+        <span class="label">Schedule</span>
         <lib-cron-picker [value]="cronExpression()" (valueChange)="onCronChange($event)" />
       </div>
 

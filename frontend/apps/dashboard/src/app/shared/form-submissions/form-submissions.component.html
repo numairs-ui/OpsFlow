@@ -174,7 +174,7 @@
 
 <!-- ── Create: template picker ──────────────────────────────────────────────── -->
 @if (showCreatePicker()) {
-  <div class="overlay" (click)="closeCreatePicker()"></div>
+  <div class="overlay" role="presentation" (click)="closeCreatePicker()"></div>
   <div class="slide-over" role="dialog" aria-modal="true" aria-labelledby="picker-title"
     (keydown.escape)="closeCreatePicker()">
     <div class="slide-over__header">
@@ -189,7 +189,7 @@
 
 <!-- ── Detail / fill / review slide-over ────────────────────────────────────── -->
 @if (detailMode() === 'fill' || detail()) {
-  <div class="overlay" (click)="closeDetail()"></div>
+  <div class="overlay" role="presentation" (click)="closeDetail()"></div>
   <div class="slide-over slide-over--wide" role="dialog" aria-modal="true"
     aria-labelledby="detail-title" (keydown.escape)="closeDetail()">
 
@@ -233,8 +233,8 @@
       <!-- Store picker for admin without storeId (new submissions only) -->
       @if (detailMode() === 'fill' && isAdminOrSupervisor() && !currentUser()?.storeId && !draftId()) {
         <div class="field-group">
-          <label class="field-label">Store <span class="required-mark">*</span></label>
-          <select class="input" [value]="selectedStoreId() ?? ''"
+          <label class="field-label" for="storePicker">Store <span class="required-mark">*</span></label>
+          <select id="storePicker" class="input" [value]="selectedStoreId() ?? ''"
             (change)="selectedStoreId.set($any($event.target).value || null)">
             <option value="">— Select a store —</option>
             @for (s of stores(); track s.id) {
@@ -278,10 +278,10 @@
       <div class="fields-section">
         @for (field of draftTemplateFields(); track field.id) {
           <div class="field-group">
-            <label class="field-label">
+            <span class="field-label">
               {{ field.label }}
               @if (field.required) { <span class="required-mark">*</span> }
-            </label>
+            </span>
 
             @if (detailMode() === 'fill') {
               @if (field.type === 'Numeric' || field.type === 'Text') {
@@ -359,11 +359,11 @@
       <!-- Reject / Return comment modal -->
       @if (actionModal()) {
         <div class="action-modal">
-          <label class="field-label">
+          <label class="field-label" for="actionComment">
             {{ actionModal() === 'reject' ? 'Rejection reason' : 'Return comments' }}
             <span class="required-mark">*</span>
           </label>
-          <textarea class="input" rows="3"
+          <textarea id="actionComment" class="input" rows="3"
             [value]="actionComment()"
             (input)="actionComment.set($any($event.target).value)"></textarea>
           <div class="form-actions">

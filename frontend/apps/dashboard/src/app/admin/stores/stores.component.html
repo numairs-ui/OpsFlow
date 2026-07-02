@@ -65,7 +65,7 @@
 </div>
 
 @if (detailStore()) {
-  <div class="overlay" (click)="closeDetail()"></div>
+  <div class="overlay" role="presentation" (click)="closeDetail()"></div>
   <div class="slide-over">
     <div class="slide-over__header">
       <div class="detail-title">
@@ -128,7 +128,7 @@
 }
 
 @if (showForm()) {
-  <div class="overlay" (click)="closeForm()"></div>
+  <div class="overlay" role="presentation" (click)="closeForm()"></div>
   <div class="slide-over">
     <div class="slide-over__header">
       <h2>{{ editingStore() ? 'Edit Store' : 'New Store' }}</h2>

@@ -87,7 +87,7 @@
 
 <!-- User detail slide-over -->
 @if (detailUser()) {
-  <div class="overlay" (click)="closeDetail()"></div>
+  <div class="overlay" role="presentation" (click)="closeDetail()"></div>
   <div class="slide-over">
     <div class="slide-over__header">
       <div class="detail-title">
@@ -201,7 +201,7 @@
 
 <!-- Create / Edit slide-over -->
 @if (showForm()) {
-  <div class="overlay" (click)="closeForm()"></div>
+  <div class="overlay" role="presentation" (click)="closeForm()"></div>
   <div class="slide-over">
     <div class="slide-over__header">
       <h2>{{ editingUser() ? 'Edit User' : 'New User' }}</h2>

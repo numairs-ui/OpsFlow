@@ -56,7 +56,7 @@
 </div>
 
 @if (detailRegion()) {
-  <div class="overlay" (click)="closeDetail()"></div>
+  <div class="overlay" role="presentation" (click)="closeDetail()"></div>
   <div class="slide-over">
     <div class="slide-over__header">
       <div class="detail-title">
@@ -115,7 +115,7 @@
 }
 
 @if (showForm()) {
-  <div class="overlay" (click)="closeForm()"></div>
+  <div class="overlay" role="presentation" (click)="closeForm()"></div>
   <div class="slide-over">
     <div class="slide-over__header">
       <h2>{{ editingRegion() ? 'Edit Region' : 'New Region' }}</h2>
