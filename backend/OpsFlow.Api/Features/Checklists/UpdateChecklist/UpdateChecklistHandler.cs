@@ -12,9 +12,11 @@ internal sealed class UpdateChecklistHandler(
 {
     public async Task Handle(UpdateChecklistCommand cmd, CancellationToken ct)
     {
-        httpContextAccessor.HttpContext!.User.ToCaller().Scope().AssertCanWriteScope(cmd.Scope, cmd.RegionId);
+        var spec = httpContextAccessor.HttpContext!.User.ToCaller().Scope();
 
         await using var db = await factory.CreateAsync(ct);
+
+        await spec.AssertCanWriteScopeAsync(db, cmd.Scope, cmd.RegionId, cmd.StoreId, ct);
 
         var checklist = await db.Checklists.FirstOrDefaultAsync(c => c.Id == cmd.Id, ct)
             ?? throw new KeyNotFoundException($"Checklist {cmd.Id} not found.");

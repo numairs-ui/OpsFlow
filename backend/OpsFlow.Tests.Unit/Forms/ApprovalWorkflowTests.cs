@@ -18,6 +18,7 @@ public sealed class ApprovalWorkflowTests
 
     private static ScopeSpec Manager(Guid store) => new Caller(Roles.StoreManager, store, []).Scope();
     private static ScopeSpec Supervisor(Guid region) => new Caller(Roles.Supervisor, null, [region]).Scope();
+    private static ScopeSpec SuperAdmin() => new Caller(Roles.SuperAdmin, null, []).Scope();
 
     private static FormSubmission Submission(
         string propagation, int? currentStepOrder,
@@ -147,5 +148,36 @@ public sealed class ApprovalWorkflowTests
         var sub = Submission("Sequential", 1, (1, Roles.Supervisor, "Pending"));
         ApprovalWorkflow.ResolveCurrentStep(sub, Roles.StoreManager).Should().BeNull();
         ApprovalWorkflow.ResolveCurrentStep(sub, Roles.Supervisor).Should().NotBeNull();
+    }
+
+    // ── super_admin is the ultimate user — it can act on any pending step ──────
+
+    [Fact]
+    public void SuperAdmin_can_resolve_a_step_whose_role_it_does_not_literally_hold()
+    {
+        // Sequential: the current-order step requires supervisor, but a super_admin can advance it.
+        var sub = Submission("Sequential", 1,
+            (1, Roles.Supervisor, "Pending"),
+            (2, Roles.Admin, "Pending"));
+
+        ApprovalWorkflow.ResolveCurrentStep(sub, Roles.SuperAdmin).Should().NotBeNull();
+
+        var outcome = ApprovalWorkflow.Apply(sub, ApprovalAction.Approve, "sa", SuperAdmin(), null, Now);
+        outcome.Event.Should().Be("FormApproved");
+        sub.CurrentStepOrder.Should().Be(2);   // advanced past the supervisor step
+        sub.ApprovalSteps.Single(s => s.StepOrder == 1).Action.Should().Be("Approved");
+    }
+
+    [Fact]
+    public void SuperAdmin_can_act_on_any_pending_step_in_a_parallel_workflow()
+    {
+        var sub = Submission("Parallel", null,
+            (1, Roles.StoreManager, "Pending"),
+            (2, Roles.Supervisor, "Pending"));
+
+        var outcome = ApprovalWorkflow.Apply(sub, ApprovalAction.Approve, "sa", SuperAdmin(), null, Now);
+
+        outcome.Status.Should().Be("Approved");
+        sub.Status.Should().Be("Approved");
     }
 }

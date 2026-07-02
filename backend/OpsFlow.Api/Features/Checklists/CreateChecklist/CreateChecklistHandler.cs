@@ -17,9 +17,11 @@ internal sealed class CreateChecklistHandler(
         var tenantId = user.GetTenantId();
         var userId = user.GetUserId();
 
-        user.ToCaller().Scope().AssertCanWriteScope(cmd.Scope, cmd.RegionId);
+        var spec = user.ToCaller().Scope();
 
         await using var db = await factory.CreateAsync(ct);
+
+        await spec.AssertCanWriteScopeAsync(db, cmd.Scope, cmd.RegionId, cmd.StoreId, ct);
 
         // Validate all template IDs exist and are visible to the creator
         var templateIds = cmd.Items.Select(i => i.TemplateId).Distinct().ToList();

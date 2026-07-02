@@ -4,6 +4,11 @@ export function noWhitespace(control: AbstractControl): ValidationErrors | null 
   return control.value?.trim() ? null : { whitespace: true };
 }
 
+/** Requires a multi-select / array control to hold at least one value. */
+export function nonEmptyArray(control: AbstractControl): ValidationErrors | null {
+  return Array.isArray(control.value) && control.value.length > 0 ? null : { required: true };
+}
+
 const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super Admin',
   admin: 'Administrator',

@@ -20,14 +20,17 @@ public static class ApprovalWorkflow
     /// <summary>
     /// The pending step this actor would act on, or null. Parallel: any pending step for the actor's role.
     /// Sequential: the pending step at the submission's current order, but only if its role is the actor's.
+    /// super_admin is the ultimate user — it can act on any pending step (parallel: any; sequential: the
+    /// current-order step regardless of that step's role), so a workflow never stalls for want of a role.
     /// </summary>
     public static FormSubmissionApprovalStep? ResolveCurrentStep(FormSubmission submission, string actorRole)
     {
         var isParallel = submission.FormTemplate?.PropagationType == "Parallel";
+        var isSuperAdmin = Roles.IsSuperAdmin(actorRole);
         return isParallel
-            ? submission.ApprovalSteps.FirstOrDefault(s => s.Action == Pending && s.Role == actorRole)
+            ? submission.ApprovalSteps.FirstOrDefault(s => s.Action == Pending && (isSuperAdmin || s.Role == actorRole))
             : submission.ApprovalSteps.FirstOrDefault(s =>
-                s.Action == Pending && s.StepOrder == submission.CurrentStepOrder && s.Role == actorRole);
+                s.Action == Pending && s.StepOrder == submission.CurrentStepOrder && (isSuperAdmin || s.Role == actorRole));
     }
 
     /// <summary>

@@ -147,4 +147,29 @@ public sealed class ScopeSpecTests
         FluentActions.Invoking(() => Spec(Roles.Admin, null, R1).AssertCanWriteScope("Regional", R2))
             .Should().Throw<UnauthorizedAccessException>();
     }
+
+    [Fact]
+    public void Write_store_scope_follows_store_management_rules()
+    {
+        // store_manager may write a Store-scope resource for its own store, not a foreign one.
+        FluentActions.Invoking(() => Spec(Roles.StoreManager, S1).AssertCanWriteScope("Store", null, S1, R1)).Should().NotThrow();
+        FluentActions.Invoking(() => Spec(Roles.StoreManager, S1).AssertCanWriteScope("Store", null, S2, R2))
+            .Should().Throw<UnauthorizedAccessException>();
+        // A region role may write for a store in its region set.
+        FluentActions.Invoking(() => Spec(Roles.Admin, null, R1).AssertCanWriteScope("Store", null, S1, R1)).Should().NotThrow();
+        // super_admin always.
+        FluentActions.Invoking(() => Spec(Roles.SuperAdmin).AssertCanWriteScope("Store", null, S2, R2)).Should().NotThrow();
+    }
+
+    [Theory]
+    [InlineData(Roles.StoreEmployee)]
+    [InlineData(Roles.StoreKiosk)]
+    public void Write_store_scope_denied_for_employee_and_kiosk_even_for_own_store(string role) =>
+        FluentActions.Invoking(() => Spec(role, S1).AssertCanWriteScope("Store", null, S1, R1))
+            .Should().Throw<UnauthorizedAccessException>();
+
+    [Fact]
+    public void Write_store_scope_without_target_store_is_denied() =>
+        FluentActions.Invoking(() => Spec(Roles.SuperAdmin).AssertCanWriteScope("Store", null))
+            .Should().Throw<UnauthorizedAccessException>();
 }

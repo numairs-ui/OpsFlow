@@ -95,15 +95,24 @@ public sealed class ScopeSpec
 
     /// <summary>
     /// Write access to a scoped resource (template, checklist, form template). System requires
-    /// super_admin; Regional requires super_admin or a region role assigned to that region.
-    /// Store scope is left to the caller's store rules (parity with prior behaviour).
+    /// super_admin; Regional requires super_admin or a region role assigned to that region; Store
+    /// requires store-management rights at that store (store_manager for its own/assigned store, a
+    /// region role whose set contains the store's region, super_admin always). store_employee and
+    /// store_kiosk are denied Store-scope writes. Supply <paramref name="storeId"/>/
+    /// <paramref name="storeRegionId"/> for Store scope (the handler resolves the store's region).
     /// </summary>
-    public void AssertCanWriteScope(string scope, Guid? regionId)
+    public void AssertCanWriteScope(string scope, Guid? regionId, Guid? storeId = null, Guid? storeRegionId = null)
     {
         if (scope == "System" && !IsGlobal)
             throw Denied("Only super admins can write System-scope resources.");
         if (scope == "Regional" && !CanActOnRegion(regionId))
             throw Denied("Regional resources require super_admin, or an admin/supervisor assigned to that region.");
+        if (scope == "Store")
+        {
+            if (storeId is not { } sid || storeRegionId is not { } srid)
+                throw Denied("Store-scope writes require the target store.");
+            AssertCanManageStore(srid, sid);
+        }
     }
 
     private static UnauthorizedAccessException Denied(string message) => new(message);

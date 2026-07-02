@@ -36,7 +36,7 @@
   letter-spacing: 0.1em;
   padding: 0.2rem 0.65rem;
   border-radius: 100px;
-  background: rgba(232,159,0,0.15);
+  background: color-mix(in srgb, var(--amber-deep) 15%, transparent);
   color: var(--amber-deep);
   border: 1px solid var(--amber);
 }
@@ -174,9 +174,9 @@
 
   &:hover { transform: translateY(-2px); border-color: var(--indigo-deep); }
 
-  &--warn   { border-color: var(--amber); background: rgba(251,190,61,0.04); }
-  &--danger { border-color: var(--rust);  background: rgba(200,74,44,0.04); }
-  &--ok     { border-color: var(--green); background: rgba(42,127,79,0.04); }
+  &--warn   { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 4%, transparent); }
+  &--danger { border-color: var(--rust);  background: color-mix(in srgb, var(--rust) 4%, transparent); }
+  &--ok     { border-color: var(--green); background: color-mix(in srgb, var(--green) 4%, transparent); }
 
   &--link {
     cursor: pointer;

@@ -18,7 +18,7 @@ internal sealed class UpdateFormTemplateHandler(
         var template = await db.FormTemplates.FindAsync([cmd.Id], ct)
             ?? throw new KeyNotFoundException($"Form template {cmd.Id} not found.");
 
-        spec.AssertCanWriteScope(template.Scope, template.RegionId);
+        await spec.AssertCanWriteScopeAsync(db, template.Scope, template.RegionId, template.StoreId, ct);
 
         template.Name = cmd.Name;
         template.Description = cmd.Description;

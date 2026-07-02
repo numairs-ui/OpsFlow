@@ -1,17 +1,12 @@
 import { SlicePipe } from '@angular/common';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '@org/data-access-auth';
 import { OrgService, type Region, type Store, type StoreAssignment, type User, type UserActivity, type UserRole } from '@org/data-access-org';
-import { noWhitespace, roleLabel } from '@org/ui-core';
+import { noWhitespace, nonEmptyArray, roleLabel } from '@org/ui-core';
 
 const STORE_SCOPED_ROLES: UserRole[] = ['store_manager', 'store_employee', 'store_kiosk'];
 const REGION_SCOPED_ROLES: UserRole[] = ['supervisor', 'admin'];
-
-/** A region-scoped (admin/supervisor) role needs at least one region selected. */
-function nonEmptyArray(control: AbstractControl): ValidationErrors | null {
-  return Array.isArray(control.value) && control.value.length > 0 ? null : { required: true };
-}
 
 @Component({
   selector: 'app-users',

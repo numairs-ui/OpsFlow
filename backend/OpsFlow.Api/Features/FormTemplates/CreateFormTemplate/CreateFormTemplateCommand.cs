@@ -20,9 +20,11 @@ internal sealed class CreateFormTemplateValidator : AbstractValidator<CreateForm
 {
     private static readonly string[] ValidScopes = ["System", "Regional", "Store"];
     private static readonly string[] ValidPropagation = ["Sequential", "Parallel", "NotificationOnly"];
-    // Approver roles for form workflow steps — the shared station (store_kiosk) is never an approver.
+    // Approver roles for form workflow steps. The shared station (store_kiosk) is never an approver,
+    // and super_admin is never a *required* step — as the ultimate user it can satisfy any pending
+    // step (see ApprovalWorkflow), so requiring it as a step would only risk an unresolvable workflow.
     private static readonly string[] ValidRoles =
-        [Roles.StoreEmployee, Roles.StoreManager, Roles.Supervisor, Roles.Admin, Roles.SuperAdmin];
+        [Roles.StoreEmployee, Roles.StoreManager, Roles.Supervisor, Roles.Admin];
 
     public CreateFormTemplateValidator()
     {

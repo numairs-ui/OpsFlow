@@ -18,7 +18,7 @@ internal sealed class UpdateTemplateHandler(
         var template = await db.TaskTemplates.FindAsync([cmd.Id], ct)
             ?? throw new KeyNotFoundException($"Template {cmd.Id} not found.");
 
-        spec.AssertCanWriteScope(template.Scope, template.RegionId);
+        await spec.AssertCanWriteScopeAsync(db, template.Scope, template.RegionId, template.StoreId, ct);
 
         // Block fields update if active recurring assignments exist (TB-23 constraint)
         if (cmd.FieldsJson != null && cmd.FieldsJson != template.FieldsJson)
