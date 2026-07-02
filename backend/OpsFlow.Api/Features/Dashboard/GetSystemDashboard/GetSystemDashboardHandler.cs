@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Features.Dashboard.Shared;
 using OpsFlow.Api.Security;
 using OpsFlow.Infrastructure;
 
@@ -16,9 +17,7 @@ internal sealed class GetSystemDashboardHandler(
 
         await using var db = await factory.CreateAsync(ct);
 
-        var now        = DateTimeOffset.UtcNow;
-        var todayStart = new DateTimeOffset(now.Date, TimeSpan.Zero);
-        var todayEnd   = todayStart.AddDays(1);
+        var window = DashboardWindow.Today();
 
         var allStores = await db.Stores
             .Where(s => s.IsActive)
@@ -35,32 +34,14 @@ internal sealed class GetSystemDashboardHandler(
 
         var storeIds = allStores.Select(s => s.Id).ToList();
 
-        var taskStats = await db.TaskInstances
-            .Where(t => storeIds.Contains(t.StoreId) && t.DueAt >= todayStart && t.DueAt < todayEnd)
-            .GroupBy(t => t.StoreId)
-            .Select(g => new
-            {
-                StoreId = g.Key,
-                Total = g.Count(t => t.Status != "Cancelled" && t.Status != "Deferred"),
-                Completed = g.Count(t => t.Status == "Completed" || t.Status == "Verified"),
-                Open = g.Count(t => t.Status == "Pending" || t.Status == "InProgress"),
-                Overdue = g.Count(t => t.Status == "Overdue" || t.Status == "CorrectiveActionRaised"),
-                Corrective = g.Count(t => t.Status == "CorrectiveActionRaised")
-            })
-            .ToListAsync(ct);
+        var taskStats = await DashboardMetrics.GetStoreTaskStatsAsync(db, storeIds, window, ct);
+        var depositSet = await DashboardMetrics.GetStoresWithDepositLoggedAsync(db, storeIds, window, ct);
 
-        var deposits = await db.DepositLogs
-            .Where(d => storeIds.Contains(d.StoreId) && d.SubmittedAt >= todayStart && d.SubmittedAt < todayEnd)
-            .Select(d => d.StoreId)
-            .ToListAsync(ct);
-
-        var depositSet = deposits.ToHashSet();
-
-        var allTotal = taskStats.Sum(s => s.Total);
-        var allCompleted = taskStats.Sum(s => s.Completed);
+        var allTotal = taskStats.Values.Sum(s => s.Total);
+        var allCompleted = taskStats.Values.Sum(s => s.Completed);
         var systemRate = allTotal > 0 ? (double)allCompleted / allTotal : 0;
-        var totalOpen = taskStats.Sum(s => s.Open);
-        var totalOverdue = taskStats.Sum(s => s.Overdue);
+        var totalOpen = taskStats.Values.Sum(s => s.Open);
+        var totalOverdue = taskStats.Values.Sum(s => s.Overdue);
 
         var missedDeposits = allStores
             .Where(s => !depositSet.Contains(s.Id))
@@ -70,8 +51,11 @@ internal sealed class GetSystemDashboardHandler(
         var regional = allRegions.Select(r =>
         {
             var regionStores = allStores.Where(s => s.RegionId == r.Id).ToList();
-            var regionStoreIds = regionStores.Select(s => s.Id).ToHashSet();
-            var regionStats = taskStats.Where(s => regionStoreIds.Contains(s.StoreId)).ToList();
+            var regionStats = regionStores
+                .Select(s => taskStats.GetValueOrDefault(s.Id))
+                .Where(s => s != null)
+                .Select(s => s!)
+                .ToList();
 
             var rTotal = regionStats.Sum(s => s.Total);
             var rCompleted = regionStats.Sum(s => s.Completed);
