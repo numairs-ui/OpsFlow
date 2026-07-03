@@ -37,7 +37,7 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_FIELD_PWA }}
           vercel-args: --prod
-          working-directory: frontend/dist/apps/field-pwa
+          working-directory: frontend/dist/apps/field-pwa/browser
 
   deploy-dashboard:
     name: Deploy dashboard → Vercel
@@ -68,7 +68,7 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_DASHBOARD }}
           vercel-args: --prod
-          working-directory: frontend/dist/apps/dashboard
+          working-directory: frontend/dist/apps/dashboard/browser
 
   deploy-api:
     name: Deploy API → Render
