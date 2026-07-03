@@ -59,10 +59,11 @@ export class LoginComponent {
 
   private async navigateByRole(user: CurrentUser): Promise<void> {
     const routes: Record<string, string> = {
+      super_admin: '/admin',
       admin: '/admin',
       supervisor: '/supervisor',
       store_manager: '/manager',
     };
-    await this.router.navigate([routes[user.role] ?? '/dashboard']);
+    await this.router.navigate([routes[user.role] ?? '/login']);
   }
 }
