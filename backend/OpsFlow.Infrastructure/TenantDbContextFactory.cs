@@ -35,7 +35,7 @@ public sealed class TenantDbContextFactory(
         else if (provider == "azure")
             opts.UseSqlServer(tenant.ConnectionString);
         else
-            opts.UseNpgsql(tenant.ConnectionString);
+            opts.UseNpgsql(NpgsqlConnectionStringHelper.PreferIPv4(tenant.ConnectionString));
 
         return new TenantDbContext(opts.Options);
     }
