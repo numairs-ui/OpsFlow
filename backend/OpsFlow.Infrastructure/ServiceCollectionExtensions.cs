@@ -26,7 +26,7 @@ public static class ServiceCollectionExtensions
             else if (provider == "azure")
                 opts.UseSqlServer(masterConn);
             else
-                opts.UseNpgsql(masterConn);
+                opts.UseNpgsql(NpgsqlConnectionStringHelper.PreferIPv4(masterConn));
         });
 
         // TenantDbContext is resolved per-request via TenantDbContextFactory
