@@ -54,3 +54,5 @@ __screenshots__/
 test-output
 
 vitest.config.*.timestamp*
+.vercel
+.env*
