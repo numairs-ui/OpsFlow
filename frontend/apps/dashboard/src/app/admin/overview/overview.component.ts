@@ -1,7 +1,12 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { forkJoin, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
+import { AuthService } from '@org/data-access-auth';
 import { DashboardService } from '@org/data-access-tasks';
-import type { RegionalSummaryDto, SystemDashboardDto } from '@org/data-access-tasks';
+import type { RegionDashboardDto, RegionalSummaryDto, SystemDashboardDto } from '@org/data-access-tasks';
+import { OrgService } from '@org/data-access-org';
+import type { Region } from '@org/data-access-org';
 
 const CIRCUMFERENCE = 2 * Math.PI * 78; // 490.09
 const TRACK_LENGTH  = CIRCUMFERENCE * (270 / 360); // 367.57
@@ -27,7 +32,9 @@ const DEMO: SystemDashboardDto = {
   styleUrl: './overview.component.scss',
 })
 export class AdminOverviewComponent implements OnInit, OnDestroy {
+  private readonly auth = inject(AuthService);
   private readonly dashboardSvc = inject(DashboardService);
+  private readonly orgSvc = inject(OrgService);
   private refreshInterval?: ReturnType<typeof setInterval>;
 
   readonly loading = signal(true);
@@ -98,10 +105,80 @@ export class AdminOverviewComponent implements OnInit, OnDestroy {
   }
 
   private load(): void {
-    this.dashboardSvc.getSystemDashboard().subscribe({
-      next: (d) => { this.rawData.set(d); this.loading.set(false); },
+    const isSuperAdmin = this.auth.currentUser()?.role === 'super_admin';
+
+    if (isSuperAdmin) {
+      this.dashboardSvc.getSystemDashboard().subscribe({
+        next: (d) => { this.rawData.set(d); this.loading.set(false); },
+        error: () => { this.error.set('Failed to load dashboard.'); this.loading.set(false); },
+      });
+      return;
+    }
+
+    const regionIds = this.auth.currentUser()?.regionIds ?? [];
+    if (regionIds.length === 0) {
+      this.error.set('No region assigned to your account. Contact a super admin.');
+      this.loading.set(false);
+      return;
+    }
+
+    forkJoin({
+      regions: this.orgSvc.getRegions(false),
+      regionDashboards: forkJoin(
+        regionIds.map((regionId) =>
+          this.dashboardSvc.getRegionDashboard(regionId).pipe(
+            map((d) => ({ regionId, dashboard: d })),
+            catchError(() => of({ regionId, dashboard: null as RegionDashboardDto | null }))
+          )
+        )
+      ),
+    }).subscribe({
+      next: ({ regions, regionDashboards }) => {
+        this.rawData.set(this.toSystemDashboard(regions, regionDashboards));
+        this.loading.set(false);
+      },
       error: () => { this.error.set('Failed to load dashboard.'); this.loading.set(false); },
     });
+  }
+
+  private toSystemDashboard(
+    regions: Region[],
+    regionDashboards: { regionId: string; dashboard: RegionDashboardDto | null }[]
+  ): SystemDashboardDto {
+    const regionName = (regionId: string) =>
+      regions.find((r) => r.id === regionId)?.name ?? 'Unknown Region';
+
+    const regionalSummary: RegionalSummaryDto[] = regionDashboards.map(({ regionId, dashboard }) => {
+      const stores = dashboard?.stores ?? [];
+      const averageCompletionRate = stores.length
+        ? stores.reduce((sum, s) => sum + s.completionRate, 0) / stores.length
+        : 0;
+      const criticalAlertCount = stores.filter(
+        (s) => !s.depositLoggedToday || s.correctiveActionCount > 0
+      ).length;
+      return {
+        regionId,
+        regionName: regionName(regionId),
+        storeCount: stores.length,
+        averageCompletionRate,
+        criticalAlertCount,
+      };
+    });
+
+    const allStores = regionDashboards.flatMap(({ dashboard }) => dashboard?.stores ?? []);
+    const systemCompletionRate = allStores.length
+      ? allStores.reduce((sum, s) => sum + s.completionRate, 0) / allStores.length
+      : 0;
+
+    return {
+      systemCompletionRate,
+      totalOpenCount: allStores.reduce((sum, s) => sum + s.openCount, 0),
+      totalOverdueCount: allStores.reduce((sum, s) => sum + s.overdueCount, 0),
+      storesWithMissedDeposits: allStores
+        .filter((s) => !s.depositLoggedToday)
+        .map((s) => ({ storeId: s.storeId, storeName: s.name })),
+      regionalSummary,
+    };
   }
 
   scoreClass(rate: number): string {
