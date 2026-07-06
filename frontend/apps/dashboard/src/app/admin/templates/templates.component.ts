@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
 import { OrgService, type Region, type Store } from '@org/data-access-org';
 import { noWhitespace } from '@org/ui-core';
@@ -14,7 +14,7 @@ import { FieldBuilderComponent, type TemplateField } from '@org/ui-field-builder
 
 @Component({
   selector: 'app-templates',
-  imports: [ReactiveFormsModule, FieldBuilderComponent],
+  imports: [ReactiveFormsModule, FieldBuilderComponent, RouterLink],
   templateUrl: './templates.component.html',
   styleUrl: './templates.component.scss',
 })

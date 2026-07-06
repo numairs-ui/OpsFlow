@@ -1,16 +1,27 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using OpsFlow.Api.Features.DepositLog.RecordDeposit;
+using OpsFlow.Api.Security;
 using OpsFlow.Infrastructure;
 
 namespace OpsFlow.Api.Features.DepositLog.GetDepositLog;
 
 internal sealed class GetDepositLogHandler(
-    TenantDbContextFactory factory) : IRequestHandler<GetDepositLogQuery, GetDepositLogResponse>
+    TenantDbContextFactory factory,
+    IHttpContextAccessor httpContextAccessor) : IRequestHandler<GetDepositLogQuery, GetDepositLogResponse>
 {
     public async Task<GetDepositLogResponse> Handle(GetDepositLogQuery query, CancellationToken ct)
     {
+        var user = httpContextAccessor.HttpContext!.User;
+        var spec = user.ToCaller().Scope();
+
         await using var db = await factory.CreateAsync(ct);
+
+        var store = await db.Stores.FindAsync([query.StoreId], ct)
+            ?? throw new KeyNotFoundException($"Store {query.StoreId} not found.");
+        var assigned = spec.IsStoreScoped
+            && await db.UserStoreAssignments.AnyAsync(a => a.UserId == user.GetUserId() && a.StoreId == query.StoreId, ct);
+        spec.AssertCanViewStore(store.RegionId, store.Id, assigned);
 
         var q = db.DepositLogs
             .Where(d => d.StoreId == query.StoreId)

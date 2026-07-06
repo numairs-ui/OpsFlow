@@ -16,8 +16,9 @@ export class AdminShellComponent {
   readonly user = this.auth.currentUser;
   readonly roleLabel = roleLabel;
 
-  // Org-wide controls (regions, system templates, imports, tenant settings) are super-admin only.
-  // A region-scoped admin manages stores/users/templates within its assigned regions.
+  // Org-wide controls (system templates, imports, tenant settings) are super-admin only.
+  // Regions is visible to both — a region-scoped admin sees a read-only view of its own
+  // assigned regions (RegionsComponent hides create/edit/deactivate for non-super-admins).
   readonly isSuperAdmin = computed(() => this.user()?.role === 'super_admin');
 
   // Mobile-only: the sidebar collapses into a bottom tab bar; "More" opens this sheet

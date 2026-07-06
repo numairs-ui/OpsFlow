@@ -1,0 +1,66 @@
+<div class="page form-template-detail">
+  <button class="btn-back" (click)="goBack()">&#8592; Back to form templates</button>
+
+  @if (loading()) {
+    <div class="state-loading">Loading form template…</div>
+  }
+  @if (error(); as err) {
+    <div class="state-error">{{ err }}</div>
+  }
+
+  @if (template(); as t) {
+    <div class="page__header">
+      <div>
+        <p class="page__eyebrow">
+          {{ t.propagationType }} &middot; {{ t.scope }}{{ t.storeName ? ' · ' + t.storeName : '' }}{{ t.regionName ? ' · ' + t.regionName : '' }}
+        </p>
+        <h1 class="page__title">{{ t.name }}</h1>
+        @if (t.description) {
+          <p class="page__subtitle">{{ t.description }}</p>
+        }
+      </div>
+      <span class="pill" [class]="t.isActive ? 'pill--completed' : 'pill--inactive'">
+        {{ t.isActive ? 'Active' : 'Inactive' }}
+      </span>
+    </div>
+
+    <div class="card approval-view">
+      <p class="card-eyebrow">Approval Steps</p>
+      @for (step of approvalSteps(); track step.order) {
+        <div class="approval-row">
+          <span class="approval-row__order">{{ step.order }}</span>
+          <span class="approval-row__role">{{ roleLabel(step.role) }}</span>
+        </div>
+      } @empty {
+        <p class="text-muted">No approval steps configured.</p>
+      }
+    </div>
+
+    <div class="card template-view">
+      <p class="card-eyebrow">{{ fields().length }} field{{ fields().length !== 1 ? 's' : '' }}</p>
+      @for (field of fields(); track field.id) {
+        <div class="field-row">
+          <div class="field-row__main">
+            <span class="field-row__label">
+              {{ field.label }}
+              @if (field.required) { <span class="field-row__required">*</span> }
+            </span>
+            <span class="field-row__type">{{ field.type }}</span>
+          </div>
+          @if (field.type === 'Numeric' && (field.rangeMin != null || field.rangeMax != null)) {
+            <p class="field-row__meta">Range: {{ field.rangeMin ?? '—' }} to {{ field.rangeMax ?? '—' }}</p>
+          }
+          @if (field.type === 'Checklist' && field.subItems?.length) {
+            <ul class="sub-items">
+              @for (sub of field.subItems; track sub.id) {
+                <li>{{ sub.label }}{{ sub.required ? ' *' : '' }}</li>
+              }
+            </ul>
+          }
+        </div>
+      } @empty {
+        <p class="text-muted">No fields configured for this form template.</p>
+      }
+    </div>
+  }
+</div>

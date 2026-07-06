@@ -201,4 +201,502 @@ public sealed class AccessControlTests : IClassFixture<TenantAwareWebApplication
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
+
+    // ────────────────────────────────────────────────────────────────
+    // Scenario 9: Region-scoped admin only sees regions in its own set
+    // ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetRegions_AsRegionScopedAdmin_OnlyReturnsAssignedRegions()
+    {
+        await _factory.SeedCommonDataAsync();
+
+        var db = await _factory.GetTenantDbAsync();
+        var otherRegionId = Guid.NewGuid();
+        db.Regions.Add(new Region
+        {
+            Id = otherRegionId,
+            TenantId = TenantAwareWebApplicationFactory.TenantId,
+            Name = $"Unassigned-{otherRegionId}",
+        });
+        await db.SaveChangesAsync();
+
+        UseToken(_factory.MintMultiRegionToken(
+            TenantAwareWebApplicationFactory.AdminUserId, "admin", null,
+            TenantAwareWebApplicationFactory.RegionId.ToString()));
+
+        var response = await _client.GetAsync("/regions?activeOnly=false");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var regions = await response.Content.ReadFromJsonAsync<List<RegionDto>>();
+        regions.Should().NotBeNull();
+        regions!.Select(r => r.Id).Should().Contain(TenantAwareWebApplicationFactory.RegionId);
+        regions.Select(r => r.Id).Should().NotContain(otherRegionId,
+            because: "a region-scoped admin must not see regions outside its assigned set");
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // Scenario 10: Region-scoped admin cannot create, edit, or deactivate regions
+    // ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task CreateRegion_AsRegionScopedAdmin_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseToken(_factory.MintMultiRegionToken(
+            TenantAwareWebApplicationFactory.AdminUserId, "admin", null,
+            TenantAwareWebApplicationFactory.RegionId.ToString()));
+
+        var response = await _client.PostAsJsonAsync("/regions", new { name = "New Region" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task UpdateRegion_AsRegionScopedAdmin_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseToken(_factory.MintMultiRegionToken(
+            TenantAwareWebApplicationFactory.AdminUserId, "admin", null,
+            TenantAwareWebApplicationFactory.RegionId.ToString()));
+
+        var response = await _client.PutAsJsonAsync(
+            $"/regions/{TenantAwareWebApplicationFactory.RegionId}",
+            new { name = "Renamed Region" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task DeactivateRegion_AsRegionScopedAdmin_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseToken(_factory.MintMultiRegionToken(
+            TenantAwareWebApplicationFactory.AdminUserId, "admin", null,
+            TenantAwareWebApplicationFactory.RegionId.ToString()));
+
+        var response = await _client.PostAsync(
+            $"/regions/{TenantAwareWebApplicationFactory.RegionId}/deactivate", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // Scenario 11: Region-scoped admin only sees stores in its own region set
+    // (regression: an unscoped store list previously made "Store Roster" pick an
+    // out-of-region store first and 401 on the roster fetch)
+    // ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetStores_AsRegionScopedAdmin_OnlyReturnsStoresInAssignedRegions()
+    {
+        await _factory.SeedCommonDataAsync();
+
+        var db = await _factory.GetTenantDbAsync();
+        var otherRegionId = Guid.NewGuid();
+        var otherStoreId = Guid.NewGuid();
+        db.Regions.Add(new Region { Id = otherRegionId, TenantId = TenantAwareWebApplicationFactory.TenantId, Name = "Unassigned Region" });
+        db.Stores.Add(new Store { Id = otherStoreId, TenantId = TenantAwareWebApplicationFactory.TenantId, RegionId = otherRegionId, Name = "Unassigned Store" });
+        await db.SaveChangesAsync();
+
+        UseToken(_factory.MintMultiRegionToken(
+            TenantAwareWebApplicationFactory.AdminUserId, "admin", null,
+            TenantAwareWebApplicationFactory.RegionId.ToString()));
+
+        var response = await _client.GetAsync("/stores");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var stores = await response.Content.ReadFromJsonAsync<List<StoreDto>>();
+        stores.Should().NotBeNull();
+        stores!.Select(s => s.Id).Should().Contain(TenantAwareWebApplicationFactory.StoreId);
+        stores.Select(s => s.Id).Should().NotContain(otherStoreId,
+            because: "a region-scoped admin must not see stores outside its assigned regions, " +
+                     "or the Store Roster page can pick one it's then denied access to");
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // Scenario 12: single-item fetch-by-id handlers all deny/hide out-of-scope data
+    // for a region-scoped admin — the same bug class as GetChecklistHandler, found in
+    // a follow-up audit (see project_scope_auth_audit_pending memory) and fixed here.
+    // ────────────────────────────────────────────────────────────────
+
+    private async Task<(Guid RegionId, Guid StoreId)> SeedForeignStoreAsync()
+    {
+        var db = await _factory.GetTenantDbAsync();
+        var regionId = Guid.NewGuid();
+        var storeId = Guid.NewGuid();
+        db.Regions.Add(new Region { Id = regionId, TenantId = TenantAwareWebApplicationFactory.TenantId, Name = $"Foreign-{regionId}" });
+        db.Stores.Add(new Store { Id = storeId, TenantId = TenantAwareWebApplicationFactory.TenantId, RegionId = regionId, Name = $"Foreign Store {storeId}" });
+        await db.SaveChangesAsync();
+        return (regionId, storeId);
+    }
+
+    private void UseRegionScopedAdmin() =>
+        UseToken(_factory.MintMultiRegionToken(
+            TenantAwareWebApplicationFactory.AdminUserId, "admin", null,
+            TenantAwareWebApplicationFactory.RegionId.ToString()));
+
+    [Fact]
+    public async Task GetTemplate_AsRegionScopedAdmin_ForOutOfRegionStoreScopedTemplate_DoesNotReturnIt()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (_, foreignStoreId) = await SeedForeignStoreAsync();
+
+        var db = await _factory.GetTenantDbAsync();
+        var templateId = Guid.NewGuid();
+        db.TaskTemplates.Add(new TaskTemplate
+        {
+            Id = templateId, TenantId = TenantAwareWebApplicationFactory.TenantId,
+            Name = "Foreign Template", Category = "Operations", Scope = "Store",
+            StoreId = foreignStoreId, CreatedByUserId = TenantAwareWebApplicationFactory.SuperAdminUserId,
+        });
+        await db.SaveChangesAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.GetAsync($"/templates/{templateId}");
+
+        response.StatusCode.Should().NotBe(HttpStatusCode.OK,
+            because: "a region-scoped admin must not see a Store-scope template outside its assigned regions");
+    }
+
+    [Fact]
+    public async Task GetFormTemplate_AsRegionScopedAdmin_ForOutOfRegionStoreScopedFormTemplate_DoesNotReturnIt()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (_, foreignStoreId) = await SeedForeignStoreAsync();
+
+        var db = await _factory.GetTenantDbAsync();
+        var templateId = Guid.NewGuid();
+        db.FormTemplates.Add(new FormTemplate
+        {
+            Id = templateId, TenantId = TenantAwareWebApplicationFactory.TenantId,
+            Name = "Foreign Form Template", Scope = "Store", StoreId = foreignStoreId,
+            PropagationType = "NotificationOnly", CreatedByUserId = TenantAwareWebApplicationFactory.SuperAdminUserId,
+        });
+        await db.SaveChangesAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.GetAsync($"/form-templates/{templateId}");
+
+        response.StatusCode.Should().NotBe(HttpStatusCode.OK,
+            because: "a region-scoped admin must not see a Store-scope form template outside its assigned regions");
+    }
+
+    [Fact]
+    public async Task GetFormSubmission_AsRegionScopedAdmin_ForOutOfRegionStore_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (_, foreignStoreId) = await SeedForeignStoreAsync();
+
+        var db = await _factory.GetTenantDbAsync();
+        var submissionId = Guid.NewGuid();
+        db.FormSubmissions.Add(new FormSubmission
+        {
+            Id = submissionId, TenantId = TenantAwareWebApplicationFactory.TenantId,
+            StoreId = foreignStoreId, SubmittedByUserId = TenantAwareWebApplicationFactory.EmployeeUserId,
+        });
+        await db.SaveChangesAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.GetAsync($"/form-submissions/{submissionId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task GetStoreSettings_AsRegionScopedAdmin_ForOutOfRegionStore_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (_, foreignStoreId) = await SeedForeignStoreAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.GetAsync($"/stores/{foreignStoreId}/settings");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task GetLatestInventory_AsRegionScopedAdmin_ForOutOfRegionStore_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (_, foreignStoreId) = await SeedForeignStoreAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.GetAsync($"/stores/{foreignStoreId}/inventory/latest");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task GetInventoryHistory_AsRegionScopedAdmin_ForOutOfRegionStore_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (_, foreignStoreId) = await SeedForeignStoreAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.GetAsync($"/stores/{foreignStoreId}/inventory/history");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task GetDepositByDate_AsRegionScopedAdmin_ForOutOfRegionStore_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (_, foreignStoreId) = await SeedForeignStoreAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.GetAsync($"/stores/{foreignStoreId}/deposit-log/2026-01-01");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task GetDepositLog_AsRegionScopedAdmin_ForOutOfRegionStore_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (_, foreignStoreId) = await SeedForeignStoreAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.GetAsync($"/stores/{foreignStoreId}/deposit-log?page=1&pageSize=20");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task GetUser_AsRegionScopedAdmin_ForUserInOutOfRegionStore_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (_, foreignStoreId) = await SeedForeignStoreAsync();
+
+        var db = await _factory.GetTenantDbAsync();
+        var foreignUserId = $"foreign-user-{Guid.NewGuid()}";
+        db.UserProfiles.Add(new UserProfile
+        {
+            UserId = foreignUserId, Email = "foreign@test.com", DisplayName = "Foreign Employee",
+            Role = "store_employee", StoreId = foreignStoreId,
+        });
+        await db.SaveChangesAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.GetAsync($"/users/{foreignUserId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task GetUser_AsAnyRole_ForOwnProfile_StillReturns200()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseRegionScopedAdmin();
+
+        var response = await _client.GetAsync($"/users/{TenantAwareWebApplicationFactory.AdminUserId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            because: "the new authorization check must not block a caller from reading its own profile");
+    }
+
+    [Fact]
+    public async Task GetStoreAssignments_AsRegionScopedAdmin_ForUserInOutOfRegionStore_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (_, foreignStoreId) = await SeedForeignStoreAsync();
+
+        var db = await _factory.GetTenantDbAsync();
+        var foreignUserId = $"foreign-user-{Guid.NewGuid()}";
+        db.UserProfiles.Add(new UserProfile
+        {
+            UserId = foreignUserId, Email = "foreign2@test.com", DisplayName = "Foreign Employee 2",
+            Role = "store_employee", StoreId = foreignStoreId,
+        });
+        await db.SaveChangesAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.GetAsync($"/users/{foreignUserId}/store-assignments");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task GetStoreAssignments_AsAnyRole_ForOwnAssignments_StillReturns200()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseRegionScopedAdmin();
+
+        var response = await _client.GetAsync($"/users/{TenantAwareWebApplicationFactory.AdminUserId}/store-assignments");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            because: "the new authorization check must not block a caller from reading its own store assignments");
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // Scenario 13: the same fixes must not break legitimate in-scope access —
+    // every deny-side test above has a matching allow-side test here using
+    // TenantAwareWebApplicationFactory.StoreId, which IS in the admin's assigned region.
+    // ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetTemplate_AsRegionScopedAdmin_ForInRegionStoreScopedTemplate_Returns200()
+    {
+        await _factory.SeedCommonDataAsync();
+
+        var db = await _factory.GetTenantDbAsync();
+        var templateId = Guid.NewGuid();
+        db.TaskTemplates.Add(new TaskTemplate
+        {
+            Id = templateId, TenantId = TenantAwareWebApplicationFactory.TenantId,
+            Name = "In-Region Template", Category = "Operations", Scope = "Store",
+            StoreId = TenantAwareWebApplicationFactory.StoreId, CreatedByUserId = TenantAwareWebApplicationFactory.SuperAdminUserId,
+        });
+        await db.SaveChangesAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.GetAsync($"/templates/{templateId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            because: "the new scope check must not block a region-scoped admin from a template inside its own region");
+    }
+
+    [Fact]
+    public async Task GetFormTemplate_AsRegionScopedAdmin_ForInRegionFormTemplate_Returns200()
+    {
+        await _factory.SeedCommonDataAsync();
+
+        var db = await _factory.GetTenantDbAsync();
+        var templateId = Guid.NewGuid();
+        db.FormTemplates.Add(new FormTemplate
+        {
+            Id = templateId, TenantId = TenantAwareWebApplicationFactory.TenantId,
+            Name = "In-Region Form Template", Scope = "Store", StoreId = TenantAwareWebApplicationFactory.StoreId,
+            PropagationType = "NotificationOnly", CreatedByUserId = TenantAwareWebApplicationFactory.SuperAdminUserId,
+        });
+        await db.SaveChangesAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.GetAsync($"/form-templates/{templateId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            because: "the new scope check must not block a region-scoped admin from a form template inside its own region");
+    }
+
+    [Fact]
+    public async Task GetFormSubmission_AsRegionScopedAdmin_ForInRegionStore_Returns200()
+    {
+        await _factory.SeedCommonDataAsync();
+
+        var db = await _factory.GetTenantDbAsync();
+        var submissionId = Guid.NewGuid();
+        db.FormSubmissions.Add(new FormSubmission
+        {
+            Id = submissionId, TenantId = TenantAwareWebApplicationFactory.TenantId,
+            StoreId = TenantAwareWebApplicationFactory.StoreId, SubmittedByUserId = TenantAwareWebApplicationFactory.EmployeeUserId,
+        });
+        await db.SaveChangesAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.GetAsync($"/form-submissions/{submissionId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            because: "the new scope check must not block a region-scoped admin from a submission inside its own region");
+    }
+
+    [Fact]
+    public async Task GetStoreSettings_AsRegionScopedAdmin_ForInRegionStore_Returns200()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseRegionScopedAdmin();
+
+        var response = await _client.GetAsync($"/stores/{TenantAwareWebApplicationFactory.StoreId}/settings");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            because: "the new scope check must not block a region-scoped admin from its own region's store settings");
+    }
+
+    [Fact]
+    public async Task GetLatestInventory_AsRegionScopedAdmin_ForInRegionStore_Returns200()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseRegionScopedAdmin();
+
+        var response = await _client.GetAsync($"/stores/{TenantAwareWebApplicationFactory.StoreId}/inventory/latest");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            because: "the new scope check must not block a region-scoped admin from its own region's inventory");
+    }
+
+    [Fact]
+    public async Task GetInventoryHistory_AsRegionScopedAdmin_ForInRegionStore_Returns200()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseRegionScopedAdmin();
+
+        var response = await _client.GetAsync($"/stores/{TenantAwareWebApplicationFactory.StoreId}/inventory/history");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            because: "the new scope check must not block a region-scoped admin from its own region's inventory history");
+    }
+
+    [Fact]
+    public async Task GetDepositByDate_AsRegionScopedAdmin_ForInRegionStore_Returns200()
+    {
+        await _factory.SeedCommonDataAsync();
+
+        var db = await _factory.GetTenantDbAsync();
+        var date = new DateOnly(2026, 1, 1);
+        db.DepositLogs.Add(new DepositLog
+        {
+            TenantId = TenantAwareWebApplicationFactory.TenantId,
+            StoreId = TenantAwareWebApplicationFactory.StoreId,
+            Amount = 100m,
+            SubmittedByManagerId = TenantAwareWebApplicationFactory.StoreManagerUserId,
+            SubmittedAt = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
+        });
+        await db.SaveChangesAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.GetAsync($"/stores/{TenantAwareWebApplicationFactory.StoreId}/deposit-log/{date:yyyy-MM-dd}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            because: "the new scope check must not block a region-scoped admin from its own region's deposit log");
+    }
+
+    [Fact]
+    public async Task GetDepositLog_AsRegionScopedAdmin_ForInRegionStore_Returns200()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseRegionScopedAdmin();
+
+        var response = await _client.GetAsync($"/stores/{TenantAwareWebApplicationFactory.StoreId}/deposit-log?page=1&pageSize=20");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            because: "the new scope check must not block a region-scoped admin from its own region's deposit log list");
+    }
+
+    [Fact]
+    public async Task GetUser_AsRegionScopedAdmin_ForOtherUserInOwnRegionStore_Returns200()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseRegionScopedAdmin();
+
+        // EmployeeUserId belongs to StoreId, which is in the admin's assigned region.
+        var response = await _client.GetAsync($"/users/{TenantAwareWebApplicationFactory.EmployeeUserId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            because: "a region-scoped admin must still be able to view another user's profile within its own region");
+    }
+
+    [Fact]
+    public async Task GetStoreAssignments_AsRegionScopedAdmin_ForOtherUserInOwnRegionStore_Returns200()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseRegionScopedAdmin();
+
+        var response = await _client.GetAsync($"/users/{TenantAwareWebApplicationFactory.EmployeeUserId}/store-assignments");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            because: "a region-scoped admin must still be able to view another user's store assignments within its own region");
+    }
+
+    private sealed record RegionDto(Guid Id, string Name, string? Description, bool IsActive, DateTimeOffset CreatedAt);
+    private sealed record StoreDto(Guid Id, string Name, string? Address, Guid RegionId, string RegionName, bool IsActive, DateTimeOffset CreatedAt);
 }

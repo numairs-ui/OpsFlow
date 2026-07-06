@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Security;
 using OpsFlow.Domain.Entities;
 using OpsFlow.Infrastructure;
 using System.Security.Claims;
@@ -12,7 +13,10 @@ internal sealed class CreateRegionHandler(
 {
     public async Task<Guid> Handle(CreateRegionCommand cmd, CancellationToken ct)
     {
-        var tenantId = httpContextAccessor.HttpContext!.User.FindFirstValue("tenantId")!;
+        var user = httpContextAccessor.HttpContext!.User;
+        user.ToCaller().Scope().AssertGlobal();
+
+        var tenantId = user.FindFirstValue("tenantId")!;
         await using var db = await factory.CreateAsync(ct);
 
         var exists = await db.Regions.AnyAsync(r => r.TenantId == tenantId && r.Name == cmd.Name, ct);

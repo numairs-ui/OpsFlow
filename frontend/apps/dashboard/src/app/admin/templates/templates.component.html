@@ -48,7 +48,9 @@
         <tbody>
           @for (t of templates(); track t.id) {
             <tr [class.table__row--inactive]="!t.isActive">
-              <td class="template-name">{{ t.name }}</td>
+              <td class="template-name">
+                <a class="cell-primary" [routerLink]="['/admin/templates', t.id]">{{ t.name }}</a>
+              </td>
               <td class="text-muted">{{ t.category }}</td>
               <td><span class="scope-badge scope-badge--{{ t.scope.toLowerCase() }}">{{ t.scope }}</span></td>
               <td class="text-muted">{{ t.regionName ?? t.storeName ?? '—' }}</td>

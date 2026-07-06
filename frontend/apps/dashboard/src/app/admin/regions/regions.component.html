@@ -2,9 +2,17 @@
   <div class="page__header">
     <div>
       <h1 class="page__title">Regions</h1>
-      <p class="page__subtitle">Manage geographic regions for your franchise network.</p>
+      <p class="page__subtitle">
+        @if (canManageRegions()) {
+          Manage geographic regions for your franchise network.
+        } @else {
+          The regions assigned to you.
+        }
+      </p>
     </div>
-    <button class="btn btn--primary" (click)="openCreate()">+ New Region</button>
+    @if (canManageRegions()) {
+      <button class="btn btn--primary" (click)="openCreate()">+ New Region</button>
+    }
   </div>
 
   @if (error()) {
@@ -25,7 +33,9 @@
             <th>Description</th>
             <th>Status</th>
             <th>Created</th>
-            <th class="table__actions-col">Actions</th>
+            @if (canManageRegions()) {
+              <th class="table__actions-col">Actions</th>
+            }
           </tr>
         </thead>
         <tbody>
@@ -39,15 +49,17 @@
                 </span>
               </td>
               <td class="text-muted">{{ region.createdAt | slice:0:10 }}</td>
-              <td class="table__actions" (click)="$event.stopPropagation()">
-                <button class="btn btn--sm btn--ghost" (click)="openEdit(region)">Edit</button>
-                @if (region.isActive) {
-                  <button class="btn btn--sm btn--danger-ghost" (click)="deactivate(region)">Deactivate</button>
-                }
-              </td>
+              @if (canManageRegions()) {
+                <td class="table__actions" (click)="$event.stopPropagation()">
+                  <button class="btn btn--sm btn--ghost" (click)="openEdit(region)">Edit</button>
+                  @if (region.isActive) {
+                    <button class="btn btn--sm btn--danger-ghost" (click)="deactivate(region)">Deactivate</button>
+                  }
+                </td>
+              }
             </tr>
           } @empty {
-            <tr><td colspan="5" class="empty">No regions found.</td></tr>
+            <tr><td [attr.colspan]="canManageRegions() ? 5 : 4" class="empty">No regions found.</td></tr>
           }
         </tbody>
       </table>
@@ -109,7 +121,9 @@
     </div>
     <div class="slide-over__footer">
       <button class="btn btn--ghost" (click)="closeDetail()">Close</button>
-      <button class="btn btn--primary" (click)="editFromDetail()">Edit Region</button>
+      @if (canManageRegions()) {
+        <button class="btn btn--primary" (click)="editFromDetail()">Edit Region</button>
+      }
     </div>
   </div>
 }

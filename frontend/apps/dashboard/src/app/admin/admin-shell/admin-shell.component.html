@@ -24,13 +24,11 @@
         </a>
       </li>
       <li class="sidebar__section-label">Organisation</li>
-      @if (isSuperAdmin()) {
-        <li>
-          <a routerLink="regions" routerLinkActive="active" class="sidebar__link">
-            <span class="sidebar__icon"></span> Regions
-          </a>
-        </li>
-      }
+      <li>
+        <a routerLink="regions" routerLinkActive="active" class="sidebar__link">
+          <span class="sidebar__icon"></span> Regions
+        </a>
+      </li>
       <li>
         <a routerLink="stores" routerLinkActive="active" class="sidebar__link">
           <span class="sidebar__icon"></span> Stores
@@ -148,13 +146,11 @@
           </a>
         </li>
         <li class="more-sheet__section-label">Organisation</li>
-        @if (isSuperAdmin()) {
-          <li>
-            <a routerLink="regions" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
-              Regions
-            </a>
-          </li>
-        }
+        <li>
+          <a routerLink="regions" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
+            Regions
+          </a>
+        </li>
         <li>
           <a routerLink="roster" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
             Store Roster
