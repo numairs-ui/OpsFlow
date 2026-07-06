@@ -1,14 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Security;
 using OpsFlow.Infrastructure;
 
 namespace OpsFlow.Api.Features.FormSubmissions.GetFormSubmission;
 
-internal sealed class GetFormSubmissionHandler(TenantDbContextFactory factory)
-    : IRequestHandler<GetFormSubmissionQuery, FormSubmissionDetailDto>
+internal sealed class GetFormSubmissionHandler(
+    TenantDbContextFactory factory,
+    IHttpContextAccessor httpContextAccessor) : IRequestHandler<GetFormSubmissionQuery, FormSubmissionDetailDto>
 {
     public async Task<FormSubmissionDetailDto> Handle(GetFormSubmissionQuery query, CancellationToken ct)
     {
+        var user = httpContextAccessor.HttpContext!.User;
+        var spec = user.ToCaller().Scope();
+
         await using var db = await factory.CreateAsync(ct);
 
         var s = await db.FormSubmissions
@@ -17,6 +22,10 @@ internal sealed class GetFormSubmissionHandler(TenantDbContextFactory factory)
             .Include(x => x.ApprovalSteps)
             .FirstOrDefaultAsync(x => x.Id == query.Id, ct)
             ?? throw new KeyNotFoundException($"Form submission {query.Id} not found.");
+
+        var assigned = spec.IsStoreScoped
+            && await db.UserStoreAssignments.AnyAsync(a => a.UserId == user.GetUserId() && a.StoreId == s.StoreId, ct);
+        spec.AssertCanViewStore(s.Store!.RegionId, s.StoreId, assigned);
 
         return new FormSubmissionDetailDto(
             s.Id, s.FormTemplateId, s.FormTemplate?.Name, s.FormTemplate?.FieldsJson,

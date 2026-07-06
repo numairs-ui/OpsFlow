@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
 import { OrgService, type Region, type Store } from '@org/data-access-org';
 import { noWhitespace } from '@org/ui-core';
@@ -16,7 +17,7 @@ import { ApprovalStepsBuilderComponent, PropagationTypePickerComponent } from '@
 
 @Component({
   selector: 'app-form-templates',
-  imports: [ReactiveFormsModule, FieldBuilderComponent, PropagationTypePickerComponent, ApprovalStepsBuilderComponent],
+  imports: [ReactiveFormsModule, FieldBuilderComponent, PropagationTypePickerComponent, ApprovalStepsBuilderComponent, RouterLink],
   templateUrl: './form-templates.component.html',
   styleUrl: './form-templates.component.scss',
 })

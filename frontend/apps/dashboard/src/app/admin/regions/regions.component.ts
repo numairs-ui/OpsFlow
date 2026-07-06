@@ -1,7 +1,8 @@
 import { SlicePipe } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { AuthService } from '@org/data-access-auth';
 import { OrgService, type Region, type Store } from '@org/data-access-org';
 import { noWhitespace } from '@org/ui-core';
 
@@ -15,6 +16,11 @@ export class RegionsComponent implements OnInit {
   private readonly org = inject(OrgService);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
+  private readonly auth = inject(AuthService);
+
+  // Region creation/editing is org-wide franchise structure — super-admin only. A region-scoped
+  // admin gets a read-only view of the regions it's assigned to (backend already filters the list).
+  readonly canManageRegions = computed(() => this.auth.currentUser()?.role === 'super_admin');
 
   readonly regions = signal<Region[]>([]);
   readonly loading = signal(false);

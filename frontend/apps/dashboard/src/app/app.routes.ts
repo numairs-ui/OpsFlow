@@ -74,6 +74,13 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'templates/:id',
+        loadComponent: () =>
+          import('./admin/template-detail/template-detail.component.js').then(
+            (m) => m.TemplateDetailComponent
+          ),
+      },
+      {
         path: 'system-templates',
         data: { systemOnly: true },
         loadComponent: () =>
@@ -107,6 +114,13 @@ export const appRoutes: Route[] = [
         loadComponent: () =>
           import('./admin/form-templates/form-templates.component.js').then(
             (m) => m.FormTemplatesComponent
+          ),
+      },
+      {
+        path: 'form-templates/:id',
+        loadComponent: () =>
+          import('./admin/form-template-detail/form-template-detail.component.js').then(
+            (m) => m.FormTemplateDetailComponent
           ),
       },
       {

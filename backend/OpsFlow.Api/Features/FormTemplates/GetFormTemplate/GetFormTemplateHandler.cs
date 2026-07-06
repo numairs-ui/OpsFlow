@@ -1,18 +1,27 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OpsFlow.Api.Security;
+using OpsFlow.Domain.Authorization;
 using OpsFlow.Infrastructure;
 
 namespace OpsFlow.Api.Features.FormTemplates.GetFormTemplate;
 
-internal sealed class GetFormTemplateHandler(TenantDbContextFactory factory)
-    : IRequestHandler<GetFormTemplateQuery, FormTemplateDetailDto>
+internal sealed class GetFormTemplateHandler(
+    TenantDbContextFactory factory,
+    IHttpContextAccessor httpContextAccessor) : IRequestHandler<GetFormTemplateQuery, FormTemplateDetailDto>
 {
     public async Task<FormTemplateDetailDto> Handle(GetFormTemplateQuery query, CancellationToken ct)
     {
+        var spec = httpContextAccessor.HttpContext!.User.ToCaller().Scope();
+
         await using var db = await factory.CreateAsync(ct);
+
+        // Same visibility rule as the list endpoint, narrowed to one row — a form template outside
+        // the caller's scope 404s exactly like one that doesn't exist, rather than leaking presence.
         var t = await db.FormTemplates
             .Include(x => x.Region)
             .Include(x => x.Store)
+            .WhereScopedVisible(spec, x => x.Scope, x => x.RegionId, x => x.StoreId, x => x.Store!.RegionId)
             .FirstOrDefaultAsync(x => x.Id == query.Id, ct)
             ?? throw new KeyNotFoundException($"Form template {query.Id} not found.");
 
