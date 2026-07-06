@@ -53,19 +53,25 @@ public sealed class ScopeSpecTests
         VisibleStores(Spec(role, S1)).Should().BeEquivalentTo([S1]);
 
     // ── WhereScopedVisible ────────────────────────────────────────────────────
+    // ScopedRow.StoreId identifies which store a Store-scope row belongs to; StoreRegionOf
+    // resolves that store's region (mirrors the `c => c.Store!.RegionId` selector real
+    // handlers pass) so a region-scoped caller can see Store-scope rows for stores in its set.
 
     private static readonly ScopedRow[] Scoped =
     [
         new("System", null, null),
         new("Regional", R1, null),
         new("Regional", R2, null),
-        new("Store", null, S1),
-        new("Store", null, S2),
+        new("Store", null, S1), // S1 is in R1
+        new("Store", null, S2), // S2 is in R2
     ];
+
+    private static Guid? StoreRegionOf(Guid? storeId) =>
+        storeId == S1 ? R1 : storeId == S2 ? R2 : null;
 
     private static List<ScopedRow> Visible(ScopeSpec spec) =>
         Scoped.AsQueryable()
-            .WhereScopedVisible(spec, x => x.Scope, x => x.RegionId, x => x.StoreId)
+            .WhereScopedVisible(spec, x => x.Scope, x => x.RegionId, x => x.StoreId, x => StoreRegionOf(x.StoreId))
             .ToList();
 
     [Fact]
@@ -73,19 +79,25 @@ public sealed class ScopeSpecTests
         Visible(Spec(Roles.SuperAdmin)).Should().HaveCount(5);
 
     [Fact]
-    public void Admin_sees_system_plus_its_regional()
+    public void Admin_sees_system_plus_its_regional_plus_store_in_its_regions()
     {
         var v = Visible(Spec(Roles.Admin, null, R1));
-        v.Should().BeEquivalentTo([new ScopedRow("System", null, null), new ScopedRow("Regional", R1, null)]);
+        v.Should().BeEquivalentTo([
+            new ScopedRow("System", null, null),
+            new ScopedRow("Regional", R1, null),
+            new ScopedRow("Store", null, S1), // S1 is in R1 — visible even though admin has no single StoreId
+        ]);
     }
 
     [Fact]
-    public void Supervisor_sees_system_plus_its_regional() =>
-        Visible(Spec(Roles.Supervisor, null, R1)).Should().HaveCount(2);
+    public void Supervisor_sees_system_plus_its_regional_plus_store_in_its_region() =>
+        Visible(Spec(Roles.Supervisor, null, R1)).Should().HaveCount(3);
 
     [Fact]
-    public void StoreManager_sees_system_plus_its_store()
+    public void StoreManager_sees_system_plus_its_store_only()
     {
+        // A store-scoped caller has no RegionIds, so only its exact StoreId matches — not
+        // every Store-scope row in its region (that broader reach is admin/supervisor-only).
         var v = Visible(Spec(Roles.StoreManager, S1));
         v.Should().BeEquivalentTo([new ScopedRow("System", null, null), new ScopedRow("Store", null, S1)]);
     }

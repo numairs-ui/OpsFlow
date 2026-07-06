@@ -24,6 +24,7 @@ export interface ChecklistItemDto {
   templateId: string;
   templateName: string;
   order: number;
+  fieldsJson?: string;
 }
 
 export interface ChecklistDetailDto extends ChecklistDto {

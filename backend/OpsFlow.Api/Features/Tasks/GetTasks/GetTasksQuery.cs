@@ -6,7 +6,8 @@ internal sealed record GetTasksQuery(
     Guid? StoreId,
     string? Status,
     DateTimeOffset? From,
-    DateTimeOffset? To
+    DateTimeOffset? To,
+    IReadOnlyCollection<string>? Statuses = null
 ) : IRequest<List<TaskInstanceDto>>;
 
 internal sealed record TaskInstanceDto(

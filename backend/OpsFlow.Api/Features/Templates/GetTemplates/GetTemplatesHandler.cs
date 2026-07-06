@@ -21,7 +21,7 @@ internal sealed class GetTemplatesHandler(
         var q = db.TaskTemplates
             .Include(t => t.Region)
             .Include(t => t.Store)
-            .WhereScopedVisible(spec, t => t.Scope, t => t.RegionId, t => t.StoreId);
+            .WhereScopedVisible(spec, t => t.Scope, t => t.RegionId, t => t.StoreId, t => t.Store!.RegionId);
 
         // Filters
         if (query.Scope != null) q = q.Where(t => t.Scope == query.Scope);

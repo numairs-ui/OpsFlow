@@ -1,3 +1,4 @@
 export * from './lib/ui-core/ui-core';
 export * from './lib/format-status.pipe';
 export * from './lib/validators';
+export * from './lib/nav-icon/nav-icon.component';

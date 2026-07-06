@@ -1,0 +1,36 @@
+@use '../shared/admin.scss' as *;
+
+.filter-toggle {
+  display: inline-flex;
+  gap: 0.4rem;
+  padding: 0.3rem;
+  background: var(--cream-deep);
+  border-radius: 100px;
+  margin-bottom: 1.5rem;
+
+  &__btn {
+    padding: 0.45rem 1.1rem;
+    border-radius: 100px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s var(--ease);
+
+    &.active {
+      background: var(--ink);
+      color: var(--cream);
+    }
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 0.95rem;
+}

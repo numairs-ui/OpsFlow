@@ -27,6 +27,8 @@ internal sealed class GetTasksHandler(
             q = q.Where(t => t.StoreId == query.StoreId.Value);
         if (!string.IsNullOrWhiteSpace(query.Status))
             q = q.Where(t => t.Status == query.Status);
+        if (query.Statuses is { Count: > 0 })
+            q = q.Where(t => query.Statuses.Contains(t.Status));
         if (query.From.HasValue)
             q = q.Where(t => t.DueAt >= query.From.Value);
         if (query.To.HasValue)

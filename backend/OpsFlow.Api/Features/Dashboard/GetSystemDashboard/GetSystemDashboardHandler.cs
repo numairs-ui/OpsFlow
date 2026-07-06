@@ -63,7 +63,29 @@ internal sealed class GetSystemDashboardHandler(
             var rCritical = regionStats.Sum(s => s.Corrective)
                 + regionStores.Count(s => !depositSet.Contains(s.Id));
 
-            return new RegionalSummaryDto(r.Id, r.Name, regionStores.Count, Math.Round(rRate, 3), rCritical);
+            var storeScores = regionStores.Select(store =>
+            {
+                taskStats.TryGetValue(store.Id, out var stats);
+                var completionRate = stats?.CompletionRate ?? 0;
+                var corrRate = stats?.CorrectiveRate ?? 0;
+                var depositLogged = depositSet.Contains(store.Id);
+                var depositScore = depositLogged ? 1.0 : 0.0;
+                var composite = (completionRate * 0.5 + (1.0 - corrRate) * 0.3 + depositScore * 0.2) * 100;
+
+                return new StoreScoreDto(
+                    store.Id,
+                    store.Name,
+                    completionRate,
+                    stats?.Open ?? 0,
+                    stats?.Overdue ?? 0,
+                    stats?.Corrective ?? 0,
+                    depositLogged,
+                    Math.Round(composite, 1));
+            })
+            .OrderByDescending(s => s.CompositeScore)
+            .ToList();
+
+            return new RegionalSummaryDto(r.Id, r.Name, regionStores.Count, Math.Round(rRate, 3), rCritical, storeScores);
         }).ToList();
 
         return new SystemDashboardDto(

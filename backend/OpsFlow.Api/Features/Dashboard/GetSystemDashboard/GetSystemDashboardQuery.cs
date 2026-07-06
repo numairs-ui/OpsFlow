@@ -1,4 +1,5 @@
 using MediatR;
+using OpsFlow.Api.Features.Dashboard.Shared;
 
 namespace OpsFlow.Api.Features.Dashboard.GetSystemDashboard;
 
@@ -18,4 +19,5 @@ internal sealed record RegionalSummaryDto(
     string RegionName,
     int StoreCount,
     double AverageCompletionRate,
-    int CriticalAlertCount);
+    int CriticalAlertCount,
+    List<StoreScoreDto> Stores);

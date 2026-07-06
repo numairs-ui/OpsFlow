@@ -25,6 +25,20 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'tasks',
+        loadComponent: () =>
+          import('./admin/tasks/tasks.component.js').then(
+            (m) => m.TasksComponent
+          ),
+      },
+      {
+        path: 'tasks/:id',
+        loadComponent: () =>
+          import('./admin/task-detail/task-detail.component.js').then(
+            (m) => m.TaskDetailComponent
+          ),
+      },
+      {
         path: 'regions',
         loadComponent: () =>
           import('./admin/regions/regions.component.js').then(
@@ -72,6 +86,13 @@ export const appRoutes: Route[] = [
         loadComponent: () =>
           import('./admin/checklists/checklists.component.js').then(
             (m) => m.ChecklistsComponent
+          ),
+      },
+      {
+        path: 'checklists/:id',
+        loadComponent: () =>
+          import('./admin/checklist-detail/checklist-detail.component.js').then(
+            (m) => m.ChecklistDetailComponent
           ),
       },
       {

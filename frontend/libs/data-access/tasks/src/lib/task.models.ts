@@ -1,4 +1,12 @@
-export type TaskStatus = 'Pending' | 'InProgress' | 'Completed' | 'Overdue' | 'Cancelled';
+export type TaskStatus =
+  | 'Pending'
+  | 'InProgress'
+  | 'Completed'
+  | 'Overdue'
+  | 'Verified'
+  | 'Cancelled'
+  | 'Deferred'
+  | 'CorrectiveActionRaised';
 
 export interface TaskBoardItemDto {
   id: string;

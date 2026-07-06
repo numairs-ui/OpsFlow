@@ -43,4 +43,24 @@
   <main class="shell__content">
     <router-outlet />
   </main>
+
+  <!-- Mobile bottom tab bar — hidden at desktop widths, see manager-shell.component.scss -->
+  <nav class="tabbar">
+    <a routerLink="overview" routerLinkActive="active" class="tabbar__link">
+      <app-nav-icon name="overview" />
+      <span>Dashboard</span>
+    </a>
+    <a routerLink="roster" routerLinkActive="active" class="tabbar__link">
+      <app-nav-icon name="roster" />
+      <span>Roster</span>
+    </a>
+    <a routerLink="deposit" routerLinkActive="active" class="tabbar__link">
+      <app-nav-icon name="deposit" />
+      <span>Deposit</span>
+    </a>
+    <a routerLink="submissions" routerLinkActive="active" class="tabbar__link">
+      <app-nav-icon name="submissions" />
+      <span>Forms</span>
+    </a>
+  </nav>
 </div>
