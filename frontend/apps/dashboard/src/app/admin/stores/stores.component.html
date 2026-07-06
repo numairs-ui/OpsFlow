@@ -121,8 +121,59 @@
       </div>
     </div>
     <div class="slide-over__footer">
+      <button class="btn btn--ghost" (click)="openRosterPicker()">+ Assign Roster</button>
       <button class="btn btn--ghost" (click)="closeDetail()">Close</button>
       <button class="btn btn--primary" (click)="editFromDetail()">Edit Store</button>
+    </div>
+  </div>
+}
+
+@if (rosterPickerOpen()) {
+  <div class="overlay store-picker__overlay" role="presentation" (click)="closeRosterPicker()"></div>
+  <div class="store-picker">
+    <div class="store-picker__handle"></div>
+    <div class="store-picker__header">
+      <div class="detail-title">
+        <span class="detail-title__eyebrow">Assign to {{ detailStore()?.name }}</span>
+        <h2>Assign Roster</h2>
+      </div>
+      <button class="slide-over__close" (click)="closeRosterPicker()">&#10005;</button>
+    </div>
+    <div class="store-picker__body">
+      @if (rosterPickerLoading()) {
+        <p class="loading-inline">Loading staff…</p>
+      } @else if (rosterPickerGroups().length === 0) {
+        <p class="empty-inline">No other staff available to assign.</p>
+      } @else {
+        @for (group of rosterPickerGroups(); track group.storeName) {
+          <p class="store-picker__group-label">{{ group.storeName }}</p>
+          @for (user of group.users; track user.userId) {
+            <label class="store-picker__row">
+              <input
+                type="checkbox"
+                class="store-picker__checkbox"
+                [checked]="selectedUserIds().has(user.userId)"
+                (change)="toggleUserSelection(user.userId)"
+              />
+              <span class="store-picker__row-name">{{ user.displayName }}</span>
+              <span class="role-badge role-badge--{{ user.role }}">{{ roleLabel(user.role) }}</span>
+            </label>
+          }
+        }
+      }
+      @if (rosterAssignError()) {
+        <div class="alert alert--error">{{ rosterAssignError() }}</div>
+      }
+    </div>
+    <div class="store-picker__footer">
+      <button class="btn btn--ghost" (click)="closeRosterPicker()">Cancel</button>
+      <button
+        class="btn btn--primary"
+        [disabled]="selectedUserIds().size === 0 || assigningRoster()"
+        (click)="confirmAssignRoster()"
+      >
+        {{ assigningRoster() ? 'Assigning…' : selectedUserIds().size === 0 ? 'Assign Roster' : 'Assign ' + selectedUserIds().size + ' Staff' + (selectedUserIds().size === 1 ? '' : ' Members') }}
+      </button>
     </div>
   </div>
 }

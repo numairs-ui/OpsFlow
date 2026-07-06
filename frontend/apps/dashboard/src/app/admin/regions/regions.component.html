@@ -121,9 +121,60 @@
     </div>
     <div class="slide-over__footer">
       <button class="btn btn--ghost" (click)="closeDetail()">Close</button>
+      <button class="btn btn--ghost" (click)="openStorePicker()">+ Add Stores</button>
       @if (canManageRegions()) {
         <button class="btn btn--primary" (click)="editFromDetail()">Edit Region</button>
       }
+    </div>
+  </div>
+}
+
+@if (storePickerOpen()) {
+  <div class="overlay store-picker__overlay" role="presentation" (click)="closeStorePicker()"></div>
+  <div class="store-picker">
+    <div class="store-picker__handle"></div>
+    <div class="store-picker__header">
+      <div class="detail-title">
+        <span class="detail-title__eyebrow">Add to {{ detailRegion()?.name }}</span>
+        <h2>Add Stores</h2>
+      </div>
+      <button class="slide-over__close" (click)="closeStorePicker()">&#10005;</button>
+    </div>
+    <div class="store-picker__body">
+      @if (storePickerLoading()) {
+        <p class="loading-inline">Loading stores…</p>
+      } @else if (storePickerGroups().length === 0) {
+        <p class="empty-inline">No other stores available to add.</p>
+      } @else {
+        @for (group of storePickerGroups(); track group.regionName) {
+          <p class="store-picker__group-label">{{ group.regionName }}</p>
+          @for (store of group.stores; track store.id) {
+            <label class="store-picker__row">
+              <input
+                type="checkbox"
+                class="store-picker__checkbox"
+                [checked]="selectedStoreIds().has(store.id)"
+                (change)="toggleStoreSelection(store.id)"
+              />
+              <span class="store-picker__row-name">{{ store.name }}</span>
+              <span class="text-muted store-picker__row-address">{{ store.address || '—' }}</span>
+            </label>
+          }
+        }
+      }
+      @if (assignError()) {
+        <div class="alert alert--error">{{ assignError() }}</div>
+      }
+    </div>
+    <div class="store-picker__footer">
+      <button class="btn btn--ghost" (click)="closeStorePicker()">Cancel</button>
+      <button
+        class="btn btn--primary"
+        [disabled]="selectedStoreIds().size === 0 || assigningStores()"
+        (click)="confirmAssignStores()"
+      >
+        {{ assigningStores() ? 'Adding…' : selectedStoreIds().size === 0 ? 'Add Stores' : 'Add ' + selectedStoreIds().size + ' Store' + (selectedStoreIds().size === 1 ? '' : 's') }}
+      </button>
     </div>
   </div>
 }

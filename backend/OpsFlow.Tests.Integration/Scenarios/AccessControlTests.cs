@@ -697,6 +697,119 @@ public sealed class AccessControlTests : IClassFixture<TenantAwareWebApplication
             because: "a region-scoped admin must still be able to view another user's store assignments within its own region");
     }
 
+    // ────────────────────────────────────────────────────────────────
+    // Scenario 14: moving a store between regions (UpdateStoreHandler) is bounded by the
+    // caller's manageable region set on BOTH ends — added when building the "add stores to
+    // region" picker on the Regions detail slide-over, which reuses this endpoint.
+    // ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task UpdateStore_AsRegionScopedAdmin_MovingIntoASecondRegionItManages_Returns204()
+    {
+        await _factory.SeedCommonDataAsync();
+
+        var db = await _factory.GetTenantDbAsync();
+        var secondRegionId = Guid.NewGuid();
+        db.Regions.Add(new Region { Id = secondRegionId, TenantId = TenantAwareWebApplicationFactory.TenantId, Name = "Second Managed Region" });
+        await db.SaveChangesAsync();
+
+        UseToken(_factory.MintMultiRegionToken(
+            TenantAwareWebApplicationFactory.AdminUserId, "admin", null,
+            TenantAwareWebApplicationFactory.RegionId.ToString(), secondRegionId.ToString()));
+
+        var response = await _client.PutAsJsonAsync(
+            $"/stores/{TenantAwareWebApplicationFactory.AltStoreId}",
+            new { name = "Alt Store", address = (string?)null, regionId = secondRegionId });
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
+            because: "the admin manages both the store's current region and the destination region");
+    }
+
+    [Fact]
+    public async Task UpdateStore_AsRegionScopedAdmin_MovingIntoAnUnmanagedRegion_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (foreignRegionId, _) = await SeedForeignStoreAsync();
+
+        UseRegionScopedAdmin();
+
+        var response = await _client.PutAsJsonAsync(
+            $"/stores/{TenantAwareWebApplicationFactory.AltStoreId}",
+            new { name = "Alt Store", address = (string?)null, regionId = foreignRegionId });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized,
+            because: "the admin does not manage the destination region");
+    }
+
+    [Fact]
+    public async Task UpdateStore_AsRegionScopedAdmin_MovingAnOutOfScopeStore_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (_, foreignStoreId) = await SeedForeignStoreAsync();
+
+        UseRegionScopedAdmin();
+
+        var response = await _client.PutAsJsonAsync(
+            $"/stores/{foreignStoreId}",
+            new { name = "Foreign Store", address = (string?)null, regionId = TenantAwareWebApplicationFactory.RegionId });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized,
+            because: "the admin does not manage the store's current (foreign) region, even though it wants to pull it into a region it does manage");
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // Scenario 15: GetUsersHandler (the list endpoint) only returns users in the caller's
+    // manageable scope — found while building the "assign roster" picker on the Store detail
+    // slide-over, which reuses this endpoint as its candidate-staff source.
+    // ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetUsers_AsRegionScopedAdmin_OnlyReturnsUsersInAssignedRegions()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (_, foreignStoreId) = await SeedForeignStoreAsync();
+
+        var db = await _factory.GetTenantDbAsync();
+        var foreignUserId = $"foreign-user-{Guid.NewGuid()}";
+        db.UserProfiles.Add(new UserProfile
+        {
+            UserId = foreignUserId, Email = "foreign3@test.com", DisplayName = "Foreign Employee 3",
+            Role = "store_employee", StoreId = foreignStoreId,
+        });
+        await db.SaveChangesAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.GetAsync("/users?activeOnly=false");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var users = await response.Content.ReadFromJsonAsync<List<UserListDto>>();
+        users.Should().NotBeNull();
+        users!.Select(u => u.UserId).Should().Contain(TenantAwareWebApplicationFactory.EmployeeUserId,
+            because: "the employee at the admin's own in-region store must still be visible");
+        users.Select(u => u.UserId).Should().NotContain(foreignUserId,
+            because: "a region-scoped admin must not see users at a store outside its assigned regions");
+    }
+
+    [Fact]
+    public async Task GetUsers_AsStoreScopedEmployee_OnlySeesOwnStore()
+    {
+        await _factory.SeedCommonDataAsync();
+
+        UseToken(_factory.MintToken(
+            TenantAwareWebApplicationFactory.EmployeeUserId, "store_employee",
+            storeId: TenantAwareWebApplicationFactory.StoreId.ToString()));
+
+        var response = await _client.GetAsync("/users?activeOnly=false");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var users = await response.Content.ReadFromJsonAsync<List<UserListDto>>();
+        users.Should().NotBeNull();
+        users!.Select(u => u.UserId).Should().Contain(TenantAwareWebApplicationFactory.EmployeeUserId);
+        users.Select(u => u.StoreId).Should().OnlyContain(s => s == TenantAwareWebApplicationFactory.StoreId,
+            because: "a store-scoped caller must only see its own store's roster");
+    }
+
     private sealed record RegionDto(Guid Id, string Name, string? Description, bool IsActive, DateTimeOffset CreatedAt);
     private sealed record StoreDto(Guid Id, string Name, string? Address, Guid RegionId, string RegionName, bool IsActive, DateTimeOffset CreatedAt);
+    private sealed record UserListDto(string UserId, string Email, string DisplayName, string Role, Guid? StoreId, string? StoreName, Guid? RegionId, string? RegionName, bool IsActive, bool MustChangePassword, DateTimeOffset CreatedAt, List<string> RegionIds);
 }
