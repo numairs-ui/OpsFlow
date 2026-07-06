@@ -1,9 +1,12 @@
 import { SlicePipe } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { OrgService, type Region, type Store, type StoreEmployee } from '@org/data-access-org';
+import { forkJoin } from 'rxjs';
+import { OrgService, type Region, type Store, type StoreEmployee, type User } from '@org/data-access-org';
 import { noWhitespace } from '@org/ui-core';
+
+const ROSTER_ROLES = ['store_employee', 'store_manager'];
 
 @Component({
   selector: 'app-stores',
@@ -28,6 +31,29 @@ export class StoresComponent implements OnInit {
   readonly detailStore = signal<Store | null>(null);
   readonly storeEmployees = signal<StoreEmployee[]>([]);
   readonly storeEmployeesLoading = signal(false);
+
+  // "Assign Roster" picker — a bottom sheet listing staff the caller can already manage
+  // (super_admin: everyone; region-scoped admin: staff in its own regions) who aren't already
+  // at this store. Selecting staff reassigns their primary store.
+  readonly rosterPickerOpen = signal(false);
+  readonly rosterPickerLoading = signal(false);
+  readonly rosterPickerCandidates = signal<User[]>([]);
+  readonly selectedUserIds = signal<ReadonlySet<string>>(new Set());
+  readonly assigningRoster = signal(false);
+  readonly rosterAssignError = signal<string | null>(null);
+
+  readonly rosterPickerGroups = computed(() => {
+    const grouped = new Map<string, User[]>();
+    for (const u of this.rosterPickerCandidates()) {
+      const key = u.storeName ?? 'Unassigned';
+      const list = grouped.get(key) ?? [];
+      list.push(u);
+      grouped.set(key, list);
+    }
+    return [...grouped.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([storeName, users]) => ({ storeName, users }));
+  });
 
   readonly form = this.fb.group({
     name: ['', [Validators.required, noWhitespace]],
@@ -152,5 +178,64 @@ export class StoresComponent implements OnInit {
       admin: 'Admin',
     };
     return map[role] ?? role;
+  }
+
+  openRosterPicker(): void {
+    const store = this.detailStore();
+    if (!store) return;
+    this.rosterPickerOpen.set(true);
+    this.rosterPickerLoading.set(true);
+    this.selectedUserIds.set(new Set());
+    this.rosterAssignError.set(null);
+    // getUsers() already returns only staff the caller can manage (region-scoped for admin,
+    // everyone for super_admin) — narrow to roster-eligible roles not already at this store.
+    this.org.getUsers({ activeOnly: true }).subscribe({
+      next: (users) => {
+        this.rosterPickerCandidates.set(
+          users.filter((u) => ROSTER_ROLES.includes(u.role) && u.storeId !== store.id)
+        );
+        this.rosterPickerLoading.set(false);
+      },
+      error: () => { this.rosterPickerLoading.set(false); },
+    });
+  }
+
+  closeRosterPicker(): void {
+    this.rosterPickerOpen.set(false);
+    this.rosterPickerCandidates.set([]);
+    this.selectedUserIds.set(new Set());
+    this.rosterAssignError.set(null);
+  }
+
+  toggleUserSelection(userId: string): void {
+    const next = new Set(this.selectedUserIds());
+    if (next.has(userId)) next.delete(userId); else next.add(userId);
+    this.selectedUserIds.set(next);
+  }
+
+  confirmAssignRoster(): void {
+    const store = this.detailStore();
+    const ids = this.selectedUserIds();
+    if (!store || ids.size === 0 || this.assigningRoster()) return;
+
+    const users = this.rosterPickerCandidates().filter((u) => ids.has(u.userId));
+    this.assigningRoster.set(true);
+    this.rosterAssignError.set(null);
+
+    forkJoin(
+      users.map((u) =>
+        this.org.updateUser(u.userId, { displayName: u.displayName, role: u.role, storeId: store.id, regionIds: u.regionIds })
+      )
+    ).subscribe({
+      next: () => {
+        this.assigningRoster.set(false);
+        this.closeRosterPicker();
+        this.openDetail(store);
+      },
+      error: () => {
+        this.assigningRoster.set(false);
+        this.rosterAssignError.set('Failed to assign one or more staff. Please try again.');
+      },
+    });
   }
 }

@@ -2,6 +2,7 @@ import { SlicePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { AuthService } from '@org/data-access-auth';
 import { OrgService, type Region, type Store } from '@org/data-access-org';
 import { noWhitespace } from '@org/ui-core';
@@ -33,6 +34,28 @@ export class RegionsComponent implements OnInit {
   readonly detailRegion = signal<Region | null>(null);
   readonly regionStores = signal<Store[]>([]);
   readonly regionStoresLoading = signal(false);
+
+  // "Add Stores" picker — a bottom sheet listing every store the caller can already manage
+  // (super_admin: all stores; region-scoped admin: stores in its other assigned regions)
+  // that isn't already in the region being viewed. Selecting stores reassigns their region.
+  readonly storePickerOpen = signal(false);
+  readonly storePickerLoading = signal(false);
+  readonly storePickerCandidates = signal<Store[]>([]);
+  readonly selectedStoreIds = signal<ReadonlySet<string>>(new Set());
+  readonly assigningStores = signal(false);
+  readonly assignError = signal<string | null>(null);
+
+  readonly storePickerGroups = computed(() => {
+    const grouped = new Map<string, Store[]>();
+    for (const s of this.storePickerCandidates()) {
+      const list = grouped.get(s.regionName) ?? [];
+      list.push(s);
+      grouped.set(s.regionName, list);
+    }
+    return [...grouped.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([regionName, stores]) => ({ regionName, stores }));
+  });
 
   readonly form = this.fb.group({
     name: ['', [Validators.required, noWhitespace]],
@@ -114,5 +137,62 @@ export class RegionsComponent implements OnInit {
   viewStore(store: Store): void {
     this.closeDetail();
     this.router.navigate(['/admin/stores'], { queryParams: { detail: store.id } });
+  }
+
+  openStorePicker(): void {
+    const region = this.detailRegion();
+    if (!region) return;
+    this.storePickerOpen.set(true);
+    this.storePickerLoading.set(true);
+    this.selectedStoreIds.set(new Set());
+    this.assignError.set(null);
+    // getStores() already returns only stores the caller can manage (region-scoped for admin,
+    // all of them for super_admin) — just drop the ones already in this region.
+    this.org.getStores(undefined, true).subscribe({
+      next: (stores) => {
+        this.storePickerCandidates.set(stores.filter((s) => s.regionId !== region.id));
+        this.storePickerLoading.set(false);
+      },
+      error: () => { this.storePickerLoading.set(false); },
+    });
+  }
+
+  closeStorePicker(): void {
+    this.storePickerOpen.set(false);
+    this.storePickerCandidates.set([]);
+    this.selectedStoreIds.set(new Set());
+    this.assignError.set(null);
+  }
+
+  toggleStoreSelection(storeId: string): void {
+    const next = new Set(this.selectedStoreIds());
+    if (next.has(storeId)) next.delete(storeId); else next.add(storeId);
+    this.selectedStoreIds.set(next);
+  }
+
+  confirmAssignStores(): void {
+    const region = this.detailRegion();
+    const ids = this.selectedStoreIds();
+    if (!region || ids.size === 0 || this.assigningStores()) return;
+
+    const stores = this.storePickerCandidates().filter((s) => ids.has(s.id));
+    this.assigningStores.set(true);
+    this.assignError.set(null);
+
+    forkJoin(
+      stores.map((s) =>
+        this.org.updateStore(s.id, { name: s.name, address: s.address ?? undefined, regionId: region.id })
+      )
+    ).subscribe({
+      next: () => {
+        this.assigningStores.set(false);
+        this.closeStorePicker();
+        this.openDetail(region);
+      },
+      error: () => {
+        this.assigningStores.set(false);
+        this.assignError.set('Failed to add one or more stores. Please try again.');
+      },
+    });
   }
 }
