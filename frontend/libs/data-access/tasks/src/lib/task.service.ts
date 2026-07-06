@@ -20,12 +20,19 @@ export class TaskService {
     return this.http.get<TaskDetailDto>(`${this.base}/tasks/${taskId}`);
   }
 
-  getTasks(storeId?: string, status?: TaskStatus, from?: string, to?: string): Observable<TaskInstanceDto[]> {
+  getTasks(
+    storeId?: string,
+    status?: TaskStatus,
+    from?: string,
+    to?: string,
+    statuses?: TaskStatus[]
+  ): Observable<TaskInstanceDto[]> {
     let params = new HttpParams();
     if (storeId) params = params.set('storeId', storeId);
     if (status) params = params.set('status', status);
     if (from) params = params.set('from', from);
     if (to) params = params.set('to', to);
+    if (statuses?.length) params = params.set('statuses', statuses.join(','));
     return this.http.get<TaskInstanceDto[]>(`${this.base}/tasks`, { params });
   }
 

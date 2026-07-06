@@ -1,0 +1,131 @@
+<div class="page task-detail">
+
+  <!-- Cancel modal -->
+  @if (activeModal() === 'cancel') {
+    <div class="overlay" role="presentation" (click)="activeModal.set(null)"></div>
+    <div class="modal">
+      <h3 class="modal__title">Cancel Task</h3>
+      <p class="modal__hint">Provide a reason for cancellation:</p>
+      <textarea class="input-field" rows="3" placeholder="Reason..."
+        [value]="cancelReason()"
+        (input)="cancelReason.set($any($event.target).value)"></textarea>
+      <div class="modal__actions">
+        <button class="btn btn-danger" [disabled]="!cancelReason().trim() || actionBusy()" (click)="submitCancel()">
+          {{ actionBusy() ? 'Cancelling…' : 'Cancel Task' }}
+        </button>
+        <button class="btn btn-ghost" (click)="activeModal.set(null)">Dismiss</button>
+      </div>
+    </div>
+  }
+
+  <!-- Defer modal -->
+  @if (activeModal() === 'defer') {
+    <div class="overlay" role="presentation" (click)="activeModal.set(null)"></div>
+    <div class="modal">
+      <h3 class="modal__title">Defer Task</h3>
+      <p class="modal__hint">Defer to a future date:</p>
+      <input class="input-field" type="date" [min]="minDeferDate()"
+        [value]="deferDate()"
+        (input)="deferDate.set($any($event.target).value)" />
+      <textarea class="input-field" rows="2" placeholder="Reason..."
+        [value]="deferReason()"
+        (input)="deferReason.set($any($event.target).value)"></textarea>
+      <div class="modal__actions">
+        <button class="btn btn-amber" [disabled]="!deferReason().trim() || !deferDate() || actionBusy()" (click)="submitDefer()">
+          {{ actionBusy() ? 'Deferring…' : 'Defer Task' }}
+        </button>
+        <button class="btn btn-ghost" (click)="activeModal.set(null)">Dismiss</button>
+      </div>
+    </div>
+  }
+
+  <button class="btn-back" (click)="goBack()">&#8592; Back to tasks</button>
+
+  @if (loading()) {
+    <div class="state-loading">Loading task…</div>
+  }
+  @if (error(); as err) {
+    <div class="state-error">{{ err }}</div>
+  }
+
+  @if (task(); as t) {
+    <div class="page__header">
+      <div>
+        <p class="page__eyebrow">{{ t.storeName }} · {{ t.checklistName }}</p>
+        <h1 class="page__title">{{ t.recurringAssignmentName ?? 'Ad Hoc Task' }}</h1>
+      </div>
+      <span class="pill {{ statusPillClass(t.status) }}">{{ t.status }}</span>
+    </div>
+
+    <div class="card detail-meta">
+      <div class="meta-row"><span class="meta-row__label">Due</span><span>{{ t.dueAt | date:'medium' }}</span></div>
+      <div class="meta-row"><span class="meta-row__label">Assigned to</span><span>{{ assigneeName(t.assignedToUserId) }}</span></div>
+      <div class="meta-row"><span class="meta-row__label">Type</span><span>{{ t.isAdHoc ? 'Ad hoc' : 'Recurring' }}</span></div>
+      @if (t.checklistDescription) {
+        <div class="meta-row"><span class="meta-row__label">Description</span><span>{{ t.checklistDescription }}</span></div>
+      }
+      @if (t.notes) {
+        <div class="meta-row"><span class="meta-row__label">Notes</span><span>{{ t.notes }}</span></div>
+      }
+    </div>
+
+    <!-- Checklist structure (read-only) -->
+    <div class="card checklist-view">
+      <p class="card-eyebrow">Checklist</p>
+      @for (group of parsedTemplates(); track group.template.templateId) {
+        <div class="template-block">
+          <div class="template-block__header">
+            <span class="template-block__order">{{ group.template.order }}</span>
+            <span class="template-block__name">{{ group.template.templateName }}</span>
+          </div>
+          @for (field of group.fields; track field.id) {
+            <div class="field-row">
+              <span class="field-row__label">
+                {{ field.label }}
+                @if (field.required) { <span class="field-row__required">*</span> }
+              </span>
+              <span class="field-row__type">{{ field.type }}</span>
+            </div>
+            @if (field.type === 'Checklist' && field.subItems) {
+              <ul class="sub-items">
+                @for (sub of field.subItems; track sub.id) {
+                  <li>{{ sub.label }}</li>
+                }
+              </ul>
+            }
+          }
+        </div>
+      } @empty {
+        <p class="text-muted">This checklist has no fields configured.</p>
+      }
+    </div>
+
+    <!-- Oversight actions -->
+    <div class="card action-card">
+      <p class="card-eyebrow">Actions</p>
+      <div class="action-row">
+        @if (canAssign()) {
+          <div class="assign-row">
+            <select class="input-field assign-row__select"
+              [value]="assigningTo()"
+              (change)="assigningTo.set($any($event.target).value)">
+              <option value="">— Unassigned —</option>
+              @for (e of employees(); track e.userId) {
+                <option [value]="e.userId">{{ e.displayName }}</option>
+              }
+            </select>
+            <button class="btn btn-ink" [disabled]="assigning()" (click)="assign()">
+              {{ assigning() ? 'Assigning…' : 'Assign' }}
+            </button>
+          </div>
+        }
+        @if (canDefer()) {
+          <button class="btn btn-ghost" (click)="openModal('defer')">Defer</button>
+        }
+        @if (canCancel()) {
+          <button class="btn btn-danger" (click)="openModal('cancel')">Cancel Task</button>
+        }
+      </div>
+    </div>
+  }
+</div>

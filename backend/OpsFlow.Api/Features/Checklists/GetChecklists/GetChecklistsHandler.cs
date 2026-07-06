@@ -21,7 +21,7 @@ internal sealed class GetChecklistsHandler(
             .Include(c => c.Region)
             .Include(c => c.Store)
             .Include(c => c.Items).ThenInclude(i => i.Template)
-            .WhereScopedVisible(spec, c => c.Scope, c => c.RegionId, c => c.StoreId);
+            .WhereScopedVisible(spec, c => c.Scope, c => c.RegionId, c => c.StoreId, c => c.Store!.RegionId);
 
         if (query.Scope != null) q = q.Where(c => c.Scope == query.Scope);
         if (query.IsActive.HasValue) q = q.Where(c => c.IsActive == query.IsActive.Value);

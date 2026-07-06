@@ -18,12 +18,17 @@ const DEMO: SystemDashboardDto = {
   totalOverdueCount: 7,
   storesWithMissedDeposits: [],
   regionalSummary: [
-    { regionId: 'r1', regionName: 'London Central', storeCount: 4, averageCompletionRate: 0.91, criticalAlertCount: 0 },
-    { regionId: 'r2', regionName: 'South London',   storeCount: 3, averageCompletionRate: 0.83, criticalAlertCount: 1 },
-    { regionId: 'r3', regionName: 'East London',    storeCount: 3, averageCompletionRate: 0.76, criticalAlertCount: 2 },
-    { regionId: 'r4', regionName: 'North London',   storeCount: 4, averageCompletionRate: 0.68, criticalAlertCount: 3 },
+    { regionId: 'r1', regionName: 'London Central', storeCount: 4, averageCompletionRate: 0.91, criticalAlertCount: 0, stores: [] },
+    { regionId: 'r2', regionName: 'South London',   storeCount: 3, averageCompletionRate: 0.83, criticalAlertCount: 1, stores: [] },
+    { regionId: 'r3', regionName: 'East London',    storeCount: 3, averageCompletionRate: 0.76, criticalAlertCount: 2, stores: [] },
+    { regionId: 'r4', regionName: 'North London',   storeCount: 4, averageCompletionRate: 0.68, criticalAlertCount: 3, stores: [] },
   ],
 };
+
+// Below this fraction of the day elapsed, a low completion rate just means "not due yet" —
+// judging it green/amber/red this early would read as a false alarm. Local time is used
+// since due times are set by store staff working in their own timezone.
+const DAY_MOSTLY_OVER_HOUR = 18;
 
 @Component({
   selector: 'app-admin-overview',
@@ -60,7 +65,12 @@ export class AdminOverviewComponent implements OnInit, OnDestroy {
     return `${fill} ${CIRCUMFERENCE - fill}`;
   });
 
+  // Whether it's late enough in the day that a low completion rate reflects genuine
+  // under-performance rather than "the day isn't over yet."
+  readonly dayMostlyOver = computed(() => new Date().getHours() >= DAY_MOSTLY_OVER_HOUR);
+
   readonly arcColor = computed(() => {
+    if (!this.dayMostlyOver()) return 'var(--indigo)';
     const rate = this.data()?.systemCompletionRate ?? 0;
     if (rate >= 0.8) return 'var(--green)';
     if (rate >= 0.6) return 'var(--amber-deep)';
@@ -162,6 +172,7 @@ export class AdminOverviewComponent implements OnInit, OnDestroy {
         storeCount: stores.length,
         averageCompletionRate,
         criticalAlertCount,
+        stores: [...stores].sort((a, b) => b.compositeScore - a.compositeScore),
       };
     });
 
@@ -182,8 +193,16 @@ export class AdminOverviewComponent implements OnInit, OnDestroy {
   }
 
   scoreClass(rate: number): string {
+    if (!this.dayMostlyOver()) return 'score--neutral';
     if (rate >= 0.8) return 'score--green';
     if (rate >= 0.6) return 'score--amber';
     return 'score--red';
+  }
+
+  barClass(rate: number): string {
+    if (!this.dayMostlyOver()) return 'lb-bar--neutral';
+    if (rate >= 0.8) return 'lb-bar--green';
+    if (rate >= 0.6) return 'lb-bar--amber';
+    return 'lb-bar--red';
   }
 }

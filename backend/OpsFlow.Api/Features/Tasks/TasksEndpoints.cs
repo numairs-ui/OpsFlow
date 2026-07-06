@@ -19,8 +19,11 @@ internal static class TasksEndpoints
     {
         var group = app.MapGroup("/tasks").RequireAuthorization().WithTags("Tasks");
 
-        group.MapGet("/", async (IMediator m, Guid? storeId, string? status, DateTimeOffset? from, DateTimeOffset? to) =>
-            Results.Ok(await m.Send(new GetTasksQuery(storeId, status, from, to))));
+        group.MapGet("/", async (IMediator m, Guid? storeId, string? status, DateTimeOffset? from, DateTimeOffset? to, string? statuses) =>
+        {
+            var statusList = statuses?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return Results.Ok(await m.Send(new GetTasksQuery(storeId, status, from, to, statusList)));
+        });
 
         group.MapGet("/{id:guid}", async (Guid id, IMediator m) =>
             Results.Ok(await m.Send(new GetTaskQuery(id))));

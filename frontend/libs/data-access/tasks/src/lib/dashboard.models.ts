@@ -42,6 +42,7 @@ export interface RegionalSummaryDto {
   storeCount: number;
   averageCompletionRate: number;
   criticalAlertCount: number;
+  stores: StoreScoreDto[];
 }
 
 export interface SystemDashboardDto {

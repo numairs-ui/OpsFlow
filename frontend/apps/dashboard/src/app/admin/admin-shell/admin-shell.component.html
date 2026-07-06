@@ -14,6 +14,11 @@
         </a>
       </li>
       <li>
+        <a routerLink="tasks" routerLinkActive="active" class="sidebar__link">
+          <span class="sidebar__icon"></span> Tasks
+        </a>
+      </li>
+      <li>
         <a routerLink="submissions" routerLinkActive="active" class="sidebar__link">
           <span class="sidebar__icon"></span> Form Submissions
         </a>
@@ -100,4 +105,109 @@
   <main class="shell__content">
     <router-outlet />
   </main>
+
+  <!-- Mobile bottom tab bar — hidden at desktop widths, see admin-shell.component.scss -->
+  <nav class="tabbar">
+    <a routerLink="overview" routerLinkActive="active" class="tabbar__link">
+      <app-nav-icon name="overview" />
+      <span>Overview</span>
+    </a>
+    <a routerLink="stores" routerLinkActive="active" class="tabbar__link">
+      <app-nav-icon name="stores" />
+      <span>Stores</span>
+    </a>
+    <a routerLink="users" routerLinkActive="active" class="tabbar__link">
+      <app-nav-icon name="users" />
+      <span>Users</span>
+    </a>
+    <a routerLink="templates" routerLinkActive="active" class="tabbar__link">
+      <app-nav-icon name="templates" />
+      <span>Templates</span>
+    </a>
+    <button type="button" class="tabbar__link" [class.active]="moreOpen()" (click)="toggleMore()">
+      <app-nav-icon name="more" />
+      <span>More</span>
+    </button>
+  </nav>
+
+  <!-- More sheet: the rest of the sidebar nav, for screens too narrow for a full sidebar -->
+  @if (moreOpen()) {
+    <div class="more-sheet__scrim" (click)="closeMore()"></div>
+    <div class="more-sheet">
+      <div class="more-sheet__handle"></div>
+      <ul class="more-sheet__nav">
+        <li class="more-sheet__section-label">Overview</li>
+        <li>
+          <a routerLink="tasks" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
+            Tasks
+          </a>
+        </li>
+        <li>
+          <a routerLink="submissions" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
+            <app-nav-icon name="submissions" /> Form Submissions
+          </a>
+        </li>
+        <li class="more-sheet__section-label">Organisation</li>
+        @if (isSuperAdmin()) {
+          <li>
+            <a routerLink="regions" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
+              Regions
+            </a>
+          </li>
+        }
+        <li>
+          <a routerLink="roster" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
+            Store Roster
+          </a>
+        </li>
+        <li class="more-sheet__section-label">Templates</li>
+        @if (isSuperAdmin()) {
+          <li>
+            <a routerLink="system-templates" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
+              System Templates
+            </a>
+          </li>
+        }
+        <li>
+          <a routerLink="checklists" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
+            Checklists
+          </a>
+        </li>
+        <li>
+          <a routerLink="recurring-assignments" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
+            Recurring Assignments
+          </a>
+        </li>
+        <li>
+          <a routerLink="form-templates" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
+            Form Templates
+          </a>
+        </li>
+        @if (isSuperAdmin()) {
+          <li>
+            <a routerLink="template-import" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
+              Template Import
+            </a>
+          </li>
+        }
+        <li class="more-sheet__section-label">Configuration</li>
+        <li>
+          <a routerLink="store-settings" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
+            Store Settings
+          </a>
+        </li>
+        @if (isSuperAdmin()) {
+          <li>
+            <a routerLink="tenant-settings" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
+              Tenant Settings
+            </a>
+          </li>
+        }
+      </ul>
+      <div class="more-sheet__footer">
+        <span class="more-sheet__user-email">{{ roleLabel(user()?.role) }}</span>
+        <button class="more-sheet__logout" (click)="onLogout()">Sign out</button>
+      </div>
+    </div>
+  }
 </div>

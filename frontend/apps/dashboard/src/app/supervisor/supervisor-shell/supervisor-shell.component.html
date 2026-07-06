@@ -32,4 +32,16 @@
   <main class="shell__content">
     <router-outlet />
   </main>
+
+  <!-- Mobile bottom tab bar — hidden at desktop widths, see supervisor-shell.component.scss -->
+  <nav class="tabbar">
+    <a routerLink="overview" routerLinkActive="active" class="tabbar__link">
+      <app-nav-icon name="overview" />
+      <span>Dashboard</span>
+    </a>
+    <a routerLink="submissions" routerLinkActive="active" class="tabbar__link">
+      <app-nav-icon name="submissions" />
+      <span>Forms</span>
+    </a>
+  </nav>
 </div>

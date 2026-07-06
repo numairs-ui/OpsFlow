@@ -38,14 +38,19 @@ public static class ScopeQueryExtensions
 
     /// <summary>
     /// Scoped entities (templates, checklists, form templates): everyone sees System scope; a caller
-    /// also sees Regional resources in its region set and Store resources for its own store.
+    /// also sees Regional resources in its region set, and Store resources for its own store
+    /// (store-scoped roles) or for any store in its region set (admin/supervisor).
+    /// <paramref name="storeRegionIdSelector"/> resolves the *store's* region (e.g.
+    /// <c>c =&gt; c.Store!.RegionId</c>) so a region-scoped caller can see Store-scope resources
+    /// belonging to stores in their regions, not just their own single store.
     /// </summary>
     public static IQueryable<T> WhereScopedVisible<T>(
         this IQueryable<T> query,
         ScopeSpec spec,
         Expression<Func<T, string>> scopeSelector,
         Expression<Func<T, Guid?>> regionIdSelector,
-        Expression<Func<T, Guid?>> storeIdSelector)
+        Expression<Func<T, Guid?>> storeIdSelector,
+        Expression<Func<T, Guid?>>? storeRegionIdSelector = null)
     {
         if (spec.IsGlobal) return query;
 
@@ -75,6 +80,17 @@ public static class ScopeQueryExtensions
                 Expression.AndAlso(
                     Expression.Property(store, "HasValue"),
                     Expression.Equal(storeVal, Expression.Constant(storeId))));
+            predicate = Expression.OrElse(predicate, storeClause);
+        }
+        else if (spec.IsRegionScoped && spec.RegionIds.Count > 0 && storeRegionIdSelector is not null)
+        {
+            var storeRegion = Rebind(storeRegionIdSelector, p);
+            var storeRegionVal = Expression.Property(storeRegion, "Value");
+            var storeClause = Expression.AndAlso(
+                Expression.Equal(scope, Expression.Constant("Store")),
+                Expression.AndAlso(
+                    Expression.Property(storeRegion, "HasValue"),
+                    ContainsCall(spec.RegionIds, storeRegionVal)));
             predicate = Expression.OrElse(predicate, storeClause);
         }
 

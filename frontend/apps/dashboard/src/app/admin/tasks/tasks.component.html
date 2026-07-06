@@ -1,0 +1,67 @@
+<div class="page">
+  <div class="page__header">
+    <div>
+      <p class="page__eyebrow">Admin · Task List</p>
+      <h1 class="page__title">{{ title() }}</h1>
+      <p class="page__subtitle">{{ subtitle() }}</p>
+    </div>
+  </div>
+
+  <div class="filter-toggle">
+    <button
+      class="filter-toggle__btn"
+      [class.active]="filter() === 'open'"
+      (click)="setFilter('open')">
+      Open
+    </button>
+    <button
+      class="filter-toggle__btn"
+      [class.active]="filter() === 'overdue'"
+      (click)="setFilter('overdue')">
+      Overdue
+    </button>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert--error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Loading...</div>
+  } @else if (tasks().length === 0) {
+    <div class="empty-state">
+      <p>No {{ filter() }} tasks right now — nice work.</p>
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table class="table table--clickable">
+        <thead>
+          <tr>
+            <th>Store</th>
+            <th>Checklist</th>
+            <th>Due</th>
+            <th>Status</th>
+            <th>Assigned to</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (task of tasks(); track task.id) {
+            <tr [routerLink]="['/admin/tasks', task.id]">
+              <td class="td--name">
+                <a [routerLink]="['/admin/stores']" [queryParams]="{ detail: task.storeId }" (click)="$event.stopPropagation()">{{ task.storeName }}</a>
+              </td>
+              <td class="td--name">
+                <a [routerLink]="['/admin/tasks', task.id]" (click)="$event.stopPropagation()">{{ task.checklistName }}</a>
+              </td>
+              <td class="text-muted">{{ task.dueAt | date:'short' }}</td>
+              <td>
+                <span class="pill {{ statusPillClass(task.status) }}">{{ task.status }}</span>
+              </td>
+              <td class="text-muted">{{ assigneeName(task.assignedToUserId) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

@@ -45,28 +45,29 @@
           </svg>
         </div>
         <p class="gauge-caption">
-          <span [class]="pct() >= 80 ? 'cap--green' : pct() >= 60 ? 'cap--amber' : 'cap--red'">{{ storesOnTarget() }} of {{ totalStores() }} stores</span>&nbsp;above 80% target
+          <span [class]="dayMostlyOver() ? (pct() >= 80 ? 'cap--green' : pct() >= 60 ? 'cap--amber' : 'cap--red') : 'cap--neutral'">{{ storesOnTarget() }} of {{ totalStores() }} stores</span>&nbsp;above 80% target
         </p>
       </div>
 
       <!-- ── Open Tasks ──────────────────────────────────────────────────── -->
-      <div class="dash-card stat-card stat-open stat-card--link" [routerLink]="['/admin/stores']"
-           title="View stores to manage open tasks">
+      <div class="dash-card stat-card stat-open stat-card--link"
+           [routerLink]="['/admin/tasks']" [queryParams]="{ filter: 'open' }"
+           title="View open tasks">
         <p class="stat-eyebrow">Open Tasks</p>
         <div class="stat-val">{{ d.totalOpenCount }}</div>
         <p class="stat-sub">active across all stores</p>
-        <span class="stat-nav-hint">View stores &#8599;</span>
+        <span class="stat-nav-hint">View tasks &#8599;</span>
       </div>
 
       <!-- ── Overdue ─────────────────────────────────────────────────────── -->
       <div class="dash-card stat-card stat-overdue stat-card--link"
            [class.stat-card--warn]="d.totalOverdueCount > 0"
-           [routerLink]="['/admin/stores']"
-           title="View stores to review overdue tasks">
+           [routerLink]="['/admin/tasks']" [queryParams]="{ filter: 'overdue' }"
+           title="View overdue tasks">
         <p class="stat-eyebrow">Overdue</p>
         <div class="stat-val" [class.val--danger]="d.totalOverdueCount > 0">{{ d.totalOverdueCount }}</div>
         <p class="stat-sub">{{ d.totalOverdueCount === 1 ? 'task' : 'tasks' }} past deadline</p>
-        <span class="stat-nav-hint">View stores &#8599;</span>
+        <span class="stat-nav-hint">View tasks &#8599;</span>
       </div>
 
       <!-- ── Deposits ────────────────────────────────────────────────────── -->
@@ -153,10 +154,7 @@
               <span class="lb-rank">{{ (i + 1).toString().padStart(2, '0') }}</span>
               <span class="lb-name">{{ r.regionName }}</span>
               <div class="lb-track">
-                <div class="lb-bar"
-                  [class.lb-bar--green]="r.averageCompletionRate >= 0.8"
-                  [class.lb-bar--amber]="r.averageCompletionRate >= 0.6 && r.averageCompletionRate < 0.8"
-                  [class.lb-bar--red]="r.averageCompletionRate < 0.6"
+                <div class="lb-bar {{ barClass(r.averageCompletionRate) }}"
                   [style.width.%]="r.averageCompletionRate * 100">
                 </div>
               </div>
@@ -198,10 +196,7 @@
         <h3 class="detail-section__title">Completion Score</h3>
         <div class="region-score">
           <div class="region-score__track">
-            <div class="region-score__bar"
-              [class.lb-bar--green]="region.averageCompletionRate >= 0.8"
-              [class.lb-bar--amber]="region.averageCompletionRate >= 0.6 && region.averageCompletionRate < 0.8"
-              [class.lb-bar--red]="region.averageCompletionRate < 0.6"
+            <div class="region-score__bar {{ barClass(region.averageCompletionRate) }}"
               [style.width.%]="region.averageCompletionRate * 100">
             </div>
           </div>
@@ -210,6 +205,32 @@
           </span>
         </div>
         <p class="region-score__meta">{{ region.storeCount }} store{{ region.storeCount !== 1 ? 's' : '' }} in this region</p>
+      </div>
+
+      <!-- Store breakdown -->
+      <div class="detail-section">
+        <h3 class="detail-section__title">Stores</h3>
+        <div class="store-list">
+          @for (store of region.stores; track store.storeId) {
+            <a class="store-row" routerLink="/admin/stores" [queryParams]="{ detail: store.storeId }" (click)="closeRegionDetail()">
+              <span class="store-row__name">{{ store.name }}</span>
+              <span class="store-row__pct {{ scoreClass(store.completionRate) }}">{{ (store.completionRate * 100).toFixed(0) }}%</span>
+              <span class="store-row__counts">
+                @if (store.overdueCount > 0) {
+                  <span class="store-row__badge store-row__badge--overdue">{{ store.overdueCount }} overdue</span>
+                }
+                @if (store.openCount > 0) {
+                  <span class="store-row__badge">{{ store.openCount }} open</span>
+                }
+                @if (!store.depositLoggedToday) {
+                  <span class="store-row__badge store-row__badge--warn">No deposit</span>
+                }
+              </span>
+            </a>
+          } @empty {
+            <p class="text-muted">No store data available.</p>
+          }
+        </div>
       </div>
 
       <!-- Alerts -->

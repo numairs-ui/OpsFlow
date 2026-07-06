@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
 import { noWhitespace } from '@org/ui-core';
 import { OrgService, type Region, type Store } from '@org/data-access-org';
@@ -11,7 +12,7 @@ import {
 
 @Component({
   selector: 'app-checklists',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './checklists.component.html',
   styleUrl: './checklists.component.scss',
 })
