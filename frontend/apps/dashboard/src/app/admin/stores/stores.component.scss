@@ -13,10 +13,10 @@
   }
 }
 
-// ─── Assign Roster picker (bottom sheet) ──────────────────────────────────────
-@keyframes slide-up-in {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+// ─── Assign Roster picker (centered modal) ────────────────────────────────────
+@keyframes modal-pop-in {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 .store-picker__overlay {
@@ -25,36 +25,25 @@
 
 .store-picker {
   position: fixed;
+  top: 50%;
   left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   width: min(480px, 92vw);
   max-height: 70vh;
   display: flex;
   flex-direction: column;
   background: var(--paper);
   border: 1px solid var(--line);
-  border-bottom: none;
-  border-top-left-radius: var(--radius-lg);
-  border-top-right-radius: var(--radius-lg);
-  box-shadow: 0 -16px 48px -8px rgba(21, 19, 31, 0.22);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 64px -12px rgba(21, 19, 31, 0.28);
   z-index: 111;
-  animation: slide-up-in 0.28s var(--ease);
-
-  &__handle {
-    width: 36px;
-    height: 4px;
-    border-radius: 100px;
-    background: var(--line);
-    margin: 0.75rem auto 0.25rem;
-    flex-shrink: 0;
-  }
+  animation: modal-pop-in 0.2s var(--ease);
 
   &__header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.5rem 1.5rem 1rem;
+    padding: 1.25rem 1.5rem;
     border-bottom: 1px solid var(--line);
 
     h2 {
@@ -115,6 +104,5 @@
     gap: 0.5rem;
     padding: 1rem 1.5rem;
     border-top: 1px solid var(--line);
-    padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 }
