@@ -46,6 +46,8 @@
                     <button class="btn btn--sm btn--ghost" (click)="openEdit(store)">Edit</button>
                     @if (store.isActive) {
                       <button class="btn btn--sm btn--danger-ghost" (click)="deactivate(store)">Deactivate</button>
+                    } @else {
+                      <button class="btn btn--sm btn--success-ghost" (click)="reactivate(store)">Reactivate</button>
                     }
                   </td>
                 </tr>
@@ -123,7 +125,11 @@
     <div class="slide-over__footer">
       <button class="btn btn--ghost" (click)="openRosterPicker()">+ Assign Roster</button>
       <button class="btn btn--ghost" (click)="closeDetail()">Close</button>
-      <button class="btn btn--primary" (click)="editFromDetail()">Edit Store</button>
+      @if (detailStore()!.isActive) {
+        <button class="btn btn--primary" (click)="editFromDetail()">Edit Store</button>
+      } @else {
+        <button class="btn btn--success-ghost" (click)="reactivate(detailStore()!)">Reactivate</button>
+      }
     </div>
   </div>
 }

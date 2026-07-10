@@ -2,13 +2,13 @@ using MediatR;
 using OpsFlow.Api.Security;
 using OpsFlow.Infrastructure;
 
-namespace OpsFlow.Api.Features.Stores.DeactivateStore;
+namespace OpsFlow.Api.Features.Stores.ReactivateStore;
 
-internal sealed class DeactivateStoreHandler(
+internal sealed class ReactivateStoreHandler(
     TenantDbContextFactory factory,
-    IHttpContextAccessor httpContextAccessor) : IRequestHandler<DeactivateStoreCommand>
+    IHttpContextAccessor httpContextAccessor) : IRequestHandler<ReactivateStoreCommand>
 {
-    public async Task Handle(DeactivateStoreCommand cmd, CancellationToken ct)
+    public async Task Handle(ReactivateStoreCommand cmd, CancellationToken ct)
     {
         var spec = httpContextAccessor.HttpContext!.User.ToCaller().Scope();
 
@@ -18,7 +18,7 @@ internal sealed class DeactivateStoreHandler(
 
         spec.AssertCanManageStore(store.RegionId, store.Id);
 
-        store.IsActive = false;
+        store.IsActive = true;
         await db.SaveChangesAsync(ct);
     }
 }
