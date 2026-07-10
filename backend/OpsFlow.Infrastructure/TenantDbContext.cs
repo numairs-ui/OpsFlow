@@ -16,11 +16,13 @@ public sealed class TenantDbContext(DbContextOptions<TenantDbContext> options) :
     public DbSet<Checklist> Checklists { get; set; } = default!;
     public DbSet<ChecklistTemplateItem> ChecklistTemplateItems { get; set; } = default!;
     public DbSet<RecurringAssignment> RecurringAssignments { get; set; } = default!;
+    public DbSet<RecurringAssignmentStore> RecurringAssignmentStores { get; set; } = default!;
     public DbSet<TaskInstance> TaskInstances { get; set; } = default!;
     public DbSet<TaskCompletion> TaskCompletions { get; set; } = default!;
     public DbSet<InventorySnapshot> InventorySnapshots { get; set; } = default!;
     public DbSet<StoreSettings> StoreSettings { get; set; } = default!;
     public DbSet<DepositLog> DepositLogs { get; set; } = default!;
+    public DbSet<MissedDepositFlag> MissedDepositFlags { get; set; } = default!;
     public DbSet<FormTemplate> FormTemplates { get; set; } = default!;
     public DbSet<FormSubmission> FormSubmissions { get; set; } = default!;
     public DbSet<FormSubmissionApprovalStep> FormSubmissionApprovalSteps { get; set; } = default!;
@@ -98,7 +100,19 @@ public sealed class TenantDbContext(DbContextOptions<TenantDbContext> options) :
         {
             e.HasKey(r => r.Id);
             e.HasOne(r => r.Checklist).WithMany().HasForeignKey(r => r.ChecklistId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(r => r.Store).WithMany().HasForeignKey(r => r.StoreId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<RecurringAssignmentStore>(e =>
+        {
+            e.HasKey(a => new { a.RecurringAssignmentId, a.StoreId });
+            e.HasOne(a => a.RecurringAssignment)
+             .WithMany(r => r.TargetStores)
+             .HasForeignKey(a => a.RecurringAssignmentId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(a => a.Store)
+             .WithMany()
+             .HasForeignKey(a => a.StoreId)
+             .OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<TaskInstance>(e =>
@@ -139,6 +153,13 @@ public sealed class TenantDbContext(DbContextOptions<TenantDbContext> options) :
             e.HasIndex(d => new { d.StoreId, d.SubmittedAt });
             e.HasOne(d => d.Store).WithMany().HasForeignKey(d => d.StoreId).OnDelete(DeleteBehavior.Restrict);
             e.Property(d => d.Amount).HasPrecision(18, 2);
+        });
+
+        builder.Entity<MissedDepositFlag>(e =>
+        {
+            e.HasKey(f => f.Id);
+            e.HasIndex(f => new { f.StoreId, f.BusinessDate }).IsUnique(); // one flag per store per business day
+            e.HasOne(f => f.Store).WithMany().HasForeignKey(f => f.StoreId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<FormTemplate>(e =>

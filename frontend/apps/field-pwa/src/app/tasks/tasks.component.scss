@@ -152,6 +152,48 @@
   letter-spacing: 0.1em;
 }
 
+// ─── Dashboard sections (My Tasks / Open Store Tasks) ────────────────────────
+.board-section {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 0.875rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.section-title {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  font-weight: 380;
+  color: var(--ink);
+  letter-spacing: -0.015em;
+  font-variation-settings: 'opsz' 36, 'SOFT' 30;
+}
+
+.section-count {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  background: var(--wash, rgba(0,0,0,0.04));
+  border-radius: 100px;
+  padding: 0.1rem 0.55rem;
+}
+
+.state-empty--inline {
+  list-style: none;
+  padding: 1rem 1.25rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 // ─── Task rows ───────────────────────────────────────────────────────────────
 .task-list {
   list-style: none;

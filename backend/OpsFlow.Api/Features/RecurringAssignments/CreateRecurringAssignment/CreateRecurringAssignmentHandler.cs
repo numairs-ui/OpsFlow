@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using OpsFlow.Api.Security;
 using OpsFlow.Domain.Authorization;
 using OpsFlow.Domain.Entities;
@@ -15,14 +16,21 @@ internal sealed class CreateRecurringAssignmentHandler(
         var user = httpContextAccessor.HttpContext!.User;
         var tenantId = user.GetTenantId();
         var userId = user.GetUserId();
+        var scope = user.ToCaller().Scope();
 
         await using var db = await factory.CreateAsync(ct);
 
-        var store = await db.Stores.FindAsync([cmd.StoreId], ct)
-            ?? throw new KeyNotFoundException($"Store {cmd.StoreId} not found.");
+        var targetIds = cmd.TargetStoreIds.Distinct().ToList();
+        var stores = await db.Stores.Where(s => targetIds.Contains(s.Id)).ToListAsync(ct);
 
-        // Manager (own store), region role (in-region), or super_admin may create assignments.
-        user.ToCaller().Scope().AssertCanManageStore(store.RegionId, store.Id);
+        // Every target must exist and be manageable by the caller — all-or-nothing, so a broadcast
+        // never lands partially on stores the caller doesn't own.
+        foreach (var storeId in targetIds)
+        {
+            var store = stores.FirstOrDefault(s => s.Id == storeId)
+                ?? throw new KeyNotFoundException($"Store {storeId} not found.");
+            scope.AssertCanManageStore(store.RegionId, store.Id);
+        }
 
         var checklist = await db.Checklists.FindAsync([cmd.ChecklistId], ct)
             ?? throw new KeyNotFoundException($"Checklist {cmd.ChecklistId} not found.");
@@ -34,12 +42,15 @@ internal sealed class CreateRecurringAssignmentHandler(
             TenantId = tenantId,
             Name = cmd.Name,
             ChecklistId = cmd.ChecklistId,
-            StoreId = cmd.StoreId,
             CronExpression = cmd.CronExpression,
             StartsAt = cmd.StartsAt,
             EndsAt = cmd.EndsAt,
             CreatedByUserId = userId,
+            // Validator guarantees this is null when targeting more than one store.
             AssignedToUserId = cmd.AssignedToUserId,
+            TargetStores = targetIds
+                .Select(id => new RecurringAssignmentStore { StoreId = id })
+                .ToList(),
         };
 
         db.RecurringAssignments.Add(assignment);

@@ -6,7 +6,6 @@ public sealed class RecurringAssignment
     public string TenantId { get; init; } = default!;
     public string Name { get; set; } = default!;
     public Guid ChecklistId { get; set; }
-    public Guid StoreId { get; set; }
 
     // Quartz 6-field cron expression (e.g. "0 0 9 ? * MON")
     public string CronExpression { get; set; } = default!;
@@ -18,6 +17,7 @@ public sealed class RecurringAssignment
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
 
     public Checklist? Checklist { get; init; }
-    public Store? Store { get; init; }
+    /// <summary>The stores this assignment broadcasts to (many-to-many via the join entity).</summary>
+    public ICollection<RecurringAssignmentStore> TargetStores { get; init; } = [];
     public ICollection<TaskInstance> TaskInstances { get; init; } = [];
 }

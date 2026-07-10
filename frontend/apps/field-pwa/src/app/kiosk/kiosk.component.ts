@@ -45,15 +45,35 @@ export class KioskComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.filteredGroups().reduce((sum, g) => sum + g.tasks.filter(t => t.status === 'Pending' || t.status === 'Overdue').length, 0)
   );
 
+  // Shift progress for the shared station — "X of Y done today", computed from the same
+  // (financial-filtered) groups the board already shows. No extra API call.
+  readonly shiftDoneCount = computed(() =>
+    this.filteredGroups().reduce((sum, g) => sum + g.completedCount, 0)
+  );
+  readonly shiftTotalCount = computed(() =>
+    this.filteredGroups().reduce((sum, g) => sum + g.totalCount, 0)
+  );
+  readonly shiftProgressPct = computed(() => {
+    const total = this.shiftTotalCount();
+    return total > 0 ? Math.round((this.shiftDoneCount() / total) * 100) : 0;
+  });
+
   private pollTimer?: ReturnType<typeof setInterval>;
+  private refreshTimer?: ReturnType<typeof setInterval>;
+
+  private readonly REFRESH_INTERVAL_MS = 13 * 60 * 1000; // refresh 2 min before token expires
 
   ngOnInit(): void {
     this.load();
     this.pollTimer = setInterval(() => this.load(), POLL_INTERVAL_MS);
+    this.refreshTimer = setInterval(() => this.auth.refresh().then(ok => {
+      if (!ok) this.router.navigate(['/login']);
+    }), this.REFRESH_INTERVAL_MS);
   }
 
   ngOnDestroy(): void {
     clearInterval(this.pollTimer);
+    clearInterval(this.refreshTimer);
   }
 
   ngAfterViewChecked(): void {

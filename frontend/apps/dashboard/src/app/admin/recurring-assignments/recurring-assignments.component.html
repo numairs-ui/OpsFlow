@@ -19,7 +19,7 @@
           <tr>
             <th>Name</th>
             <th>Checklist</th>
-            <th>Store</th>
+            <th>Stores</th>
             <th>Schedule</th>
             <th>Starts</th>
             <th>Ends</th>
@@ -34,7 +34,13 @@
             <tr [class.row--paused]="a.isPaused">
               <td class="cell-name">{{ a.name }}</td>
               <td>{{ a.checklistName }}</td>
-              <td>{{ a.storeName }}</td>
+              <td>
+                @if (a.targetStores.length === 1) {
+                  {{ a.targetStores[0].storeName }}
+                } @else {
+                  <span title="{{ storeNames(a) }}">{{ a.targetStores.length }} stores</span>
+                }
+              </td>
               <td><code class="cron-badge">{{ a.cronExpression }}</code></td>
               <td>{{ a.startsAt | date:'mediumDate' }}</td>
               <td>{{ a.endsAt ? (a.endsAt | date:'mediumDate') : '—' }}</td>
@@ -84,24 +90,32 @@
       </div>
 
       <div class="field">
-        <label class="label" for="storeId">Store</label>
-        <select id="storeId" class="input" formControlName="storeId" (change)="onStoreChange($any($event.target).value)">
-          <option value="">— select store —</option>
+        <label class="label" for="storeIds">Stores</label>
+        <select id="storeIds" class="input input--multi" multiple formControlName="storeIds"
+                [size]="stores().length > 8 ? 8 : (stores().length || 2)">
           @for (s of stores(); track s.id) {
             <option [value]="s.id">{{ s.name }}</option>
           }
         </select>
+        <p class="field__hint">Broadcast to one or more stores. Hold Ctrl/⌘ to select several.</p>
       </div>
 
-      <div class="field">
-        <label class="label" for="assignedToUserId">Default Assignee (optional)</label>
-        <select id="assignedToUserId" class="input" formControlName="assignedToUserId">
-          <option value="">— unassigned —</option>
-          @for (e of employees(); track e.userId) {
-            <option [value]="e.userId">{{ e.displayName }} ({{ e.role }})</option>
-          }
-        </select>
-      </div>
+      @if (singleStore()) {
+        <div class="field">
+          <label class="label" for="assignedToUserId">Default Assignee (optional)</label>
+          <select id="assignedToUserId" class="input" formControlName="assignedToUserId">
+            <option value="">— unassigned —</option>
+            @for (e of employees(); track e.userId) {
+              <option [value]="e.userId">{{ e.displayName }} ({{ e.role }})</option>
+            }
+          </select>
+        </div>
+      } @else if (selectedStoreIds().length > 1) {
+        <p class="field__hint field__hint--muted">
+          A specific assignee isn't available when broadcasting to multiple stores — each store's task
+          lands unassigned on its board.
+        </p>
+      }
 
       <div class="field">
         <span class="label">Schedule</span>

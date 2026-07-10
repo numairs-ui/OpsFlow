@@ -62,6 +62,15 @@
   }
 
   @if (board(); as b) {
+    <!-- Shift progress strip: X of Y tasks done today (station-wide, client-computed) -->
+    <div class="shift-progress">
+      <span class="shift-progress__label">Shift Progress</span>
+      <div class="progress-bar progress-bar--shift">
+        <div class="progress-bar__fill" [style.width.%]="shiftProgressPct()"></div>
+      </div>
+      <span class="shift-progress__count">{{ shiftDoneCount() }} of {{ shiftTotalCount() }} done today · {{ shiftProgressPct() }}%</span>
+    </div>
+
     <div class="kiosk-summary">
       <span class="summary-available">{{ pendingCount() }} tasks available</span>
       <span class="summary-completed">{{ b.completedCount }} completed today</span>

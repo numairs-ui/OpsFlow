@@ -42,6 +42,12 @@ export class UsersComponent implements OnInit {
   // Inline two-step deactivate confirmation (no browser confirm())
   readonly confirmingUserId = signal<string | null>(null);
 
+  // Reset-password flow: inline confirm, then a one-time modal showing the temp password.
+  readonly confirmingResetUserId = signal<string | null>(null);
+  readonly resettingUserId = signal<string | null>(null);
+  readonly resetResult = signal<{ user: User; tempPassword: string } | null>(null);
+  readonly copied = signal(false);
+
   readonly roleFilter = signal<string>('');
   readonly searchQuery = signal<string>('');
 
@@ -226,6 +232,44 @@ export class UsersComponent implements OnInit {
       },
       error: () => this.error.set(`Failed to reactivate "${user.displayName}". Please try again.`),
     });
+  }
+
+  // ── Reset password (admin-triggered, one-time temp password) ────────────────
+
+  beginResetPassword(userId: string): void {
+    this.confirmingResetUserId.set(userId);
+  }
+
+  cancelResetPassword(): void {
+    this.confirmingResetUserId.set(null);
+  }
+
+  executeResetPassword(user: User): void {
+    this.confirmingResetUserId.set(null);
+    this.error.set(null);
+    this.resettingUserId.set(user.userId);
+    this.org.resetPassword(user.userId).subscribe({
+      next: (res) => {
+        this.resettingUserId.set(null);
+        this.copied.set(false);
+        this.resetResult.set({ user, tempPassword: res.tempPassword });
+      },
+      error: () => {
+        this.resettingUserId.set(null);
+        this.error.set(`Failed to reset password for "${user.displayName}". Please try again.`);
+      },
+    });
+  }
+
+  copyTempPassword(): void {
+    const result = this.resetResult();
+    if (!result) return;
+    navigator.clipboard?.writeText(result.tempPassword).then(() => this.copied.set(true));
+  }
+
+  closeResetResult(): void {
+    this.resetResult.set(null);
+    this.copied.set(false);
   }
 
   // ── Detail panel ────────────────────────────────────────────────────────────

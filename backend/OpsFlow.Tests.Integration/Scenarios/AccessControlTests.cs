@@ -143,6 +143,87 @@ public sealed class AccessControlTests : IClassFixture<TenantAwareWebApplication
     }
 
     // ────────────────────────────────────────────────────────────────
+    // Scenario 6b: A region-scoped admin can call /dashboard/system and gets
+    // the rollup narrowed to its own regions (B6 admin fix).
+    // ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetSystemDashboard_AsRegionScopedAdmin_Returns200_OnlyOwnRegions()
+    {
+        await _factory.SeedCommonDataAsync();
+
+        // Seed a foreign region + store the admin is NOT assigned to.
+        var db = await _factory.GetTenantDbAsync();
+        var foreignRegionId = Guid.NewGuid();
+        var foreignStoreId = Guid.NewGuid();
+        db.Regions.Add(new Region { Id = foreignRegionId, TenantId = TenantAwareWebApplicationFactory.TenantId, Name = "Foreign Region" });
+        db.Stores.Add(new Store { Id = foreignStoreId, TenantId = TenantAwareWebApplicationFactory.TenantId, RegionId = foreignRegionId, Name = "Foreign Store" });
+        await db.SaveChangesAsync();
+
+        UseToken(_factory.MintMultiRegionToken(
+            TenantAwareWebApplicationFactory.AdminUserId, "admin", null,
+            TenantAwareWebApplicationFactory.RegionId.ToString()));
+
+        var response = await _client.GetAsync("/dashboard/system");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var dto = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var regionIds = dto.GetProperty("regionalSummary").EnumerateArray()
+            .Select(r => r.GetProperty("regionId").GetString()).ToList();
+        regionIds.Should().Contain(TenantAwareWebApplicationFactory.RegionId.ToString());
+        regionIds.Should().NotContain(foreignRegionId.ToString(),
+            because: "a region-scoped admin must only see the rollup for its own regions");
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // Scenario 6b-ii: A persisted missed-deposit flag surfaces on the system
+    // dashboard's StoresWithMissedDeposits (B3 — the "dashboard flag" delivery).
+    // ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task SystemDashboard_SurfacesMissedDepositFlag_ForToday()
+    {
+        await _factory.SeedCommonDataAsync();
+
+        var db = await _factory.GetTenantDbAsync();
+        db.MissedDepositFlags.Add(new MissedDepositFlag
+        {
+            TenantId = TenantAwareWebApplicationFactory.TenantId,
+            StoreId = TenantAwareWebApplicationFactory.StoreId,
+            BusinessDate = DateOnly.FromDateTime(DateTime.UtcNow.Date),
+            FlaggedAt = DateTimeOffset.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin"));
+
+        var response = await _client.GetAsync("/dashboard/system");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var dto = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var missedStoreIds = dto.GetProperty("storesWithMissedDeposits").EnumerateArray()
+            .Select(m => m.GetProperty("storeId").GetString()).ToList();
+        missedStoreIds.Should().Contain(TenantAwareWebApplicationFactory.StoreId.ToString());
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // Scenario 6c: A store-scoped role has no network view — /dashboard/system denied.
+    // (This app maps scope denials to 401, per the global exception handler.)
+    // ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetSystemDashboard_AsStoreEmployee_Denied()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseToken(_factory.MintToken(
+            TenantAwareWebApplicationFactory.EmployeeUserId, "store_employee",
+            storeId: TenantAwareWebApplicationFactory.StoreId.ToString()));
+
+        var response = await _client.GetAsync("/dashboard/system");
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    // ────────────────────────────────────────────────────────────────
     // Scenario 7: Checklist with empty name is rejected with 400
     // ────────────────────────────────────────────────────────────────
 
@@ -807,6 +888,59 @@ public sealed class AccessControlTests : IClassFixture<TenantAwareWebApplication
         users!.Select(u => u.UserId).Should().Contain(TenantAwareWebApplicationFactory.EmployeeUserId);
         users.Select(u => u.StoreId).Should().OnlyContain(s => s == TenantAwareWebApplicationFactory.StoreId,
             because: "a store-scoped caller must only see its own store's roster");
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // Scenario 16: DeactivateStore/ReactivateStore are bounded by the caller's manageable
+    // region set. DeactivateStoreHandler previously had zero scope check; ReactivateStore
+    // is a new endpoint added alongside it (mirrors the Users deactivate/reactivate pattern).
+    // ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task DeactivateStore_AsRegionScopedAdmin_ForOutOfRegionStore_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (_, foreignStoreId) = await SeedForeignStoreAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.PostAsync($"/stores/{foreignStoreId}/deactivate", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized,
+            because: "a region-scoped admin must not be able to deactivate a store outside its assigned regions");
+    }
+
+    [Fact]
+    public async Task ReactivateStore_AsRegionScopedAdmin_ForOutOfRegionStore_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (_, foreignStoreId) = await SeedForeignStoreAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.PostAsync($"/stores/{foreignStoreId}/reactivate", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized,
+            because: "a region-scoped admin must not be able to reactivate a store outside its assigned regions");
+    }
+
+    [Fact]
+    public async Task DeactivateThenReactivateStore_AsRegionScopedAdmin_ForInRegionStore_RoundTrips()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseRegionScopedAdmin();
+
+        var deactivateResponse = await _client.PostAsync(
+            $"/stores/{TenantAwareWebApplicationFactory.AltStoreId}/deactivate", null);
+        deactivateResponse.StatusCode.Should().Be(HttpStatusCode.NoContent,
+            because: "the admin manages this store's region");
+
+        var reactivateResponse = await _client.PostAsync(
+            $"/stores/{TenantAwareWebApplicationFactory.AltStoreId}/reactivate", null);
+        reactivateResponse.StatusCode.Should().Be(HttpStatusCode.NoContent,
+            because: "the admin manages this store's region");
+
+        var db = await _factory.GetTenantDbAsync();
+        var store = await db.Stores.FindAsync(TenantAwareWebApplicationFactory.AltStoreId);
+        store!.IsActive.Should().BeTrue(because: "the round trip should leave the store active again");
     }
 
     private sealed record RegionDto(Guid Id, string Name, string? Description, bool IsActive, DateTimeOffset CreatedAt);

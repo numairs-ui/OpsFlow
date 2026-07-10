@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
@@ -34,6 +34,24 @@ export class TasksComponent implements OnInit, OnDestroy {
   private refreshTimer?: ReturnType<typeof setInterval>;
 
   private readonly REFRESH_INTERVAL_MS = 13 * 60 * 1000; // refresh 2 min before token expires
+
+  // Flattened view of every task on today's board, used to derive the personal/open sections.
+  private readonly allTasks = computed<TaskBoardItemDto[]>(() =>
+    this.board()?.taskGroups.flatMap((g: TaskGroupDto) => g.tasks) ?? []
+  );
+
+  /** Tasks assigned to the signed-in employee (any status). */
+  readonly myTasks = computed<TaskBoardItemDto[]>(() => {
+    const uid = this.auth.currentUser()?.sub;
+    return uid ? this.allTasks().filter(t => t.assignedToUserId === uid) : [];
+  });
+
+  /** Unclaimed store tasks still needing action — the shared "grab one" pool. */
+  readonly openStoreTasks = computed<TaskBoardItemDto[]>(() =>
+    this.allTasks().filter(t =>
+      !t.assignedToUserId && (t.status === 'Pending' || t.status === 'InProgress' || t.status === 'Overdue')
+    )
+  );
 
   ngOnInit(): void {
     this.load();

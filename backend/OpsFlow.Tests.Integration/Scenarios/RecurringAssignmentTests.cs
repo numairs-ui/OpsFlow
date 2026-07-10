@@ -60,7 +60,7 @@ public sealed class RecurringAssignmentTests : IClassFixture<TenantAwareWebAppli
         {
             name = "Daily Opening Routine",
             checklistId,
-            storeId = TenantAwareWebApplicationFactory.StoreId,
+            targetStoreIds = new[] { TenantAwareWebApplicationFactory.StoreId },
             cronExpression = "0 0 8 ? * MON-FRI",
             startsAt = DateTimeOffset.UtcNow,
         });
@@ -106,7 +106,7 @@ public sealed class RecurringAssignmentTests : IClassFixture<TenantAwareWebAppli
         {
             name = "Nightly Close",
             checklistId,
-            storeId = TenantAwareWebApplicationFactory.StoreId,
+            targetStoreIds = new[] { TenantAwareWebApplicationFactory.StoreId },
             cronExpression = "0 0 22 ? * *",
             startsAt = DateTimeOffset.UtcNow,
         });
@@ -131,7 +131,7 @@ public sealed class RecurringAssignmentTests : IClassFixture<TenantAwareWebAppli
         {
             name = "Should Fail",
             checklistId,
-            storeId = TenantAwareWebApplicationFactory.AltStoreId, // wrong store
+            targetStoreIds = new[] { TenantAwareWebApplicationFactory.AltStoreId }, // wrong store
             cronExpression = "0 0 9 ? * *",
             startsAt = DateTimeOffset.UtcNow,
         });
@@ -157,13 +157,74 @@ public sealed class RecurringAssignmentTests : IClassFixture<TenantAwareWebAppli
         {
             name = "Weekly Audit",
             checklistId,
-            storeId = TenantAwareWebApplicationFactory.StoreId, // Store is in test region
+            targetStoreIds = new[] { TenantAwareWebApplicationFactory.StoreId }, // Store is in test region
             cronExpression = "0 0 10 ? * MON",
             startsAt = DateTimeOffset.UtcNow,
         });
 
         // StoreId's RegionId matches supervisor's regionId claim → should succeed
         response.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // Scenario 4b: Broadcast one assignment to multiple stores (B4)
+    // ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Admin_BroadcastsAssignment_ToMultipleStores_PersistsAllTargets()
+    {
+        var checklistId = await SeedChecklistAsync("Multi-Store Routine");
+        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin"));
+
+        var createResp = await _client.PostAsJsonAsync("/recurring-assignments", new
+        {
+            name = "Network-wide Opening",
+            checklistId,
+            targetStoreIds = new[]
+            {
+                TenantAwareWebApplicationFactory.StoreId,
+                TenantAwareWebApplicationFactory.AltStoreId,
+            },
+            cronExpression = "0 0 8 ? * *",
+            startsAt = DateTimeOffset.UtcNow,
+        });
+        createResp.StatusCode.Should().Be(HttpStatusCode.Created);
+        var id = (await createResp.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        var listResp = await _client.GetAsync("/recurring-assignments");
+        var list = await listResp.Content.ReadFromJsonAsync<JsonElement>();
+        var created = list.EnumerateArray().Single(a => a.GetProperty("id").GetGuid() == id);
+        var targetIds = created.GetProperty("targetStores").EnumerateArray()
+            .Select(t => t.GetProperty("storeId").GetString()).ToList();
+
+        targetIds.Should().BeEquivalentTo(new[]
+        {
+            TenantAwareWebApplicationFactory.StoreId.ToString(),
+            TenantAwareWebApplicationFactory.AltStoreId.ToString(),
+        });
+    }
+
+    [Fact]
+    public async Task Admin_BroadcastsToMultipleStores_WithSpecificAssignee_Returns400()
+    {
+        var checklistId = await SeedChecklistAsync("Multi-Store With Assignee");
+        UseToken(_factory.MintToken(TenantAwareWebApplicationFactory.AdminUserId, "super_admin"));
+
+        var response = await _client.PostAsJsonAsync("/recurring-assignments", new
+        {
+            name = "Invalid Broadcast",
+            checklistId,
+            targetStoreIds = new[]
+            {
+                TenantAwareWebApplicationFactory.StoreId,
+                TenantAwareWebApplicationFactory.AltStoreId,
+            },
+            cronExpression = "0 0 8 ? * *",
+            startsAt = DateTimeOffset.UtcNow,
+            assignedToUserId = TenantAwareWebApplicationFactory.EmployeeUserId,
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     // ────────────────────────────────────────────────────────────────
@@ -182,7 +243,7 @@ public sealed class RecurringAssignmentTests : IClassFixture<TenantAwareWebAppli
         {
             name = "Primary Store Assignment",
             checklistId,
-            storeId = TenantAwareWebApplicationFactory.StoreId,
+            targetStoreIds = new[] { TenantAwareWebApplicationFactory.StoreId },
             cronExpression = "0 0 7 ? * *",
             startsAt = DateTimeOffset.UtcNow,
         });

@@ -189,7 +189,27 @@
                 }
 
                 @if (field.type === 'Photo') {
-                  <div class="photo-placeholder">Photo upload coming soon</div>
+                  <div class="photo-field">
+                    @if (getFieldValue(group.template.templateId, field.id)) {
+                      <div class="photo-preview">
+                        <img [src]="getFieldValue(group.template.templateId, field.id)" alt="Uploaded photo" />
+                        <button type="button" class="btn btn--ghost btn--sm"
+                          (click)="clearPhoto(group.template.templateId, field.id)">Remove</button>
+                      </div>
+                    } @else {
+                      <label class="photo-capture" [class.photo-capture--busy]="isPhotoBusy(group.template.templateId, field.id)">
+                        <input type="file" accept="image/*" capture="environment"
+                          [disabled]="isPhotoBusy(group.template.templateId, field.id)"
+                          (change)="onPhotoSelected(group.template.templateId, field.id, $event)" />
+                        <span>
+                          {{ isPhotoBusy(group.template.templateId, field.id) ? 'Uploading…' : '📷 Take / choose photo' }}
+                        </span>
+                      </label>
+                    }
+                    @if (photoFieldError(group.template.templateId, field.id); as pErr) {
+                      <span class="field-error">{{ pErr }}</span>
+                    }
+                  </div>
                 }
               </div>
             }

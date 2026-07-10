@@ -68,6 +68,33 @@ public sealed class TaskLifecycleTests : IClassFixture<TenantAwareWebApplication
     }
 
     // ────────────────────────────────────────────────────────────────
+    // Scenario 0: Photo upload URL round trip (B5) — the employee working a
+    // task requests a signed upload URL for a Photo field and gets one back.
+    // ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task PhotoUploadUrl_ForAssignedEmployee_ReturnsUploadAndBlobUrls()
+    {
+        var checklistId = await SeedChecklistAsync("Photo Ops");
+        var taskId = await SeedTaskAsync(checklistId, status: "InProgress",
+            assignedTo: TenantAwareWebApplicationFactory.EmployeeUserId);
+        UseToken(_factory.MintToken(
+            TenantAwareWebApplicationFactory.EmployeeUserId, "store_employee",
+            storeId: TenantAwareWebApplicationFactory.StoreId.ToString()));
+
+        var response = await _client.PostAsJsonAsync($"/tasks/{taskId}/photo-upload-url", new
+        {
+            templateId = "tmpl-1",
+            fieldId = "photo-1",
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("uploadUrl").GetString().Should().NotBeNullOrEmpty();
+        body.GetProperty("blobUrl").GetString().Should().NotBeNullOrEmpty();
+    }
+
+    // ────────────────────────────────────────────────────────────────
     // Scenario 1: Admin creates a checklist via the API
     // ────────────────────────────────────────────────────────────────
 

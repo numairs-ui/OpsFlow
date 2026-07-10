@@ -1,10 +1,14 @@
+export interface RecurringAssignmentTarget {
+  storeId: string;
+  storeName: string;
+}
+
 export interface RecurringAssignmentDto {
   id: string;
   name: string;
   checklistId: string;
   checklistName: string;
-  storeId: string;
-  storeName: string;
+  targetStores: RecurringAssignmentTarget[];
   cronExpression: string;
   startsAt: string;
   endsAt?: string;
@@ -18,7 +22,7 @@ export interface RecurringAssignmentDto {
 export interface CreateRecurringAssignmentRequest {
   name: string;
   checklistId: string;
-  storeId: string;
+  targetStoreIds: string[];
   cronExpression: string;
   startsAt: string;
   endsAt?: string;

@@ -67,4 +67,19 @@ export class TaskService {
   assignTask(taskId: string, assignedToUserId: string | null): Observable<void> {
     return this.http.patch<void>(`${this.base}/tasks/${taskId}/assign`, { assignedToUserId });
   }
+
+  /**
+   * Asks the API for a short-lived signed URL to upload a photo directly to blob storage.
+   * The returned `blobUrl` is what gets stored as the Photo field's value on completion.
+   */
+  getPhotoUploadUrl(
+    taskId: string,
+    templateId: string,
+    fieldId: string,
+  ): Observable<{ uploadUrl: string; blobUrl: string }> {
+    return this.http.post<{ uploadUrl: string; blobUrl: string }>(
+      `${this.base}/tasks/${taskId}/photo-upload-url`,
+      { templateId, fieldId },
+    );
+  }
 }

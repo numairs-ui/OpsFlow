@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '@org/data-access-auth';
@@ -10,6 +10,7 @@ import {
   type CreateRecurringAssignmentRequest,
 } from '@org/data-access-tasks';
 import { CronPickerComponent } from '@org/ui-cron-picker';
+import { nonEmptyArray } from '@org/ui-core';
 
 @Component({
   selector: 'app-recurring-assignments',
@@ -37,10 +38,14 @@ export class RecurringAssignmentsComponent implements OnInit {
 
   readonly currentUser = this.auth.currentUser;
 
+  // Drives assignee visibility: a specific employee only makes sense for exactly one store.
+  readonly selectedStoreIds = signal<string[]>([]);
+  readonly singleStore = computed(() => this.selectedStoreIds().length === 1);
+
   readonly form = this.fb.group({
     name: ['', Validators.required],
     checklistId: ['', Validators.required],
-    storeId: ['', Validators.required],
+    storeIds: [[] as string[], nonEmptyArray],
     startsAt: [new Date().toISOString().slice(0, 10), Validators.required],
     endsAt: [''],
     assignedToUserId: [''],
@@ -50,6 +55,19 @@ export class RecurringAssignmentsComponent implements OnInit {
     this.load();
     this.checklistSvc.getChecklists(undefined, true).subscribe({ next: (r) => this.checklists.set(r) });
     this.orgSvc.getStores(undefined, true).subscribe({ next: (s) => this.stores.set(s) });
+
+    this.form.controls['storeIds'].valueChanges.subscribe((ids) => {
+      const storeIds = (ids ?? []) as string[];
+      this.selectedStoreIds.set(storeIds);
+
+      // The assignee picker only applies to a single store — load its roster, else clear it.
+      if (storeIds.length === 1) {
+        this.orgSvc.getStoreEmployees(storeIds[0]).subscribe({ next: (e) => this.employees.set(e) });
+      } else {
+        this.employees.set([]);
+        this.form.controls['assignedToUserId'].setValue('');
+      }
+    });
   }
 
   private load(): void {
@@ -61,7 +79,9 @@ export class RecurringAssignmentsComponent implements OnInit {
   }
 
   openCreate(): void {
-    this.form.reset({ startsAt: new Date().toISOString().slice(0, 10) });
+    this.form.reset({ startsAt: new Date().toISOString().slice(0, 10), storeIds: [] });
+    this.selectedStoreIds.set([]);
+    this.employees.set([]);
     this.cronExpression.set('0 0 9 * * ?');
     this.showForm.set(true);
   }
@@ -70,27 +90,29 @@ export class RecurringAssignmentsComponent implements OnInit {
 
   onCronChange(cron: string): void { this.cronExpression.set(cron); }
 
-  onStoreChange(storeId: string): void {
-    this.orgSvc.getStoreEmployees(storeId).subscribe({ next: e => this.employees.set(e) });
-  }
-
   onSubmit(): void {
     if (this.form.invalid || this.saving()) return;
-    const { name, checklistId, storeId, startsAt, endsAt, assignedToUserId } = this.form.getRawValue();
+    const { name, checklistId, storeIds, startsAt, endsAt, assignedToUserId } = this.form.getRawValue();
+    const targetStoreIds = (storeIds ?? []) as string[];
     const body: CreateRecurringAssignmentRequest = {
       name: name!,
       checklistId: checklistId!,
-      storeId: storeId!,
+      targetStoreIds,
       cronExpression: this.cronExpression(),
       startsAt: new Date(startsAt!).toISOString(),
       endsAt: endsAt ? new Date(endsAt).toISOString() : undefined,
-      assignedToUserId: assignedToUserId || undefined,
+      // Only send an assignee when targeting exactly one store (matches the backend validator rule).
+      assignedToUserId: targetStoreIds.length === 1 && assignedToUserId ? assignedToUserId : undefined,
     };
     this.saving.set(true);
     this.svc.createRecurringAssignment(body).subscribe({
       next: () => { this.saving.set(false); this.closeForm(); this.load(); },
       error: () => { this.error.set('Failed to create assignment.'); this.saving.set(false); },
     });
+  }
+
+  storeNames(a: RecurringAssignmentDto): string {
+    return a.targetStores.map((t) => t.storeName).join(', ');
   }
 
   togglePause(a: RecurringAssignmentDto): void {

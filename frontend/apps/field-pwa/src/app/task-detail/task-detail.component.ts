@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
+import { firstValueFrom } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
 import { OrgService, type StoreEmployee } from '@org/data-access-org';
@@ -46,6 +47,10 @@ export class TaskDetailComponent implements OnInit {
   readonly fieldValues = signal<Record<string, string>>({});
   readonly completionResult = signal<CompleteTaskResponse | null>(null);
   readonly completedByVolunteer = signal('');
+
+  // Photo capture — per-field upload state keyed by `${templateId}:${fieldId}`
+  readonly photoBusy = signal<Record<string, boolean>>({});
+  readonly photoError = signal<Record<string, string>>({});
 
   // Manager modals
   readonly activeModal = signal<ModalType>(null);
@@ -137,6 +142,89 @@ export class TaskDetailComponent implements OnInit {
 
   setFieldValue(templateId: string, fieldId: string, value: string): void {
     this.fieldValues.update(v => ({ ...v, [`${templateId}:${fieldId}`]: value }));
+  }
+
+  fieldKey(templateId: string, fieldId: string): string {
+    return `${templateId}:${fieldId}`;
+  }
+
+  isPhotoBusy(templateId: string, fieldId: string): boolean {
+    return this.photoBusy()[this.fieldKey(templateId, fieldId)] === true;
+  }
+
+  photoFieldError(templateId: string, fieldId: string): string {
+    return this.photoError()[this.fieldKey(templateId, fieldId)] ?? '';
+  }
+
+  /** File chosen from the camera/gallery → compress → upload to a signed URL → store the blob URL. */
+  async onPhotoSelected(templateId: string, fieldId: string, event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const key = this.fieldKey(templateId, fieldId);
+    const t = this.task();
+    if (!t) return;
+
+    this.photoBusy.update(v => ({ ...v, [key]: true }));
+    this.photoError.update(v => ({ ...v, [key]: '' }));
+
+    try {
+      const blob = await this.compressImage(file);
+      const { uploadUrl, blobUrl } = await firstValueFrom(
+        this.taskSvc.getPhotoUploadUrl(t.id, templateId, fieldId),
+      );
+
+      // PUT the bytes straight to storage — bypassing our API (and its JWT interceptor), which is
+      // the whole point of a signed URL. Azure Blob requires the x-ms-blob-type header; Supabase's
+      // signed upload URL does not.
+      const headers: Record<string, string> = { 'Content-Type': 'image/jpeg' };
+      if (uploadUrl.includes('blob.core.windows.net')) headers['x-ms-blob-type'] = 'BlockBlob';
+
+      const res = await fetch(uploadUrl, { method: 'PUT', headers, body: blob });
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+
+      // The stored value is the blob URL — it submits with the rest of the completion like any field.
+      this.setFieldValue(templateId, fieldId, blobUrl);
+    } catch {
+      this.photoError.update(v => ({ ...v, [key]: 'Upload failed. Tap to try again.' }));
+    } finally {
+      this.photoBusy.update(v => ({ ...v, [key]: false }));
+      input.value = ''; // allow re-selecting the same file after a failure
+    }
+  }
+
+  clearPhoto(templateId: string, fieldId: string): void {
+    this.setFieldValue(templateId, fieldId, '');
+    this.photoError.update(v => ({ ...v, [this.fieldKey(templateId, fieldId)]: '' }));
+  }
+
+  /**
+   * Downscale to a max edge and re-encode as JPEG so a multi-MB phone photo uploads quickly.
+   * Falls back to the original file if the browser can't decode it (e.g. HEIC without support).
+   */
+  private async compressImage(file: File, maxEdge = 1600, quality = 0.8): Promise<Blob> {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+      const width = Math.round(bitmap.width * scale);
+      const height = Math.round(bitmap.height * scale);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return file;
+      ctx.drawImage(bitmap, 0, 0, width, height);
+      bitmap.close();
+
+      const blob = await new Promise<Blob | null>(resolve =>
+        canvas.toBlob(resolve, 'image/jpeg', quality),
+      );
+      return blob ?? file;
+    } catch {
+      return file;
+    }
   }
 
   toggleSubItem(templateId: string, fieldId: string, subId: string): void {

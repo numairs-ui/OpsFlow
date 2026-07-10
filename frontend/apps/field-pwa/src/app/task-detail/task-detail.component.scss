@@ -304,13 +304,52 @@
   &--deficit { background: #fef2f2; color: #b91c1c; }
 }
 
-.photo-placeholder {
-  font-size: 13px;
-  color: #9ca3af;
-  padding: 10px;
-  border: 1px dashed #d1d5db;
+.photo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.photo-capture {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  padding: 14px;
+  border: 1px dashed #9ca3af;
   border-radius: 8px;
   text-align: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover { border-color: #6b7280; background: #f9fafb; }
+  &--busy { opacity: 0.6; cursor: progress; }
+
+  input[type='file'] {
+    position: absolute;
+    width: 1px; height: 1px;
+    opacity: 0; overflow: hidden;
+  }
+}
+
+.photo-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+
+  img {
+    max-width: 100%;
+    max-height: 240px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    object-fit: cover;
+  }
+}
+
+.field-error {
+  font-size: 13px;
+  color: #b91c1c;
 }
 
 // ── Action row ──
