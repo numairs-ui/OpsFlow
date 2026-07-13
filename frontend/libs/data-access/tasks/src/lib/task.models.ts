@@ -19,7 +19,7 @@ export interface TaskBoardItemDto {
 }
 
 export interface TaskGroupDto {
-  checklistId: string;
+  checklistId: string | null;
   checklistName: string;
   totalCount: number;
   completedCount: number;
@@ -35,18 +35,23 @@ export interface TodayTasksDto {
   taskGroups: TaskGroupDto[];
 }
 
+export type ScoringType = 'PassFail' | 'Scale1To5';
+
 export interface TaskTemplateItemDto {
   templateId: string;
   templateName: string;
   order: number;
   fieldsJson: string;
+  scoringType?: ScoringType | null;
+  photoRequired?: boolean;
+  failScoreThreshold?: number | null;
 }
 
 export interface TaskDetailDto {
   id: string;
   recurringAssignmentId?: string;
   recurringAssignmentName?: string;
-  checklistId: string;
+  checklistId: string | null;
   checklistName: string;
   checklistDescription?: string;
   storeId: string;
@@ -66,7 +71,7 @@ export interface TaskInstanceDto {
   id: string;
   recurringAssignmentId?: string;
   recurringAssignmentName?: string;
-  checklistId: string;
+  checklistId: string | null;
   checklistName: string;
   storeId: string;
   storeName: string;
@@ -81,10 +86,15 @@ export interface TaskInstanceDto {
 }
 
 export interface CreateTaskRequest {
-  checklistId: string;
   storeId: string;
   dueAt: string;
   notes?: string;
+  /** Checklist-backed task. Mutually exclusive with taskTemplateId. */
+  checklistId?: string;
+  /** Standalone task against a single template's fields. Mutually exclusive with checklistId. */
+  taskTemplateId?: string;
+  /** Optional specific assignee. */
+  assignedToUserId?: string;
 }
 
 export interface FieldSubmission {
@@ -93,9 +103,16 @@ export interface FieldSubmission {
   value: string;
 }
 
+export interface ItemScoreSubmission {
+  templateId: string;
+  score: number;
+  photoUrl?: string;
+}
+
 export interface CompleteTaskRequest {
   completedByVolunteerName?: string;
   fieldValues: FieldSubmission[];
+  itemScores?: ItemScoreSubmission[];
 }
 
 export interface CorrectiveActionDto {
@@ -114,6 +131,8 @@ export interface TaskCompletionResultDto {
 export interface CompleteTaskResponse {
   completion: TaskCompletionResultDto;
   triggeredCorrectiveActions: CorrectiveActionDto[];
+  compositeScorePercent?: number | null;
+  spawnedCorrectiveTaskIds?: string[] | null;
 }
 
 export interface CancelTaskRequest {

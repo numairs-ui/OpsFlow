@@ -94,6 +94,7 @@ public sealed class TenantDbContext(DbContextOptions<TenantDbContext> options) :
             e.HasKey(i => new { i.ChecklistId, i.TemplateId });
             e.HasOne(i => i.Checklist).WithMany(c => c.Items).HasForeignKey(i => i.ChecklistId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(i => i.Template).WithMany().HasForeignKey(i => i.TemplateId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(i => i.Weight).HasPrecision(6, 2).HasDefaultValue(1.0m);
         });
 
         builder.Entity<RecurringAssignment>(e =>
@@ -121,7 +122,11 @@ public sealed class TenantDbContext(DbContextOptions<TenantDbContext> options) :
             e.HasIndex(t => new { t.RecurringAssignmentId, t.DueAt }); // uniqueness checked in code
             e.HasIndex(t => new { t.StoreId, t.Status, t.DueAt });
             e.HasOne(t => t.RecurringAssignment).WithMany(r => r.TaskInstances).HasForeignKey(t => t.RecurringAssignmentId).OnDelete(DeleteBehavior.SetNull);
+            // ChecklistId is now optional (standalone tasks). Keep Restrict so an in-use checklist can't be deleted.
             e.HasOne(t => t.Checklist).WithMany().HasForeignKey(t => t.ChecklistId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(t => t.AdHocTaskTemplate).WithMany().HasForeignKey(t => t.AdHocTaskTemplateId).OnDelete(DeleteBehavior.Restrict);
+            // Self-reference: a corrective task points back at the session task that spawned it.
+            e.HasOne<TaskInstance>().WithMany().HasForeignKey(t => t.SourceTaskInstanceId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(t => t.Store).WithMany().HasForeignKey(t => t.StoreId).OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -131,6 +136,8 @@ public sealed class TenantDbContext(DbContextOptions<TenantDbContext> options) :
             e.HasOne(c => c.TaskInstance).WithMany(t => t.Completions).HasForeignKey(c => c.TaskInstanceId).OnDelete(DeleteBehavior.Cascade);
             e.Property(c => c.FieldValuesJson).HasColumnName("FieldValues").HasColumnType("jsonb");
             e.Property(c => c.CorrectiveActionsJson).HasColumnName("CorrectiveActions").HasColumnType("jsonb");
+            e.Property(c => c.ItemScoresJson).HasColumnName("ItemScores").HasColumnType("jsonb");
+            e.Property(c => c.CompositeScorePercent).HasPrecision(5, 1);
         });
 
         builder.Entity<InventorySnapshot>(e =>

@@ -20,6 +20,23 @@ internal static class TaskFieldValidator
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     };
 
+    /// <summary>
+    /// Validates a standalone task's submission against a single template's fields (mode (a)), with no
+    /// ChecklistTemplateItem wrapper. A null template is a notes-only task, which has no fields to
+    /// validate. Reuses the checklist path by wrapping the template in a transient item.
+    /// </summary>
+    public static TaskFieldValidationResult ValidateAdHoc(
+        TaskTemplate? template,
+        List<FieldSubmission> fieldValues,
+        StoreSettingsEntity? storeSettings)
+    {
+        if (template is null)
+            return new TaskFieldValidationResult([], []);
+
+        var item = new ChecklistTemplateItem { TemplateId = template.Id, Template = template };
+        return Validate([item], fieldValues, storeSettings);
+    }
+
     public static TaskFieldValidationResult Validate(
         IEnumerable<ChecklistTemplateItem> checklistItems,
         List<FieldSubmission> fieldValues,

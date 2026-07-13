@@ -1,0 +1,74 @@
+<div class="page">
+  <div class="page__header">
+    <div>
+      <h1 class="page__title">New One-Time Task</h1>
+      <p class="page__subtitle">Create a standalone task — from a single template or as a quick note.</p>
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert--error">{{ error() }}</div>
+  }
+
+  <form class="form-card" [formGroup]="form" (ngSubmit)="onSubmit()">
+    <div class="field">
+      <span class="label">Task Type</span>
+      <div class="mode-toggle">
+        <button type="button" class="mode-btn" [class.mode-btn--active]="isTemplateMode()"
+          (click)="setMode('template')">From a template</button>
+        <button type="button" class="mode-btn" [class.mode-btn--active]="!isTemplateMode()"
+          (click)="setMode('notes')">Notes only</button>
+      </div>
+    </div>
+
+    @if (isTemplateMode()) {
+      <div class="field">
+        <label class="label" for="taskTemplateId">Template</label>
+        <select id="taskTemplateId" class="input" formControlName="taskTemplateId">
+          <option value="">— select template —</option>
+          @for (t of templates(); track t.id) {
+            <option [value]="t.id">{{ t.name }} ({{ t.category }})</option>
+          }
+        </select>
+      </div>
+    }
+
+    <div class="field">
+      <label class="label" for="storeId">Store</label>
+      <select id="storeId" class="input" formControlName="storeId">
+        <option value="">— select store —</option>
+        @for (s of stores(); track s.id) {
+          <option [value]="s.id">{{ s.name }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="field">
+      <label class="label" for="dueAt">Due</label>
+      <input id="dueAt" type="datetime-local" class="input" formControlName="dueAt" />
+    </div>
+
+    <div class="field">
+      <label class="label" for="assignedToUserId">Assignee (optional)</label>
+      <select id="assignedToUserId" class="input" formControlName="assignedToUserId">
+        <option value="">— unassigned (claimable) —</option>
+        @for (e of employees(); track e.userId) {
+          <option [value]="e.userId">{{ e.displayName }} ({{ e.role }})</option>
+        }
+      </select>
+    </div>
+
+    <div class="field">
+      <label class="label" for="notes">Notes {{ isTemplateMode() ? '(optional)' : '' }}</label>
+      <textarea id="notes" class="input" rows="3" formControlName="notes"
+        placeholder="What needs doing?"></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn btn--ghost" (click)="cancel()">Cancel</button>
+      <button type="submit" class="btn btn--primary" [disabled]="form.invalid || saving()">
+        {{ saving() ? 'Creating…' : 'Create Task' }}
+      </button>
+    </div>
+  </form>
+</div>

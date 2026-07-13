@@ -395,3 +395,89 @@
   border-radius: 10px;
   font-size: 14px;
 }
+
+.notes-only-hint {
+  padding: 12px 14px;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  margin-bottom: 12px;
+
+  &__notes { font-size: 15px; color: #111827; margin: 0 0 6px; white-space: pre-wrap; }
+  &__text { font-size: 13px; color: #6b7280; margin: 0; }
+}
+
+// ── Checklist-session scoring (A3) ──
+.score-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.score-toggle { display: flex; gap: 8px; }
+
+.score-btn {
+  padding: 8px 18px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #374151;
+
+  &--pass { background: #f0fdf4; border-color: #16a34a; color: #15803d; }
+  &--fail { background: #fef2f2; border-color: #dc2626; color: #b91c1c; }
+}
+
+.score-scale { display: flex; gap: 6px; }
+
+.score-num {
+  width: 40px; height: 40px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #374151;
+
+  &--active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+}
+
+.score-photo { max-height: 64px; border-radius: 8px; border: 1px solid #e5e7eb; }
+
+.score-photo-btn {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  padding: 8px 12px;
+  border: 1px dashed #9ca3af;
+  border-radius: 8px;
+  cursor: pointer;
+
+  &--busy { opacity: 0.6; cursor: progress; }
+  input[type='file'] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+}
+
+.score-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 14px 18px;
+
+  &__label { font-size: 14px; font-weight: 600; color: #1e40af; }
+  &__value { font-size: 20px; font-weight: 800; color: #1d4ed8; }
+}
+
+.score-result--corrective {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  .score-result__label { color: #9a3412; }
+}

@@ -7,7 +7,12 @@ public sealed class TaskInstance
 
     // null = ad-hoc task created by a manager
     public Guid? RecurringAssignmentId { get; init; }
-    public Guid ChecklistId { get; set; }
+    // null = standalone task (references a single TaskTemplate directly, or is notes-only)
+    public Guid? ChecklistId { get; set; }
+    // Standalone mode (a): the task validates/completes against this single template's fields.
+    public Guid? AdHocTaskTemplateId { get; set; }
+    // Links a corrective task back to the checklist session that spawned it (A4). SetNull on delete.
+    public Guid? SourceTaskInstanceId { get; set; }
     public Guid StoreId { get; set; }
     public DateTimeOffset DueAt { get; set; }
 
@@ -37,6 +42,7 @@ public sealed class TaskInstance
 
     public RecurringAssignment? RecurringAssignment { get; init; }
     public Checklist? Checklist { get; init; }
+    public TaskTemplate? AdHocTaskTemplate { get; init; }
     public Store? Store { get; init; }
     public ICollection<TaskCompletion> Completions { get; init; } = [];
 }

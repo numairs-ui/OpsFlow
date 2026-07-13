@@ -6,6 +6,10 @@
       <span class="sidebar__role-tag">{{ roleLabel(user()?.role) }}</span>
     </div>
 
+    <button type="button" class="sidebar__create" (click)="openCreate()">
+      <span class="sidebar__create-plus">+</span> Create
+    </button>
+
     <ul class="sidebar__nav">
       <li class="sidebar__section-label">Overview</li>
       <li>
@@ -104,6 +108,10 @@
     <router-outlet />
   </main>
 
+  @if (createOpen()) {
+    <app-create-menu (closed)="closeCreate()" />
+  }
+
   <!-- Mobile bottom tab bar — hidden at desktop widths, see admin-shell.component.scss -->
   <nav class="tabbar">
     <a routerLink="overview" routerLinkActive="active" class="tabbar__link">
@@ -134,6 +142,11 @@
     <div class="more-sheet">
       <div class="more-sheet__handle"></div>
       <ul class="more-sheet__nav">
+        <li>
+          <button type="button" class="more-sheet__link" (click)="closeMore(); openCreate()">
+            + Create
+          </button>
+        </li>
         <li class="more-sheet__section-label">Overview</li>
         <li>
           <a routerLink="tasks" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">

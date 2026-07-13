@@ -32,6 +32,13 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'create-task',
+        loadComponent: () =>
+          import('./admin/create-task/create-task.component.js').then(
+            (m) => m.CreateTaskComponent
+          ),
+      },
+      {
         path: 'tasks/:id',
         loadComponent: () =>
           import('./admin/task-detail/task-detail.component.js').then(

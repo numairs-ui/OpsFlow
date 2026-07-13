@@ -55,7 +55,7 @@ internal static class TasksEndpoints
 
         group.MapPost("/{id:guid}/complete", async (Guid id, CompleteTaskRequest body, IMediator m) =>
         {
-            var response = await m.Send(new CompleteTaskCommand(id, body.CompletedByVolunteerName, body.FieldValues));
+            var response = await m.Send(new CompleteTaskCommand(id, body.CompletedByVolunteerName, body.FieldValues, body.ItemScores));
             return Results.Ok(response);
         });
 
@@ -95,7 +95,7 @@ internal static class TasksEndpoints
 }
 
 internal sealed record ClaimTaskRequest(string? VolunteerName);
-internal sealed record CompleteTaskRequest(string? CompletedByVolunteerName, List<FieldSubmission> FieldValues);
+internal sealed record CompleteTaskRequest(string? CompletedByVolunteerName, List<FieldSubmission> FieldValues, List<ItemScoreSubmission>? ItemScores = null);
 internal sealed record CancelTaskRequest(string Reason);
 internal sealed record DeferTaskRequest(string Reason, DateTimeOffset DeferredTo);
 internal sealed record AssignTaskRequest(string? AssignedToUserId);

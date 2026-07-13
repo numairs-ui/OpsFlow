@@ -57,6 +57,19 @@
 
   <!-- Corrective actions panel -->
   @if (completionResult(); as res) {
+    @if (res.compositeScorePercent !== null && res.compositeScorePercent !== undefined) {
+      <div class="score-result">
+        <span class="score-result__label">Checklist Score</span>
+        <span class="score-result__value">{{ res.compositeScorePercent }}%</span>
+      </div>
+    }
+    @if (res.spawnedCorrectiveTaskIds && res.spawnedCorrectiveTaskIds.length > 0) {
+      <div class="score-result score-result--corrective">
+        <span class="score-result__label">
+          {{ res.spawnedCorrectiveTaskIds.length }} corrective task{{ res.spawnedCorrectiveTaskIds.length === 1 ? '' : 's' }} created on the store board
+        </span>
+      </div>
+    }
     @if (res.triggeredCorrectiveActions.length > 0) {
       <div class="corrective-panel">
         <div class="corrective-panel__header">
@@ -116,6 +129,42 @@
               <span class="template-order">{{ group.template.order }}</span>
               <span class="template-name">{{ group.template.templateName }}</span>
             </div>
+
+            @if (isScored(group.template)) {
+              <div class="score-row">
+                @if (group.template.scoringType === 'PassFail') {
+                  <div class="score-toggle">
+                    <button type="button" class="score-btn"
+                      [class.score-btn--pass]="getItemScore(group.template.templateId) === 1"
+                      (click)="setItemScore(group.template.templateId, 1)">Pass</button>
+                    <button type="button" class="score-btn"
+                      [class.score-btn--fail]="getItemScore(group.template.templateId) === 0"
+                      (click)="setItemScore(group.template.templateId, 0)">Fail</button>
+                  </div>
+                } @else {
+                  <div class="score-scale">
+                    @for (n of [1,2,3,4,5]; track n) {
+                      <button type="button" class="score-num"
+                        [class.score-num--active]="getItemScore(group.template.templateId) === n"
+                        (click)="setItemScore(group.template.templateId, n)">{{ n }}</button>
+                    }
+                  </div>
+                }
+
+                @if (group.template.photoRequired) {
+                  @if (itemPhotoUrl(group.template.templateId)) {
+                    <img class="score-photo" [src]="itemPhotoUrl(group.template.templateId)" alt="Item photo" />
+                  } @else {
+                    <label class="score-photo-btn" [class.score-photo-btn--busy]="isItemPhotoBusy(group.template.templateId)">
+                      <input type="file" accept="image/*" capture="environment"
+                        [disabled]="isItemPhotoBusy(group.template.templateId)"
+                        (change)="onItemPhotoSelected(group.template.templateId, $event)" />
+                      <span>{{ isItemPhotoBusy(group.template.templateId) ? 'Uploading…' : '📷 Photo required' }}</span>
+                    </label>
+                  }
+                }
+              </div>
+            }
             @for (field of group.fields; track field.id) {
               <div class="field-item">
                 <span class="field-label">
@@ -213,6 +262,15 @@
                 }
               </div>
             }
+          </div>
+        }
+
+        @if (parsedTemplates().length === 0) {
+          <div class="notes-only-hint">
+            @if (task()?.notes) {
+              <p class="notes-only-hint__notes">{{ task()!.notes }}</p>
+            }
+            <p class="notes-only-hint__text">No fields to fill in — tap below to mark this task complete.</p>
           </div>
         }
 

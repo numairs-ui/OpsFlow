@@ -14,7 +14,7 @@ internal sealed record TaskInstanceDto(
     Guid Id,
     Guid? RecurringAssignmentId,
     string? RecurringAssignmentName,
-    Guid ChecklistId,
+    Guid? ChecklistId,
     string ChecklistName,
     Guid StoreId,
     string StoreName,

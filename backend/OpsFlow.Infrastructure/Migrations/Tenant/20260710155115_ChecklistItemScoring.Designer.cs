@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using OpsFlow.Infrastructure;
@@ -11,9 +12,11 @@ using OpsFlow.Infrastructure;
 namespace OpsFlow.Migrations.Tenant
 {
     [DbContext(typeof(TenantDbContext))]
-    partial class TenantDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260710155115_ChecklistItemScoring")]
+    partial class ChecklistItemScoring
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -766,10 +769,6 @@ namespace OpsFlow.Migrations.Tenant
                     b.Property<string>("CompletedByVolunteerName")
                         .HasColumnType("text");
 
-                    b.Property<decimal?>("CompositeScorePercent")
-                        .HasPrecision(5, 1)
-                        .HasColumnType("numeric(5,1)");
-
                     b.Property<string>("CorrectiveActionsJson")
                         .IsRequired()
                         .HasColumnType("jsonb")
@@ -779,11 +778,6 @@ namespace OpsFlow.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("jsonb")
                         .HasColumnName("FieldValues");
-
-                    b.Property<string>("ItemScoresJson")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("ItemScores");
 
                     b.Property<Guid>("TaskInstanceId")
                         .HasColumnType("uuid");

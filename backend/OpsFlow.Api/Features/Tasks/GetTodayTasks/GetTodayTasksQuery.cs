@@ -14,7 +14,8 @@ internal sealed record TodayTasksDto(
 );
 
 internal sealed record TaskGroupDto(
-    Guid ChecklistId,
+    // null for the standalone bucket (tasks with no checklist).
+    Guid? ChecklistId,
     string ChecklistName,
     int TotalCount,
     int CompletedCount,
