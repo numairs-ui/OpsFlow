@@ -1,0 +1,262 @@
+# OpsFlow — Product & Architecture Overview
+
+> **Status:** Current as of 2026-07-14. Supersedes the architecture sections of `PROJECT_STATE.md` (last updated 2026-06-19, predates the 6-role migration and the move off Render). This is the canonical reference — please correct it in place as the system evolves rather than starting a new doc.
+>
+> **2026-07-14 release:** the post-PRD-audit release (task nucleus + 6 targeted fixes, minus multi-store recurring which was deferred) is **live in production**. See `docs/product/OpsFlow_PRD_V2.md` (current as-built PRD, supersedes V1) and `docs/product/OpsFlow_Release_Notes_2026-07.md`. §7 below reflects the post-release state.
+
+---
+
+## 1. What OpsFlow Is
+
+OpsFlow is a **multi-tenant operational-compliance platform for multi-store food & beverage operators**. Current client/tenant: **Bajco**, a Domino's franchisee (tenant id `bajco-dev`), positioned as the "OpsFlow Module" of the broader MealDynamics product line.
+
+It replaces paper checklists, WhatsApp threads, and spreadsheets with a structured system so regional supervisors can catch systemic failures — temperature breaches, till variances, missed deposits — before they become customer-facing incidents. Core capabilities:
+
+- Assign checklist tasks to stores on a recurring schedule
+- Let field employees complete tasks with structured form fields (boolean, numeric, text, sub-checklists, photo)
+- Give managers/supervisors a real-time completion dashboard
+- Trigger corrective-action prompts when submitted values fall out of range
+- Score checklist items (Pass/Fail or 1–5) into a weighted composite score, auto-generating claimable corrective tasks on failure — this is the "Manager Walk" capability, delivered through Checklists/Tasks rather than a separate Walk domain (see 2026-07-14 note below)
+- Track free-form form submissions (incident reports, audits) through an approval workflow
+- Support cash/inventory compliance: deposit logs, till counts, dough/cheese prep planning (MDOG)
+
+---
+
+## 2. Domain Model
+
+### 2.1 Roles & scope
+
+Six roles ([ADR-0001](adr/0001-six-role-multi-region-authorization.md)), replacing an earlier 4-role draft:
+
+| Role | Scope | Notes |
+|---|---|---|
+| `super_admin` | Network-wide | All tenant data |
+| `admin` | A **set** of regions | Delegated regional administration short of full network power |
+| `supervisor` | A single region | |
+| `store_manager` | One or more stores | Can be assigned multiple stores via a join table |
+| `store_employee` | A single store | |
+| `store_kiosk` | A single store, shared device | Always-logged-in station; walk-up staff claim tasks by typing their name (`CompletedByVolunteerName`) — no personal login |
+
+**Region scope is a set, not a scalar** — an `admin` can span several regions, so region membership is carried as repeated `regionId` JWT claims and persisted as `RegionIdsCsv`. This has bitten the codebase before: a naive check assuming one `StoreId`/`RegionId` per caller (`WhereScopedVisible` in `ScopeQueryExtensions.cs`) once hid templates/checklists from every region-scoped admin. Any new authorization code must be written against the set, not a single value. The same System / Regional / Store scope tiering applies to templates, checklists, and form templates.
+
+Cutover from the old 4-role model ran against live data on 2026-06-28 and has held since with no rollback.
+
+### 2.2 Core entities
+
+```
+Tenant → Region → Store → UserProfile / StoreSettings
+
+TaskTemplate            reusable, scope-bound blueprint (fields, validation ranges, corrective-action text) — no schedule
+Checklist                groups TaskTemplates via ordered ChecklistTemplateItems junction
+ChecklistTemplateItem    junction row; ALSO carries scoring config (ScoringType, Weight, PhotoRequired,
+                         FailCorrectiveActionText, FailScoreThreshold) since 2026-07-14 — see below
+RecurringAssignment      binds a Checklist to one store + cron schedule (single-store only — see 2026-07-14 note)
+TaskInstance             a dated instance of a checklist/template, or standalone (nullable ChecklistId since
+                         2026-07-14: may reference a single TaskTemplate via AdHocTaskTemplateId, or be
+                         notes-only). SourceTaskInstanceId self-FK links an auto-spawned corrective task
+                         back to the session that failed it.
+TaskCompletion           submitted field values for a TaskInstance; may trigger embedded corrective-action
+                         text; since 2026-07-14 also carries CompositeScorePercent + ItemScoresJson for
+                         scored checklist sessions
+MissedDepositFlag        new 2026-07-14 — persisted daily flag when a store misses its deposit deadline;
+                         feeds the existing region/system dashboards (dashboard-only, no push)
+FormTemplate             fields + ordered ApprovalSteps[]
+FormSubmission           state machine: Draft → Submitted → PendingApproval → Approved/Rejected/Returned,
+                         per PropagationType (Sequential / Parallel / NotificationOnly)
+DepositLog               immutable cash-deposit record
+InventorySnapshot        feeds MDOG (dough/cheese prep planning)
+```
+
+**2026-07-14: "Manager Walk" was never built as a separate domain and won't be** — no `WalkTemplate`/`WalkSession` entities exist. The scored-audit capability (composite score, auto-generated corrective tasks) is delivered entirely through `Checklist` + `ChecklistTemplateItem` scoring + `TaskCompletion`, i.e. a checklist-backed `TaskInstance` session *is* the walk. Pure scoring logic lives in `OpsFlow.Domain/Checklists/ChecklistScoring.cs` (modeled on `Forms/ApprovalWorkflow.cs` — no DB access, unit-tested).
+
+**2026-07-14: multi-store recurring broadcast was built, then deferred and reverted** — it would have required dropping `RecurringAssignment.StoreId` on a live database. `RecurringAssignment` is single-store, unchanged from before this release. A future release will add multi-store broadcast without a column drop.
+
+`TaskTemplate.Fields` is JSONB (not EAV) — an array of `{id, label, type, required, rangeMin, rangeMax, correctiveActionText, subItems}`; field types are `Boolean`, `Numeric`, `Text`, `Checklist` (nested sub-items), `Photo` (fully wired end-to-end since 2026-07-14: signed-URL upload, direct-to-storage PUT, no longer a placeholder).
+
+### 2.3 Feature domains
+
+Multi-tenancy/provisioning · Auth & Authorization · Store/Region/User management · Task Templates · Checklists (with scoring) · Recurring Assignments (single-store) · Task Board (Field PWA, incl. standalone tasks) · Store Kiosk · Task Completion & Verification · Corrective Actions (incl. auto-generated follow-up tasks) · MDOG & Inventory · Safe/Till/Deposit Log (incl. missed-deposit dashboard flag) · Notifications (SignalR only — no FCM/push is implemented) · Role-scoped Dashboards (real for every role since 2026-07-14) · Admin Panel (incl. unified Create entry point) · Form Templates · Form Submission/Approval engine.
+
+---
+
+## 3. System Architecture
+
+```
+                    ┌─────────────────────┐        ┌─────────────────────┐
+                    │   Dashboard (SPA)   │        │  Field PWA (SPA)    │
+                    │  Angular 21 / Nx    │        │  Angular 21 / Nx    │
+                    │  admin/manager/     │        │  worker/kiosk       │
+                    │  supervisor console │        │  task board         │
+                    └──────────┬──────────┘        └──────────┬──────────┘
+                               │  HTTPS + JWT (in-memory) / httpOnly refresh cookie
+                               │  SignalR (wss) for realtime task board
+                               ▼
+                    ┌─────────────────────────────────────────┐
+                    │        OpsFlow.Api — .NET 9             │
+                    │  Minimal APIs · MediatR (CQRS) ·         │
+                    │  FluentValidation · Vertical Slices      │
+                    │  Quartz.NET background jobs · SignalR    │
+                    └──────────┬────────────────────┬──────────┘
+                               │                    │
+                     ┌─────────▼────────┐   ┌───────▼────────┐
+                     │  MasterDbContext  │   │ TenantDbContext │
+                     │  (tenant registry)│   │ (per-tenant data)│
+                     └─────────┬─────────┘   └───────┬─────────┘
+                               └──────────┬───────────┘
+                                          ▼
+                          PostgreSQL on Supabase (bajco-dev)
+                                          │
+                         Supabase Auth (JWT minting via backend)
+```
+
+Backend and both frontends deploy independently; the API is stateless per-request (JWT auth, refresh handled via DB-backed rotation), so it scales horizontally behind Azure Container Apps.
+
+---
+
+## 4. Backend (`backend/`)
+
+**Stack:** .NET 9, MediatR 12.4, FluentValidation, EF Core 9 (Npgsql provider in practice; SQL Server provider also compiled in), Quartz.AspNetCore 3.14 for jobs, SignalR for realtime, Scalar for OpenAPI docs, Supabase C# client + JWT bearer auth, Azure Blob Storage / Azure SignalR adapters for storage and scale-out realtime. The `FirebaseAdmin` NuGet package is referenced (for planned FCM push) but has **no adapter/service actually using it anywhere in the codebase** — push notifications were never built; see §7.
+
+**Solution layout:**
+
+| Project | Responsibility |
+|---|---|
+| `OpsFlow.Api` | Web host — minimal-API feature folders, MediatR pipeline behaviours, Quartz jobs, SignalR hubs, JWT/scope security wiring |
+| `OpsFlow.Domain` | Pure domain — entities, forms, interfaces, and the `Authorization` scope module. No EF/ASP.NET references |
+| `OpsFlow.Infrastructure` | EF `MasterDbContext` (tenant registry) + `TenantDbContext` (per-tenant), provider config, Azure/Supabase adapters, migrations |
+| `OpsFlow.Migrations` | Console app that runs EF migrations against Master/Tenant DBs |
+| `OpsFlow.Tests.Unit` / `OpsFlow.Tests.Integration` | Unit (Authorization, Forms, Tasks, Health) and integration (Auth, Checklists, FormSubmissions, Scenarios) test suites |
+
+**Vertical Slice Architecture** is real, not aspirational: each operation under `OpsFlow.Api/Features/<Area>/<Operation>/` has its own `Command`/`Query`, `Handler`, and (where needed) `Validator`, wired to a minimal-API endpoint group that sends through MediatR. 17 feature areas exist today: Auth, Checklists, Dashboard, DepositLog, FormSubmissions, FormTemplates, Health, Inventory, Me, RecurringAssignments, Regions, StoreSettings, Stores, Tasks, Templates, TenantSettings, Users.
+
+**Authorization** ([ADR-0002](adr/0002-scope-authorizer-pure-module.md)) lives entirely in `OpsFlow.Domain/Authorization/`: `ScopeSpec` is a pure, DI-free class built from a `Caller {Role, StoreId, RegionIds}`, exposing `IsGlobal`/`IsRegionScoped`/`IsStoreScoped` and assertion methods (`AssertCanViewRegion`, `AssertCanManageStore`, `AssertCanWriteScope`, etc.). `ScopeQueryExtensions` supplies EF-translatable `IQueryable` filters via key-selectors so handlers stay thin. Handlers call this module directly rather than re-deriving rules — deliberately no `IScopeAuthorizer` interface, since there's exactly one implementation.
+
+**Background jobs** (Quartz.NET, `OpsFlow.Api/Jobs/`): `GenerateTaskInstancesJob` (recurring assignments → dated task instances), `ActivateDeferredTasksJob`, `OverduePromotionJob`, `DepositEscalationJob` (new 2026-07-14 — daily, flags stores past their local deposit deadline into `MissedDepositFlag`), and `TenantIteratingJob` (base helper fanning a job out across all tenants).
+
+**Multi-tenancy:** every tenant table carries `TenantId`; a `MasterDbContext` holds the tenant registry, a `TenantDbContext` (resolved per-request) holds the actual data.
+
+**Auth flow:**
+```
+POST /auth/login → Supabase.SignIn → read user_metadata (role, storeId, regionIds)
+  → mint JWT (15 min; claims: sub, tenantId, role, storeId, one regionId claim per region)
+  → persist RefreshToken (30d, carries StoreId/RegionIds for reconstruction)
+  → set httpOnly cookie "refresh_token" = "{tenantId}:{rawToken}"
+
+POST /auth/refresh → read cookie → validate + rotate RefreshToken (mark old IsUsed=true)
+  → mint new JWT from stored StoreId/RegionIds → set new cookie
+```
+`Secure` cookie flag is conditional on environment (`!IsDevelopment()`), since browsers drop `Secure` cookies over plain `http://localhost`.
+
+---
+
+## 5. Frontend (`frontend/`)
+
+**Stack:** Nx 22 monorepo (Nx Cloud removed 2026-07-14 — its workspace was never claimed within Nx Cloud's 3-day window and was hard-failing CI builds; it only provided a remote cache layered on top of Nx's always-present local cache, so removal cost nothing), **Angular 21** (standalone components only, no NgModules), **Angular Signals** for all reactive state (no NgRx or other state library), strict TypeScript. Vitest for unit tests (per-lib `vitest.config`, orchestrated by a root `vitest.workspace.ts`), Playwright for e2e (one `-e2e` project per app).
+
+**Apps:**
+- `apps/dashboard` (port 4200) — the admin/back-office console. Routes role-gated per area (`admin`, `manager`, `supervisor` shells).
+- `apps/field-pwa` (port 4201) — worker-facing PWA: task board, task detail, kiosk mode for `store_kiosk` devices, quick-template, form submissions.
+
+**Libs** (feature-organized, not layer-organized):
+- `data-access/{auth,org,tasks,templates,core}` — one lib per bounded context (services, models, guards, interceptors).
+- `ui/{core,cron-picker,field-builder,template-builder}` — presentational and authoring-flow components (checklist/template builder, cron schedule picker, dynamic form field builder).
+- `util/{guards,http,models}` — cross-cutting helpers (`auth.guard.ts`, `role.guard.ts`, HTTP helpers, shared TS models).
+
+Both apps proxy `/api/*` → the backend (stripping the prefix) and `/hubs/*` for SignalR in local dev.
+
+**Design system:** bespoke (not Ant Design/ng-zorro — that path was tried and fully reverted). Documented in `.claude/skills/opsflow-design-system/SKILL.md`; implemented as CSS custom properties + utility classes duplicated across each app's `styles.scss` (`apps/dashboard`, `apps/field-pwa`). Aesthetic: warm "operations desk" — cream/paper background, near-black ink, one indigo accent for action, amber/rust/green reserved for fixed status meanings (amber = paused, rust = error/overdue, green = success). Type: **Inter** for both sans and serif roles, **JetBrains Mono** as the structural/label voice (eyebrows, table headers, pills). Pill-shaped buttons, 14px base radius.
+
+> ⚠️ **Known drift:** the two apps' stylesheets are hand-duplicated with a history of drifting out of sync. The documented fix — extract a shared SCSS partial into `frontend/libs/ui` — has not been done yet. Several admin screens (Stores, Users, Checklists, Templates, Regions, Form Submissions) still use the pre-redesign HTML class structure rather than the current design system.
+
+**Runtime config:** each app reads `public/env.js` → `window.__OPSFLOW_ENV__.apiOrigin`. A fresh `nx build` resets this to the committed default (`''`) — it must be manually repatched to the live API URL before every deploy, or the deployed app silently can't reach the backend.
+
+---
+
+## 6. Deployment & Infrastructure
+
+| Component | Where it actually runs | Notes |
+|---|---|---|
+| Backend API | **Azure Container Apps** (`opsflow-app`, resource group `opsflow_dev`), image in ACR `opsflowacr.azurecr.io/opsflow-backend` | Deployed manually by digest (`az acr build` → `az containerapp update --image ...@sha256:...`); Azure won't cut a new revision on an unchanged `:latest` tag. Live revision as of 2026-07-14: `opsflow-app--0000008`. |
+| Dashboard | Vercel project `opsflow-dashboard` (`opsflow-dashboard-gamma.vercel.app`) | **Manual deploy only** — see note below |
+| Field PWA | Vercel project `opsflow-field-pwa` (`opsflow-field-pwa.vercel.app`) | **Manual deploy only** — see note below |
+| Database | PostgreSQL on **Supabase** (`bajco-dev` tenant) | Also the auth provider (Supabase Auth) |
+
+**Update (2026-07-14):** the stale `render.yaml` and the `deploy-api → Render` job in `.github/workflows/deploy.yml` have been removed — Render was the original hosting target, superseded by Azure Container Apps, and the leftover config was confusing anyone using repo files to answer "where does this deploy." Backend deploy to Azure is a manual step (see the table above) with no CI job.
+
+**⚠️ Correction (2026-07-14) — the two Vercel deploy jobs in `deploy.yml` have never actually worked.** `VERCEL_TOKEN`/`VERCEL_ORG_ID`/`VERCEL_PROJECT_ID_FIELD_PWA`/`VERCEL_PROJECT_ID_DASHBOARD` were never configured as repo secrets (`gh secret list` returns empty) — confirmed by inspecting multiple historical CI runs, all failing at the "Deploy to Vercel" step with `Input required and not supplied: vercel-token`. **Every real frontend deploy, past and present, has been manual** via the Vercel CLI:
+```bash
+npx nx build <app> --configuration=production
+# patch dist/apps/<app>/browser/env.js: apiOrigin: '' -> the live Azure FQDN
+cd dist/apps/<app>/browser
+npx vercel link --project <opsflow-dashboard|opsflow-field-pwa> --yes
+npx vercel --prod --yes
+```
+Build from a clean checkout of `origin/main` (e.g. a `git worktree`), not a working directory that may have uncommitted changes — both apps consume shared `frontend/libs/*`, so uncommitted lib changes elsewhere in the repo can leak into a production build. Setting up the missing secrets so CI can actually deploy is an open follow-up (`docs/product/OpsFlow_PRD_V2.md` §9) — not urgent, since the manual path works, but `merge → live` does not currently hold.
+
+**CI (`.github/workflows/pr.yml`, on PR to `main`):**
+- `dotnet` job — restores/builds `backend/OpsFlow.sln`, runs `OpsFlow.Tests.Unit` + `OpsFlow.Tests.Integration`, uploads `.trx` results.
+- `angular` job — Node 20, `npm ci`, `nx affected --target=lint`, `nx affected --target=test --ci`, production builds of both apps.
+
+Known flaky-but-unrelated-to-content CI failures: Angular job shallow-checkout issues, and a .NET Quartz/LoggerFactory flake — verify locally and it's safe to merge past these specifically.
+
+**Secrets:** backend secrets (`SUPABASE_SERVICE_ROLE_KEY`, `MASTER_DB_CONNECTION_STRING`, `JWT_SECRET`, etc.) are not committed — injected via the hosting platform's secret store. `appsettings.json` only holds non-secret defaults. Frontend has no `NG_APP_*`/environment files checked in beyond the `env.js` runtime-config pattern above.
+
+---
+
+## 7. Current Build Status
+
+**Backend:** most feature domains implemented — auth, org CRUD, templates, checklists, recurring assignments, full task lifecycle, deposit log, inventory, dashboards. Form submissions exist end-to-end at the data/API layer; the approval UI is incomplete.
+
+**Frontend:** design system rollout is partial (see §5 drift note). Multi-region/6-role scope migration is settled and live, not in progress.
+
+**Shipped 2026-07-14 (post-PRD-audit release, live in prod — see `docs/product/OpsFlow_PRD_V2.md` for full detail):**
+- Standalone tasks (no checklist required — single-template or notes-only)
+- Checklist item scoring (Pass/Fail or 1–5, weighted) + a full admin checklist editor (was read-only)
+- Scored checklist sessions → composite score + auto-generated claimable corrective tasks on failure
+- Unified "+ Create" entry point in the dashboard
+- Template-import pipeline rework (real scored checklists on import; fixed a fake-success counting bug)
+- Kiosk session no longer drops on token expiry
+- Admin-triggered password reset (one-time temp password, no email infra)
+- Missed-deposit dashboard flag (deadline-aware daily job; dashboard-only, no push)
+- **Photo upload is fully wired** (was a placeholder) — signed-URL, direct-to-storage upload
+- Real dashboards for admin (region-scoped, not just super_admin), store employee, and kiosk roles
+- **Deferred out of this release:** multi-store recurring broadcast (would have required a live column drop) — `RecurringAssignment` stays single-store; see the 2026-07-14 note in §2.2
+
+**Open gaps:**
+- Overdue-task push notifications (FCM was never built — SignalR only, confirmed pre-existing, not part of the above release)
+- Per-store manager task board view
+- Seeding real (non-placeholder) checklist content into stores beyond the flagship location — a migration script (`execution/migrate_flat_walks_to_checklists.py`) exists and is self-tested but has not been run against any database
+- Form submission approval UI
+- Design-system rollout to the admin screens listed in §5
+- Multi-store recurring broadcast (deferred, see above) — needs a non-destructive schema design
+- Vercel CI secrets (`VERCEL_TOKEN` etc.) were never configured — CI cannot currently deploy either frontend; all deploys are manual (see §6)
+
+---
+
+## 8. Key Architectural Decisions
+
+| Decision | Rationale | Reference |
+|---|---|---|
+| Six roles, set-valued region scope for `admin`, dedicated `store_kiosk` role | Rejected a single scalar-region model (too restrictive for multi-region admins) and treating kiosk as "just a view" (need claim-by-name with no personal login) | [ADR-0001](adr/0001-six-role-multi-region-authorization.md) |
+| Authorization scope as one pure, DI-free module (`ScopeSpec`) rather than marker interfaces or per-entity checks | Marker-interface/per-entity approaches were leaky or non-EF-translatable; no `IScopeAuthorizer` interface since there's one real implementation | [ADR-0002](adr/0002-scope-authorizer-pure-module.md) |
+| Vertical Slice Architecture (backend) | Cohesion over layers; avoids "service sprawl" of a horizontal (Controller/Service/Repository) split | `PROJECT_STATE.md` §13 |
+| JWT in memory (Angular Signal) + refresh token in httpOnly cookie | Access token never touches localStorage (XSS-resistant); refresh survives page reload | — |
+| Refresh-token rotation, `IsUsed` flag | Prevents replay of a stolen refresh token | — |
+| `TaskTemplate.Fields` as JSONB, not EAV tables | Fields are schema-flexible per template type without table explosion | — |
+| `ChecklistTemplateItems` junction (not FK on template) | Same template reusable across multiple checklists | — |
+
+---
+
+## 9. Where Things Live (quick reference)
+
+- Backend feature code: `backend/OpsFlow.Api/Features/<Area>/<Operation>/`
+- Authorization module: `backend/OpsFlow.Domain/Authorization/`
+- Background jobs: `backend/OpsFlow.Api/Jobs/`
+- EF migrations: `backend/OpsFlow.Infrastructure/Migrations/{Master,Tenant}/`
+- Frontend apps: `frontend/apps/{dashboard,field-pwa}`
+- Frontend shared libs: `frontend/libs/{data-access,ui,util}/*`
+- Design system spec: `.claude/skills/opsflow-design-system/SKILL.md`
+- ADRs: `docs/adr/`
+- Product requirements: `docs/product/OpsFlow_PRD_V2.md` (current, as-built — supersedes V1); `docs/product/OpsFlow_PRD_V1.md` (original design spec, historical); `docs/product/OpsFlow_Release_Notes_2026-07.md` (plain-language what's-new for the 2026-07-14 release)
+- Domain glossary: `docs/planning/ubiquitous-language.md`
+- Build plan (waves/tracer bullets): `docs/planning/Tracer_Bullets_V1.md`

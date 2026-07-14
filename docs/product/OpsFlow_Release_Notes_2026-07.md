@@ -2,9 +2,9 @@
 
 **Date:** 2026-07-14
 **Scope:** 8 post-PRD-audit workstreams — Track A (structural: task/checklist model) + Track B (5 targeted fixes). Multi-store recurring broadcast (originally B4) has been **carved out and deferred** to its own future release — see note below.
-**Status:** Implemented and tested. Not yet deployed.
+**Status:** ✅ **Live in production as of 2026-07-14.** Merged (PRs #90, #91), database migrated, backend deployed to Azure, both frontends deployed to Vercel, and smoke-tested directly against the live stack.
 
-This release closes the gaps a PRD audit found between the shipped product and the original spec, and adds the checklist-scoring capability that replaces the never-built "Manager Walk" as a separate feature. Everything below is in the codebase on `feat/track-b-post-prd-audit`, backed by a **single additive database migration** — nothing existing is dropped or rewritten, so this is a low-risk release.
+This release closes the gaps a PRD audit found between the shipped product and the original spec, and adds the checklist-scoring capability that replaces the never-built "Manager Walk" as a separate feature. Everything below is live on `main`, backed by a **single additive database migration** — nothing existing was dropped or rewritten, so this was a low-risk release.
 
 ---
 
@@ -85,6 +85,8 @@ Because it's fully additive, applying it is low-risk and doesn't require any spe
 
 ## For reviewers
 
-- Branch: `feat/track-b-post-prd-audit`.
-- Verification: full backend test suite passing; both `dashboard` and `field-pwa` build clean.
+- Merged: PR #90 (`feat/track-b-post-prd-audit` → `main`) and PR #91 (`fix/remove-nx-cloud` → `main`, a CI fix found while going live — see below).
+- Verification: full backend test suite passing (63 unit + 121 integration); both `dashboard` and `field-pwa` build clean; full smoke test run directly against the live production stack (standalone tasks, scored checklists, composite scoring, auto-corrective task generation all confirmed working).
+- **Live URLs:** dashboard `https://opsflow-dashboard-gamma.vercel.app`, field PWA `https://opsflow-field-pwa.vercel.app`, backend `https://opsflow-app.ambitiousplant-226f55e6.westus2.azurecontainerapps.io`.
+- **Two infra bugs found and fixed during go-live, unrelated to this release's features:** (1) an unclaimed Nx Cloud workspace was hard-failing CI builds — removed (PR #91); (2) `VERCEL_TOKEN` and related secrets were never configured in this repo, so the CI-driven Vercel auto-deploy has never actually worked — every frontend deploy, including this one, was done manually via the Vercel CLI. See `docs/ARCHITECTURE.md` and project memory for the full story if setting up CI secrets later.
 - Full detail and updated requirements: see **OpsFlow_PRD_V2.md**.
