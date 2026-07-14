@@ -41,7 +41,7 @@ OpsFlow is a multi-tenant operational-compliance platform for franchise restaura
 
 ## 2. What Changed in V2 (Change Log)
 
-The July 2026 release delivered 9 workstreams. Each maps to feature domains below.
+The July 2026 release delivers 8 of the original 9 workstreams. Each maps to feature domains below.
 
 | # | Change | Domains | V1.1 status |
 |---|--------|---------|-------------|
@@ -54,9 +54,10 @@ The July 2026 release delivered 9 workstreams. Each maps to feature domains belo
 | B1 | **Kiosk session refresh** — kiosk survives token expiry | FD-08 | Bug |
 | B2 | **Admin password reset** — one-time temp password, no email | FD-02 | Specced as email flow |
 | B3 | **Missed-deposit dashboard flag** — daily job flags stores past deadline | FD-13, FD-16 | Specced as 10:00 AM FCM push |
-| B4 | **Multi-store recurring broadcast** — one assignment → many stores | FD-06 | Specced but single-store only in code |
 | B5 | **Photo upload** — real capture + direct-to-storage upload | FD-04, FD-09 | Specced; placeholder in UI |
 | B6 | **Role dashboards** — admin/employee/kiosk dashboards made real | FD-16 | Partially built |
+
+**Deferred to a later release: B4 — multi-store recurring broadcast.** V1.1 specced this (a supervisor targeting one recurring assignment at several stores); implementing it required removing `RecurringAssignment`'s scalar `StoreId` in favor of a store-list, which on a live database means dropping a column existing assignments depend on. That risk isn't worth taking for a supervisor-convenience feature in this release, so it's been carved out. **Recurring assignments remain single-store in V2** (FD-06 below), exactly as they are in production today; B4 will ship later as its own release, designed to avoid a column drop.
 
 **Retired from the spec:** the standalone **Manager Walk** domain (FD-11) and its `WalkTemplates`/`WalkSessions` entities are **not built** — the capability is delivered through scored Checklists instead. **FCM push notifications** are not part of this release; real-time delivery is SignalR-only, and deposit escalation is dashboard-flag-only.
 
@@ -80,7 +81,7 @@ Unchanged from V1.1. Summary:
 
 **Roles:** `super_admin`, `admin` (region-scoped or global), `supervisor` (single region), `store_manager` (one or more stores), `store_employee` (one store), `store_kiosk` (shared store device).
 
-⟳ **Changed vs V1.1:** admin can now view the system dashboard (scoped to its regions); multi-store recurring broadcast is a real capability; password reset is admin-triggered; scoring/editing checklists is a manager+ capability.
+⟳ **Changed vs V1.1:** admin can now view the system dashboard (scoped to its regions); password reset is admin-triggered; scoring/editing checklists is a manager+ capability. (Multi-store recurring broadcast remains deferred — see §2.)
 
 | Capability | Employee | Kiosk | Manager | Supervisor | Admin | Super Admin |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -91,7 +92,7 @@ Unchanged from V1.1. Summary:
 | Author / edit checklist + scoring | — | — | ✓ (store) | ✓ (region) | ✓ | ✓ |
 | Create Task Template (Store / Regional / System) | — | — | Store | +Regional | +Regional | All |
 | Create Recurring Assignment (own store) | — | — | ✓ | ✓ | ✓ | ✓ |
-| **Recurring broadcast to multiple stores** | — | — | — | ✓ (in region) | ✓ (in regions) | ✓ |
+| Recurring broadcast to multiple stores *(deferred — see §2)* | — | — | — | — | — | — |
 | Cancel / defer / verify a task | — | — | ✓ | ✓ | ✓ | ✓ |
 | Record / view Deposit Log | — | — | ✓ | ✓ | ✓ | ✓ |
 | View store dashboard | ✓ | ✓ (board) | ✓ | ✓ | ✓ | ✓ |
@@ -161,15 +162,10 @@ Scoring logic lives in a pure, unit-tested `ChecklistScoring` domain class (mode
 - [x] Completing a scored checklist returns and stores a composite %.
 - [x] Standalone (no-checklist) tasks create and complete end-to-end.
 
-### FD-06 Recurring Assignments & Scheduling — ⟳ Changed (multi-store)
-Binds a checklist to a cron schedule; Quartz `GenerateTaskInstancesJob` fires instances.
+### FD-06 Recurring Assignments & Scheduling — *unchanged in V2 (single-store)*
+Binds a checklist to a single store and a cron schedule; Quartz `GenerateTaskInstancesJob` fires instances. Same behavior as production today — a store manager or supervisor creates one recurring assignment per store.
 
-**⟳ Multi-store broadcast (B4):** *V1.1 specced this but the code targeted a single store.* V2:
-- New join entity **`RecurringAssignmentStore`** (composite key `RecurringAssignmentId + StoreId`), modeled on `UserStoreAssignment`. The scalar `StoreId` was **removed** after a **backfill migration** (one join row per existing assignment) — the only V2 migration that touches existing data.
-- `CreateRecurringAssignmentCommand` takes `TargetStoreIds[]`; validated non-empty and distinct; `AssertCanManageStore` per target, **all-or-nothing**.
-- A specific-employee assignee is **disallowed when targeting more than one store** (a broadcast lands unassigned/claimable on each store's board).
-- The generator **fans out one instance per target store per firing**, with the dedup check now keyed on `(RecurringAssignmentId, DueAt, StoreId)` — *fixing a latent bug that would have silently under-generated all-but-the-first store.*
-- Dashboard: store picker is multi-select; the assignee picker hides when >1 store is selected.
+**Deferred: multi-store broadcast (B4).** V1.1 specced letting a supervisor target one recurring assignment at several stores at once. Building it would replace `RecurringAssignment`'s scalar `StoreId` with a store-list — safe for new rows, but on a live database it means dropping a column existing assignments depend on. That coordination risk isn't worth taking for a supervisor-convenience feature in this release, so **B4 is carved out and will ship later as its own release**, designed to avoid a column drop (e.g. an additive store-list alongside the existing column, or fan-out at creation time rather than a schema change). Nothing about single-store recurring assignments changes in the meantime.
 
 ### FD-07 Task Board — Field PWA — ⟳ Changed
 Real-time board grouped by checklist, standalone tasks in their own group. Completions and the 13-minute token refresh keep the session alive.
@@ -255,23 +251,23 @@ Form Templates (`Sequential` / `Parallel` / `NotificationOnly`) and the submissi
 | `TaskInstance` | `ChecklistId` → **nullable**; new `AdHocTaskTemplateId` (FK→TaskTemplate), `SourceTaskInstanceId` (self-FK, SetNull) |
 | `ChecklistTemplateItem` | new `ScoringType`, `Weight` (default 1.0), `PhotoRequired`, `FailCorrectiveActionText`, `FailScoreThreshold` |
 | `TaskCompletion` | new `CompositeScorePercent` (nullable), `ItemScoresJson` |
-| `RecurringAssignment` | scalar `StoreId` **removed**; now a `TargetStores` collection |
-| `RecurringAssignmentStore` | **new** join entity (`RecurringAssignmentId` + `StoreId`) |
 | `StoreSettings` | new `DepositDeadlineLocalTime` (nullable `TimeOnly`) |
 | `MissedDepositFlag` | **new** (`StoreId`, `BusinessDate`, `FlaggedAt`; unique per store/day) |
 
+**Unchanged (deferred with B4 — see §2):** `RecurringAssignment` keeps its scalar `StoreId`, exactly as in production. No `RecurringAssignmentStore` join entity exists in V2.
+
 **Retired vs V1.1:** `WalkTemplates`, `WalkAuditItems`, `WalkSessions`, `WalkSessionItems` are **not implemented**. `FcmDeviceTokens` is not implemented (no push in V2).
 
-Stable entities carry forward: `Tenants`, `Regions`, `Stores`, `UserProfiles`, `UserStoreAssignments`, `RefreshTokens`, `TaskTemplates`, `Checklists`, `DepositLog`, `InventorySnapshots`, `FormTemplates`, `FormSubmissions`, `FormSubmissionApprovalSteps`.
+Stable entities carry forward: `Tenants`, `Regions`, `Stores`, `UserProfiles`, `UserStoreAssignments`, `RefreshTokens`, `TaskTemplates`, `Checklists`, `RecurringAssignment`, `DepositLog`, `InventorySnapshots`, `FormTemplates`, `FormSubmissions`, `FormSubmissionApprovalSteps`.
 
-**Migrations delivered:** `StandaloneTasks`, `ChecklistItemScoring`, `ChecklistSessionScoring`, `AddDepositEscalation`, `MultiStoreRecurringAssignments` (backfill-then-drop). All additive/nullable except the last, which backfills before dropping the scalar `StoreId`.
+**Migration delivered:** a single migration, **`SafeReleaseSchema`**, covering all of the above. Every change in it is additive — new nullable columns, new columns with safe defaults, and one new table (`MissedDepositFlag`). **Nothing is dropped and no existing data is rewritten.**
 
 ---
 
 ## 7. Non-Functional Requirements
 
 Unchanged from V1.1 in intent. Notes for V2:
-- **Testing:** pure domain logic (`ChecklistScoring`, `TaskFieldValidator.ValidateAdHoc`, job logic) unit-tested; feature flows covered by xUnit + `WebApplicationFactory` integration tests. Current suite: **65 unit + 123 integration, all passing.**
+- **Testing:** pure domain logic (`ChecklistScoring`, `TaskFieldValidator.ValidateAdHoc`, job logic) unit-tested; feature flows covered by xUnit + `WebApplicationFactory` integration tests. Current suite: **63 unit + 121 integration, all passing** (B4's fan-out tests removed with the feature carve-out).
 - **Security:** signed-URL photo uploads never route file bytes through the API; the app JWT is not attached to direct-to-storage PUTs. Temp passwords are returned once and never persisted/logged.
 - **Provider portability:** storage and auth are behind swappable interfaces; EF migrations target Npgsql (the migration set applied in the deployed environments).
 
@@ -279,6 +275,7 @@ Unchanged from V1.1 in intent. Notes for V2:
 
 ## 8. Out-of-Scope / Deferred
 
+- **Multi-store recurring broadcast (B4)** — carved out of this release to avoid a live column drop; single-store recurring assignments unaffected. See §2.
 - **Push notifications (FCM/web-push)** — SignalR only in V2.
 - **Deposit escalation beyond the dashboard** — no push/offline reach.
 - **Self-service / email password reset** — admin-triggered only.
@@ -289,7 +286,8 @@ Unchanged from V1.1 in intent. Notes for V2:
 
 ## 9. Open Follow-Ups
 
-1. **Run the legacy-template migration on a test DB.** `execution/migrate_flat_walks_to_checklists.py` explodes old flat "walk" templates into scored checklists. It is written and self-tested (pure transform) but has **not** been run against production; it defaults to dry-run and requires an explicit `--apply` + a target database.
-2. **Align the `execution/` seed generators** (`populate_empty_templates.py`, `seed_real_checklists.py`) to the new nested-checklist shape so future re-seeds don't regenerate flat walk templates.
-3. **Pre-existing supervisor bug (not part of this release):** `supervisor/overview.component.ts` reads the legacy singular `regionId` instead of the plural `regionIds`, so a multi-region supervisor sees only their first region. Flagged for a follow-up fix.
-4. **Optional:** decide whether the composite-score deposit component and per-store escalation should later gain push delivery.
+1. **Design and ship multi-store recurring broadcast (B4) as its own release**, without requiring a column drop on `RecurringAssignment` — e.g. an additive store-list alongside the existing scalar `StoreId`, or fan-out at creation time (create N single-store assignments) instead of a schema change.
+2. **Run the legacy-template migration on a test DB.** `execution/migrate_flat_walks_to_checklists.py` explodes old flat "walk" templates into scored checklists. It is written and self-tested (pure transform) but has **not** been run against production; it defaults to dry-run and requires an explicit `--apply` + a target database.
+3. **Align the `execution/` seed generators** (`populate_empty_templates.py`, `seed_real_checklists.py`) to the new nested-checklist shape so future re-seeds don't regenerate flat walk templates.
+4. **Pre-existing supervisor bug (not part of this release):** `supervisor/overview.component.ts` reads the legacy singular `regionId` instead of the plural `regionIds`, so a multi-region supervisor sees only their first region. Flagged for a follow-up fix.
+5. **Optional:** decide whether the composite-score deposit component and per-store escalation should later gain push delivery.
