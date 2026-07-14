@@ -70,9 +70,5 @@ jobs:
           vercel-args: --prod
           working-directory: frontend/dist/apps/dashboard/browser
 
-  deploy-api:
-    name: Deploy API → Render
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger Render deploy hook
-        run: curl -fsSL "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+  # Backend API deploys separately to Azure Container Apps (manual: build image in ACR, then
+  # update the container app by image digest — see docs/product for the current runbook).
