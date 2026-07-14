@@ -16,7 +16,6 @@ public sealed class TenantDbContext(DbContextOptions<TenantDbContext> options) :
     public DbSet<Checklist> Checklists { get; set; } = default!;
     public DbSet<ChecklistTemplateItem> ChecklistTemplateItems { get; set; } = default!;
     public DbSet<RecurringAssignment> RecurringAssignments { get; set; } = default!;
-    public DbSet<RecurringAssignmentStore> RecurringAssignmentStores { get; set; } = default!;
     public DbSet<TaskInstance> TaskInstances { get; set; } = default!;
     public DbSet<TaskCompletion> TaskCompletions { get; set; } = default!;
     public DbSet<InventorySnapshot> InventorySnapshots { get; set; } = default!;
@@ -101,19 +100,7 @@ public sealed class TenantDbContext(DbContextOptions<TenantDbContext> options) :
         {
             e.HasKey(r => r.Id);
             e.HasOne(r => r.Checklist).WithMany().HasForeignKey(r => r.ChecklistId).OnDelete(DeleteBehavior.Restrict);
-        });
-
-        builder.Entity<RecurringAssignmentStore>(e =>
-        {
-            e.HasKey(a => new { a.RecurringAssignmentId, a.StoreId });
-            e.HasOne(a => a.RecurringAssignment)
-             .WithMany(r => r.TargetStores)
-             .HasForeignKey(a => a.RecurringAssignmentId)
-             .OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(a => a.Store)
-             .WithMany()
-             .HasForeignKey(a => a.StoreId)
-             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(r => r.Store).WithMany().HasForeignKey(r => r.StoreId).OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<TaskInstance>(e =>

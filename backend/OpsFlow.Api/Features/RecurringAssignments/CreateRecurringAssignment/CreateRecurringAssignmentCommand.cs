@@ -6,7 +6,7 @@ namespace OpsFlow.Api.Features.RecurringAssignments.CreateRecurringAssignment;
 internal sealed record CreateRecurringAssignmentCommand(
     string Name,
     Guid ChecklistId,
-    IReadOnlyList<Guid> TargetStoreIds,
+    Guid StoreId,
     string CronExpression,
     DateTimeOffset StartsAt,
     DateTimeOffset? EndsAt,
@@ -19,19 +19,9 @@ internal sealed class CreateRecurringAssignmentValidator : AbstractValidator<Cre
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.ChecklistId).NotEmpty();
-        RuleFor(x => x.TargetStoreIds).NotEmpty().WithMessage("At least one target store is required.");
-        RuleFor(x => x.TargetStoreIds)
-            .Must(ids => ids.Distinct().Count() == ids.Count)
-            .When(x => x.TargetStoreIds is { Count: > 0 })
-            .WithMessage("Target stores must be distinct.");
+        RuleFor(x => x.StoreId).NotEmpty();
         RuleFor(x => x.CronExpression).NotEmpty().MaximumLength(100);
         RuleFor(x => x.StartsAt).NotEmpty();
         RuleFor(x => x.EndsAt).GreaterThan(x => x.StartsAt).When(x => x.EndsAt.HasValue);
-
-        // A specific employee assignee only makes sense for a single store — reject it when broadcasting.
-        RuleFor(x => x.AssignedToUserId)
-            .Empty()
-            .When(x => x.TargetStoreIds is { Count: > 1 })
-            .WithMessage("A specific assignee cannot be set when broadcasting to more than one store.");
     }
 }

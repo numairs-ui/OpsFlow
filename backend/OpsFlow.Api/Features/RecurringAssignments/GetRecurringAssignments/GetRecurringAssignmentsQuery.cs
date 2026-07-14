@@ -12,7 +12,8 @@ internal sealed record RecurringAssignmentDto(
     string Name,
     Guid ChecklistId,
     string ChecklistName,
-    IReadOnlyList<RecurringAssignmentTargetDto> TargetStores,
+    Guid StoreId,
+    string StoreName,
     string CronExpression,
     DateTimeOffset StartsAt,
     DateTimeOffset? EndsAt,
@@ -22,5 +23,3 @@ internal sealed record RecurringAssignmentDto(
     string? AssignedToUserId,
     string? AssignedToUserName
 );
-
-internal sealed record RecurringAssignmentTargetDto(Guid StoreId, string StoreName);

@@ -13,24 +13,13 @@ internal sealed class GenerateTaskInstancesJob(IServiceScopeFactory scopeFactory
 
     protected override async Task RunForTenantAsync(string tenantId, IServiceProvider services, CancellationToken ct)
     {
-        var factory = services.GetRequiredService<TenantDbContextFactory>();
-        await using var db = await factory.CreateForTenantAsync(tenantId, ct);
-        await GenerateAsync(db, tenantId, DateTimeOffset.UtcNow, ct);
-    }
-
-    /// <summary>
-    /// Core generation logic (saves what it adds): for each active assignment whose next cron firing
-    /// lands in the [now, now+1h) window, create one task instance per target store, skipping any that
-    /// already exist for that (assignment, dueAt, store). Returns how many instances were created.
-    /// </summary>
-    internal static async Task<int> GenerateAsync(
-        TenantDbContext db, string tenantId, DateTimeOffset now, CancellationToken ct)
-    {
+        var now = DateTimeOffset.UtcNow;
         var windowEnd = now.AddHours(1);
-        var created = 0;
+        var factory = services.GetRequiredService<TenantDbContextFactory>();
+
+        await using var db = await factory.CreateForTenantAsync(tenantId, ct);
 
         var assignments = await db.RecurringAssignments
-            .Include(a => a.TargetStores)
             .Where(a => !a.IsPaused
                 && a.StartsAt <= now
                 && (a.EndsAt == null || a.EndsAt > now))
@@ -43,34 +32,23 @@ internal sealed class GenerateTaskInstancesJob(IServiceScopeFactory scopeFactory
             if (nextFire == null || nextFire > windowEnd) continue;
 
             var dueAt = nextFire.Value;
+            var exists = await db.TaskInstances.AnyAsync(
+                t => t.RecurringAssignmentId == assignment.Id && t.DueAt == dueAt, ct);
 
-            // Fan out one instance per target store per firing. The dedup check MUST include StoreId —
-            // without it a multi-store assignment would generate only the first store's instance, since
-            // AnyAsync(RecurringAssignmentId + DueAt) would match after the first store's insert.
-            foreach (var target in assignment.TargetStores)
+            if (!exists)
             {
-                var exists = await db.TaskInstances.AnyAsync(
-                    t => t.RecurringAssignmentId == assignment.Id
-                        && t.DueAt == dueAt
-                        && t.StoreId == target.StoreId, ct);
-
-                if (!exists)
+                db.TaskInstances.Add(new TaskInstance
                 {
-                    db.TaskInstances.Add(new TaskInstance
-                    {
-                        TenantId = tenantId,
-                        RecurringAssignmentId = assignment.Id,
-                        ChecklistId = assignment.ChecklistId,
-                        StoreId = target.StoreId,
-                        DueAt = dueAt,
-                        CreatedByUserId = "system",
-                    });
-                    created++;
-                }
+                    TenantId = tenantId,
+                    RecurringAssignmentId = assignment.Id,
+                    ChecklistId = assignment.ChecklistId,
+                    StoreId = assignment.StoreId,
+                    DueAt = dueAt,
+                    CreatedByUserId = "system",
+                });
             }
         }
 
         await db.SaveChangesAsync(ct);
-        return created;
     }
 }
