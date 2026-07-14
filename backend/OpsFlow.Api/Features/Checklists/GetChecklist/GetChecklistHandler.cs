@@ -28,7 +28,9 @@ internal sealed class GetChecklistHandler(
             ?? throw new KeyNotFoundException($"Checklist {query.Id} not found.");
 
         var items = c.Items.OrderBy(i => i.Order)
-            .Select(i => new ChecklistItemDto(i.TemplateId, i.Template.Name, i.Order, i.Template.FieldsJson))
+            .Select(i => new ChecklistItemDto(
+                i.TemplateId, i.Template.Name, i.Order, i.Template.FieldsJson,
+                i.ScoringType, i.Weight, i.PhotoRequired, i.FailCorrectiveActionText, i.FailScoreThreshold))
             .ToList();
 
         return new ChecklistDetailDto(

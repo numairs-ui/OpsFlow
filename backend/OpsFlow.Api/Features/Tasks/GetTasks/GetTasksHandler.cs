@@ -19,6 +19,7 @@ internal sealed class GetTasksHandler(
 
         var q = db.TaskInstances
             .Include(t => t.Checklist)
+            .Include(t => t.AdHocTaskTemplate)
             .Include(t => t.Store)
             .Include(t => t.RecurringAssignment)
             .AsQueryable();
@@ -40,7 +41,7 @@ internal sealed class GetTasksHandler(
 
         return list.Select(t => new TaskInstanceDto(
             t.Id, t.RecurringAssignmentId, t.RecurringAssignment?.Name,
-            t.ChecklistId, t.Checklist?.Name ?? "",
+            t.ChecklistId, t.Checklist?.Name ?? t.AdHocTaskTemplate?.Name ?? "Standalone Task",
             t.StoreId, t.Store?.Name ?? "",
             t.DueAt, t.Status,
             t.AssignedToUserId, t.CompletedByUserId, t.CompletedAt,

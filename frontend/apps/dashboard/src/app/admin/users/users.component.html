@@ -64,11 +64,18 @@
                 <div class="row-actions">
                   <button class="btn btn--sm btn--ghost" (click)="openEdit(user)">Edit</button>
                   @if (user.isActive) {
-                    @if (confirmingUserId() === user.userId) {
+                    @if (confirmingResetUserId() === user.userId) {
+                      <button class="btn btn--sm btn--amber" (click)="executeResetPassword(user)">Reset PW?</button>
+                      <button class="btn btn--sm btn--ghost" (click)="cancelResetPassword()">✕</button>
+                    } @else if (confirmingUserId() === user.userId) {
                       <button class="btn btn--sm btn--danger" (click)="executeDeactivate(user)">Confirm?</button>
                       <button class="btn btn--sm btn--ghost" (click)="cancelDeactivate()">✕</button>
                     } @else {
-                      <button class="btn btn--sm btn--danger-ghost" (click)="beginDeactivate(user.userId)">Deactivate</button>
+                      <button class="btn btn--sm btn--ghost" [disabled]="resettingUserId() === user.userId"
+                        (click)="cancelDeactivate(); beginResetPassword(user.userId)">
+                        {{ resettingUserId() === user.userId ? 'Resetting…' : 'Reset PW' }}
+                      </button>
+                      <button class="btn btn--sm btn--danger-ghost" (click)="cancelResetPassword(); beginDeactivate(user.userId)">Deactivate</button>
                     }
                   } @else {
                     <button class="btn btn--sm btn--success-ghost" (click)="reactivate(user)">Reactivate</button>
@@ -184,10 +191,15 @@
 
     <div class="slide-over__footer">
       @if (detailUser()!.isActive) {
-        @if (confirmingUserId() === detailUser()!.userId) {
+        @if (confirmingResetUserId() === detailUser()!.userId) {
+          <button class="btn btn--ghost" (click)="cancelResetPassword()">Cancel</button>
+          <button class="btn btn--amber" (click)="executeResetPassword(detailUser()!)">Confirm Reset Password</button>
+        } @else if (confirmingUserId() === detailUser()!.userId) {
           <button class="btn btn--ghost" (click)="cancelDeactivate()">Cancel</button>
           <button class="btn btn--danger" (click)="executeDeactivate(detailUser()!)">Confirm Deactivate</button>
         } @else {
+          <button class="btn btn--ghost" [disabled]="resettingUserId() === detailUser()!.userId"
+            (click)="beginResetPassword(detailUser()!.userId)">Reset Password</button>
           <button class="btn btn--danger-ghost" (click)="beginDeactivate(detailUser()!.userId)">Deactivate</button>
           <button class="btn btn--primary" (click)="editFromDetail()">Edit User</button>
         }
@@ -195,6 +207,32 @@
         <button class="btn btn--success-ghost" (click)="reactivate(detailUser()!)">Reactivate</button>
         <button class="btn btn--primary" (click)="editFromDetail()">Edit User</button>
       }
+    </div>
+  </div>
+}
+
+<!-- One-time temp-password modal (shown once after a reset; never retrievable again) -->
+@if (resetResult(); as reset) {
+  <div class="overlay overlay--modal" role="presentation" (click)="closeResetResult()"></div>
+  <div class="pw-modal" role="dialog" aria-modal="true" aria-labelledby="pw-modal-title">
+    <div class="pw-modal__header">
+      <h2 id="pw-modal-title">Temporary Password</h2>
+      <button class="slide-over__close" (click)="closeResetResult()">&#10005;</button>
+    </div>
+    <div class="pw-modal__body">
+      <p class="pw-modal__desc">
+        Password reset for <strong>{{ reset.user.displayName }}</strong>. Share this once — it
+        won't be shown again. The user should change it after signing in.
+      </p>
+      <div class="pw-modal__code">
+        <code>{{ reset.tempPassword }}</code>
+        <button class="btn btn--sm btn--ghost" (click)="copyTempPassword()">
+          {{ copied() ? 'Copied ✓' : 'Copy' }}
+        </button>
+      </div>
+    </div>
+    <div class="pw-modal__footer">
+      <button class="btn btn--primary" (click)="closeResetResult()">Done</button>
     </div>
   </div>
 }

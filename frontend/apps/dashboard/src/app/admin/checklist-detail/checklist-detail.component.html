@@ -22,35 +22,94 @@
       </span>
     </div>
 
-    <div class="card checklist-view">
-      <p class="card-eyebrow">{{ c.items.length }} item{{ c.items.length !== 1 ? 's' : '' }}</p>
-      @for (group of parsedItems(); track group.item.templateId) {
-        <div class="template-block">
-          <div class="template-block__header">
-            <span class="template-block__order">{{ group.item.order + 1 }}</span>
-            <span class="template-block__name">{{ group.item.templateName }}</span>
-          </div>
-          @for (field of group.fields; track field.id) {
-            <div class="field-row">
-              <span class="field-row__label">
-                {{ field.label }}
-                @if (field.required) { <span class="field-row__required">*</span> }
-              </span>
-              <span class="field-row__type">{{ field.type }}</span>
-            </div>
-            @if (field.type === 'Checklist' && field.subItems) {
-              <ul class="sub-items">
-                @for (sub of field.subItems; track sub.id) {
-                  <li>{{ sub.label }}</li>
-                }
-              </ul>
-            }
+    <!-- Add item -->
+    <div class="card add-item">
+      <label class="label" for="tmplSearch">Add an item</label>
+      <input id="tmplSearch" class="input" placeholder="Search templates by name or category…"
+        [ngModel]="templateSearch()" (ngModelChange)="templateSearch.set($event)" />
+      @if (templateSearch()) {
+        <ul class="template-picker">
+          @for (t of availableTemplates(); track t.id) {
+            <li>
+              <span>{{ t.name }} <span class="text-muted">· {{ t.category }} · {{ t.scope }}</span></span>
+              <button class="btn btn--sm btn--primary" (click)="addTemplate(t)">Add</button>
+            </li>
           } @empty {
-            <p class="text-muted template-block__empty">No fields configured for this template.</p>
+            <li class="text-muted">No matching templates.</li>
+          }
+        </ul>
+      }
+    </div>
+
+    <!-- Editable item list -->
+    <div class="card checklist-editor">
+      <div class="editor-head">
+        <p class="card-eyebrow">{{ items().length }} item{{ items().length !== 1 ? 's' : '' }}</p>
+        <button class="btn btn--primary" [disabled]="!dirty() || saving()" (click)="save()">
+          {{ saving() ? 'Saving…' : (dirty() ? 'Save Changes' : 'Saved') }}
+        </button>
+      </div>
+
+      @for (it of items(); track it.templateId; let i = $index) {
+        <div class="edit-item">
+          <div class="edit-item__header">
+            <span class="edit-item__order">{{ i + 1 }}</span>
+            <span class="edit-item__name">{{ it.templateName }}</span>
+            <div class="edit-item__actions">
+              <button class="btn btn--sm btn--ghost" [disabled]="i === 0" (click)="move(i, -1)" title="Move up">↑</button>
+              <button class="btn btn--sm btn--ghost" [disabled]="i === items().length - 1" (click)="move(i, 1)" title="Move down">↓</button>
+              <button class="btn btn--sm btn--danger-ghost" (click)="removeItem(i)">Remove</button>
+            </div>
+          </div>
+
+          <div class="scoring-grid">
+            <div class="field">
+              <label class="label">Scoring</label>
+              <select class="input" [ngModel]="it.scoringType ?? ''" (ngModelChange)="setScoringType(i, $event)">
+                @for (s of scoringTypes; track s.value) {
+                  <option [value]="s.value">{{ s.label }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="label">Weight</label>
+              <input class="input" type="number" min="0.1" step="0.1"
+                [ngModel]="it.weight" (ngModelChange)="patchItem(i, { weight: +$event })" />
+            </div>
+
+            @if (it.scoringType === 'Scale1To5') {
+              <div class="field">
+                <label class="label">Fail at or below</label>
+                <select class="input"
+                  [ngModel]="it.failScoreThreshold" (ngModelChange)="patchItem(i, { failScoreThreshold: +$event })">
+                  @for (n of [1,2,3,4,5]; track n) {
+                    <option [value]="n">{{ n }}</option>
+                  }
+                </select>
+              </div>
+            }
+
+            <div class="field field--check">
+              <label class="check">
+                <input type="checkbox" [ngModel]="it.photoRequired"
+                  (ngModelChange)="patchItem(i, { photoRequired: $event })" />
+                Photo required
+              </label>
+            </div>
+          </div>
+
+          @if (it.scoringType) {
+            <div class="field">
+              <label class="label">Corrective action on fail (optional)</label>
+              <input class="input" placeholder="e.g. Re-clean and re-inspect within 24h"
+                [ngModel]="it.failCorrectiveActionText"
+                (ngModelChange)="patchItem(i, { failCorrectiveActionText: $event })" />
+            </div>
           }
         </div>
       } @empty {
-        <p class="text-muted">This checklist has no items yet.</p>
+        <p class="text-muted">This checklist has no items yet. Search above to add one.</p>
       }
     </div>
   }

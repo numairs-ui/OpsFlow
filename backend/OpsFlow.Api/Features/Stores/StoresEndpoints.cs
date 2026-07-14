@@ -3,6 +3,7 @@ using OpsFlow.Api.Features.Stores.CreateStore;
 using OpsFlow.Api.Features.Stores.DeactivateStore;
 using OpsFlow.Api.Features.Stores.GetStoreEmployees;
 using OpsFlow.Api.Features.Stores.GetStores;
+using OpsFlow.Api.Features.Stores.ReactivateStore;
 using OpsFlow.Api.Features.Stores.UpdateStore;
 
 namespace OpsFlow.Api.Features.Stores;
@@ -31,6 +32,12 @@ internal static class StoresEndpoints
         group.MapPost("/{id:guid}/deactivate", async (Guid id, IMediator m) =>
         {
             await m.Send(new DeactivateStoreCommand(id));
+            return Results.NoContent();
+        });
+
+        group.MapPost("/{id:guid}/reactivate", async (Guid id, IMediator m) =>
+        {
+            await m.Send(new ReactivateStoreCommand(id));
             return Results.NoContent();
         });
 

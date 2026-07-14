@@ -23,55 +23,78 @@
   }
 
   @if (board(); as b) {
+    <!-- Store Progress % -->
     <div class="board-summary">
-      <span class="summary-label">Overall Progress</span>
+      <span class="summary-label">Store Progress</span>
       <div class="progress-bar">
-        <div class="progress-bar__fill" [style.width.%]="b.totalCount ? (b.completedCount / b.totalCount) * 100 : 0"></div>
+        <div class="progress-bar__fill" [style.width.%]="storeProgress()"></div>
       </div>
-      <span class="summary-count">{{ b.completedCount }} / {{ b.totalCount }}</span>
+      <span class="summary-count">{{ b.completedCount }} / {{ b.totalCount }} · {{ storeProgress() }}%</span>
     </div>
 
-    <div class="checklist-groups">
-      @for (group of b.taskGroups; track group.checklistId) {
-        <section class="checklist-group">
-          <div class="group-header">
-            <div class="group-meta">
-              <span class="group-name">{{ group.checklistName }}</span>
-              <span class="group-count">{{ group.completedCount }}/{{ group.totalCount }}</span>
+    <!-- My Tasks -->
+    <section class="board-section">
+      <div class="section-header">
+        <span class="section-title">My Tasks</span>
+        <span class="section-count">{{ myTasks().length }}</span>
+      </div>
+      <ul class="task-list">
+        @for (task of sortedTasks(myTasks()); track task.id) {
+          <li class="task-item task-item--{{ task.status.toLowerCase() }}" role="button" tabindex="0"
+            (click)="openTask(task.id)"
+            (keydown.enter)="openTask(task.id)"
+            (keydown.space)="openTask(task.id)">
+            <span class="task-status-dot"></span>
+            <div class="task-info">
+              @if (task.recurringAssignmentName) {
+                <span class="task-name">{{ task.recurringAssignmentName }}</span>
+              } @else {
+                <span class="task-name task-name--adhoc">Ad Hoc Task</span>
+              }
+              <span class="task-due">Due {{ task.dueAt | date:'h:mm a' }}</span>
             </div>
-            <div class="group-progress">
-              <div class="progress-bar progress-bar--sm">
-                <div class="progress-bar__fill" [style.width.%]="progressPct(group)"></div>
-              </div>
+            <span class="task-badge">{{ task.status | formatStatus }}</span>
+          </li>
+        }
+        @if (myTasks().length === 0) {
+          <li class="state-empty state-empty--inline">Nothing assigned to you right now.</li>
+        }
+      </ul>
+    </section>
+
+    <!-- Open Store Tasks -->
+    <section class="board-section">
+      <div class="section-header">
+        <span class="section-title">Open Store Tasks</span>
+        <span class="section-count">{{ openStoreTasks().length }}</span>
+      </div>
+      <ul class="task-list">
+        @for (task of sortedTasks(openStoreTasks()); track task.id) {
+          <li class="task-item task-item--{{ task.status.toLowerCase() }}" role="button" tabindex="0"
+            (click)="openTask(task.id)"
+            (keydown.enter)="openTask(task.id)"
+            (keydown.space)="openTask(task.id)">
+            <span class="task-status-dot"></span>
+            <div class="task-info">
+              @if (task.recurringAssignmentName) {
+                <span class="task-name">{{ task.recurringAssignmentName }}</span>
+              } @else {
+                <span class="task-name task-name--adhoc">Ad Hoc Task</span>
+              }
+              <span class="task-due">Due {{ task.dueAt | date:'h:mm a' }}</span>
             </div>
-          </div>
+            <span class="task-badge">{{ task.status | formatStatus }}</span>
+          </li>
+        }
+        @if (openStoreTasks().length === 0) {
+          <li class="state-empty state-empty--inline">No unclaimed store tasks — nice work.</li>
+        }
+      </ul>
+    </section>
 
-          <ul class="task-list">
-            @for (task of sortedTasks(group.tasks); track task.id) {
-              <li class="task-item task-item--{{ task.status.toLowerCase() }}" role="button" tabindex="0"
-                (click)="openTask(task.id)"
-                (keydown.enter)="openTask(task.id)"
-                (keydown.space)="openTask(task.id)">
-                <span class="task-status-dot"></span>
-                <div class="task-info">
-                  @if (task.recurringAssignmentName) {
-                    <span class="task-name">{{ task.recurringAssignmentName }}</span>
-                  } @else {
-                    <span class="task-name task-name--adhoc">Ad Hoc Task</span>
-                  }
-                  <span class="task-due">Due {{ task.dueAt | date:'h:mm a' }}</span>
-                </div>
-                <span class="task-badge">{{ task.status | formatStatus }}</span>
-              </li>
-            }
-          </ul>
-        </section>
-      }
-
-      @if (b.taskGroups.length === 0) {
-        <div class="state-empty">No tasks scheduled for today.</div>
-      }
-    </div>
+    @if (b.taskGroups.length === 0) {
+      <div class="state-empty">No tasks scheduled for today.</div>
+    }
   }
 
   <!-- Recent Activity (TB-65) -->

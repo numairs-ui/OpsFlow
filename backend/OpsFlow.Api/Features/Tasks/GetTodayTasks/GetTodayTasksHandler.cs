@@ -53,7 +53,8 @@ internal sealed class GetTodayTasksHandler(
 
                 return new TaskGroupDto(
                     g.Key,
-                    g.First().Checklist?.Name ?? "Unknown",
+                    // Tasks with no checklist collapse into one "Standalone Tasks" bucket on the board.
+                    g.Key is null ? "Standalone Tasks" : (g.First().Checklist?.Name ?? "Unknown"),
                     items.Count,
                     items.Count(i => i.Status == "Completed"),
                     items

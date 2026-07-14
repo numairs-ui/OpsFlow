@@ -136,6 +136,17 @@ export class StoresComponent implements OnInit {
     this.org.deactivateStore(store.id).subscribe({ next: () => this.load() });
   }
 
+  reactivate(store: Store): void {
+    this.error.set(null);
+    this.org.reactivateStore(store.id).subscribe({
+      next: () => {
+        if (this.detailStore()?.id === store.id) this.closeDetail();
+        this.load();
+      },
+      error: () => this.error.set(`Failed to reactivate "${store.name}". Please try again.`),
+    });
+  }
+
   openDetail(store: Store): void {
     this.detailStore.set(store);
     this.storeEmployees.set([]);

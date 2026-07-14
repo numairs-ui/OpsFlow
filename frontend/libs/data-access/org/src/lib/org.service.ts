@@ -48,6 +48,10 @@ export class OrgService {
     return this.http.post<void>(`${this.base}/stores/${id}/deactivate`, null);
   }
 
+  reactivateStore(id: string): Observable<void> {
+    return this.http.post<void>(`${this.base}/stores/${id}/reactivate`, null);
+  }
+
   // ── Users ────────────────────────────────────────────────────────────────────
 
   getUsers(filters?: { role?: string; storeId?: string; activeOnly?: boolean }): Observable<User[]> {
@@ -84,6 +88,10 @@ export class OrgService {
 
   reactivateUser(userId: string): Observable<void> {
     return this.http.post<void>(`${this.base}/users/${userId}/reactivate`, null);
+  }
+
+  resetPassword(userId: string): Observable<{ tempPassword: string }> {
+    return this.http.post<{ tempPassword: string }>(`${this.base}/users/${userId}/reset-password`, {});
   }
 
   getStoreAssignments(userId: string): Observable<StoreAssignment[]> {

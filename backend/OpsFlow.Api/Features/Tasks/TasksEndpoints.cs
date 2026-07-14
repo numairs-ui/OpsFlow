@@ -7,6 +7,7 @@ using OpsFlow.Api.Features.Tasks.CreateTask;
 using OpsFlow.Api.Features.Tasks.DeferTask;
 using OpsFlow.Api.Features.Tasks.GetTask;
 using OpsFlow.Api.Features.Tasks.GetTasks;
+using OpsFlow.Api.Features.Tasks.GetPhotoUploadUrl;
 using OpsFlow.Api.Features.Tasks.GetTodayTasks;
 using OpsFlow.Api.Features.Tasks.StartTask;
 using OpsFlow.Api.Features.Tasks.VerifyTask;
@@ -54,7 +55,13 @@ internal static class TasksEndpoints
 
         group.MapPost("/{id:guid}/complete", async (Guid id, CompleteTaskRequest body, IMediator m) =>
         {
-            var response = await m.Send(new CompleteTaskCommand(id, body.CompletedByVolunteerName, body.FieldValues));
+            var response = await m.Send(new CompleteTaskCommand(id, body.CompletedByVolunteerName, body.FieldValues, body.ItemScores));
+            return Results.Ok(response);
+        });
+
+        group.MapPost("/{id:guid}/photo-upload-url", async (Guid id, PhotoUploadUrlRequest body, IMediator m) =>
+        {
+            var response = await m.Send(new GetPhotoUploadUrlCommand(id, body.TemplateId, body.FieldId));
             return Results.Ok(response);
         });
 
@@ -88,7 +95,8 @@ internal static class TasksEndpoints
 }
 
 internal sealed record ClaimTaskRequest(string? VolunteerName);
-internal sealed record CompleteTaskRequest(string? CompletedByVolunteerName, List<FieldSubmission> FieldValues);
+internal sealed record CompleteTaskRequest(string? CompletedByVolunteerName, List<FieldSubmission> FieldValues, List<ItemScoreSubmission>? ItemScores = null);
 internal sealed record CancelTaskRequest(string Reason);
 internal sealed record DeferTaskRequest(string Reason, DateTimeOffset DeferredTo);
 internal sealed record AssignTaskRequest(string? AssignedToUserId);
+internal sealed record PhotoUploadUrlRequest(string TemplateId, string FieldId);

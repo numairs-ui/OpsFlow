@@ -275,8 +275,26 @@ namespace OpsFlow.Migrations.Tenant
                     b.Property<Guid>("TemplateId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("FailCorrectiveActionText")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("FailScoreThreshold")
+                        .HasColumnType("integer");
+
                     b.Property<int>("Order")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("PhotoRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ScoringType")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Weight")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(6, 2)
+                        .HasColumnType("numeric(6,2)")
+                        .HasDefaultValue(1.0m);
 
                     b.HasKey("ChecklistId", "TemplateId");
 
@@ -507,6 +525,33 @@ namespace OpsFlow.Migrations.Tenant
                     b.ToTable("InventorySnapshots");
                 });
 
+            modelBuilder.Entity("OpsFlow.Domain.Entities.MissedDepositFlag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("BusinessDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("FlaggedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("StoreId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StoreId", "BusinessDate")
+                        .IsUnique();
+
+                    b.ToTable("MissedDepositFlags");
+                });
+
             modelBuilder.Entity("OpsFlow.Domain.Entities.RecurringAssignment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -666,6 +711,9 @@ namespace OpsFlow.Migrations.Tenant
                     b.Property<Guid>("StoreId")
                         .HasColumnType("uuid");
 
+                    b.Property<TimeOnly?>("DepositDeadlineLocalTime")
+                        .HasColumnType("time without time zone");
+
                     b.Property<string>("DoughNeedTargetsJson")
                         .IsRequired()
                         .HasColumnType("jsonb")
@@ -708,6 +756,10 @@ namespace OpsFlow.Migrations.Tenant
                     b.Property<string>("CompletedByVolunteerName")
                         .HasColumnType("text");
 
+                    b.Property<decimal?>("CompositeScorePercent")
+                        .HasPrecision(5, 1)
+                        .HasColumnType("numeric(5,1)");
+
                     b.Property<string>("CorrectiveActionsJson")
                         .IsRequired()
                         .HasColumnType("jsonb")
@@ -717,6 +769,11 @@ namespace OpsFlow.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("jsonb")
                         .HasColumnName("FieldValues");
+
+                    b.Property<string>("ItemScoresJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("ItemScores");
 
                     b.Property<Guid>("TaskInstanceId")
                         .HasColumnType("uuid");
@@ -738,6 +795,9 @@ namespace OpsFlow.Migrations.Tenant
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("AdHocTaskTemplateId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("AssignedToUserId")
                         .HasColumnType("text");
 
@@ -750,7 +810,7 @@ namespace OpsFlow.Migrations.Tenant
                     b.Property<string>("CancelledByUserId")
                         .HasColumnType("text");
 
-                    b.Property<Guid>("ChecklistId")
+                    b.Property<Guid?>("ChecklistId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset?>("CompletedAt")
@@ -784,6 +844,9 @@ namespace OpsFlow.Migrations.Tenant
                     b.Property<Guid?>("RecurringAssignmentId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("SourceTaskInstanceId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
@@ -803,7 +866,11 @@ namespace OpsFlow.Migrations.Tenant
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AdHocTaskTemplateId");
+
                     b.HasIndex("ChecklistId");
+
+                    b.HasIndex("SourceTaskInstanceId");
 
                     b.HasIndex("RecurringAssignmentId", "DueAt");
 
@@ -1091,6 +1158,17 @@ namespace OpsFlow.Migrations.Tenant
                     b.Navigation("Store");
                 });
 
+            modelBuilder.Entity("OpsFlow.Domain.Entities.MissedDepositFlag", b =>
+                {
+                    b.HasOne("OpsFlow.Domain.Entities.Store", "Store")
+                        .WithMany()
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+                });
+
             modelBuilder.Entity("OpsFlow.Domain.Entities.RecurringAssignment", b =>
                 {
                     b.HasOne("OpsFlow.Domain.Entities.Checklist", "Checklist")
@@ -1145,15 +1223,24 @@ namespace OpsFlow.Migrations.Tenant
 
             modelBuilder.Entity("OpsFlow.Domain.Entities.TaskInstance", b =>
                 {
+                    b.HasOne("OpsFlow.Domain.Entities.TaskTemplate", "AdHocTaskTemplate")
+                        .WithMany()
+                        .HasForeignKey("AdHocTaskTemplateId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("OpsFlow.Domain.Entities.Checklist", "Checklist")
                         .WithMany()
                         .HasForeignKey("ChecklistId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("OpsFlow.Domain.Entities.RecurringAssignment", "RecurringAssignment")
                         .WithMany("TaskInstances")
                         .HasForeignKey("RecurringAssignmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("OpsFlow.Domain.Entities.TaskInstance", null)
+                        .WithMany()
+                        .HasForeignKey("SourceTaskInstanceId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("OpsFlow.Domain.Entities.Store", "Store")
@@ -1161,6 +1248,8 @@ namespace OpsFlow.Migrations.Tenant
                         .HasForeignKey("StoreId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("AdHocTaskTemplate");
 
                     b.Navigation("Checklist");
 

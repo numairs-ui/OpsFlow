@@ -12,20 +12,26 @@ internal sealed class GetSystemDashboardHandler(
 {
     public async Task<SystemDashboardDto> Handle(GetSystemDashboardQuery query, CancellationToken ct)
     {
-        // The system rollup spans every region — super_admin only.
-        httpContextAccessor.HttpContext!.User.ToCaller().Scope().AssertGlobal();
+        // super_admin sees the whole network; an admin/supervisor sees the same rollup narrowed to
+        // its own region set (this is why admins can call the system endpoint directly rather than
+        // client-aggregating per-region dashboards). Store-scoped roles have no network view.
+        var scope = httpContextAccessor.HttpContext!.User.ToCaller().Scope();
+        if (!scope.IsGlobal && !scope.IsRegionScoped)
+            throw new UnauthorizedAccessException("You do not have access to the system dashboard.");
+
+        var visibleRegionIds = scope.RegionIds.ToArray();
 
         await using var db = await factory.CreateAsync(ct);
 
         var window = DashboardWindow.Today();
 
         var allStores = await db.Stores
-            .Where(s => s.IsActive)
+            .Where(s => s.IsActive && (scope.IsGlobal || visibleRegionIds.Contains(s.RegionId)))
             .Select(s => new { s.Id, s.Name, s.RegionId })
             .ToListAsync(ct);
 
         var allRegions = await db.Regions
-            .Where(r => r.IsActive)
+            .Where(r => r.IsActive && (scope.IsGlobal || visibleRegionIds.Contains(r.Id)))
             .Select(r => new { r.Id, r.Name })
             .ToListAsync(ct);
 
@@ -36,6 +42,9 @@ internal sealed class GetSystemDashboardHandler(
 
         var taskStats = await DashboardMetrics.GetStoreTaskStatsAsync(db, storeIds, window, ct);
         var depositSet = await DashboardMetrics.GetStoresWithDepositLoggedAsync(db, storeIds, window, ct);
+        // "Missed deposit" (deadline passed, none logged) is the escalation signal — distinct from
+        // the live "logged today" indicator that feeds the per-store deposit score below.
+        var missedSet = await DashboardMetrics.GetStoresWithMissedDepositAsync(db, storeIds, window, ct);
 
         var allTotal = taskStats.Values.Sum(s => s.Total);
         var allCompleted = taskStats.Values.Sum(s => s.Completed);
@@ -44,7 +53,7 @@ internal sealed class GetSystemDashboardHandler(
         var totalOverdue = taskStats.Values.Sum(s => s.Overdue);
 
         var missedDeposits = allStores
-            .Where(s => !depositSet.Contains(s.Id))
+            .Where(s => missedSet.Contains(s.Id))
             .Select(s => new MissedDepositStore(s.Id, s.Name))
             .ToList();
 
@@ -61,7 +70,7 @@ internal sealed class GetSystemDashboardHandler(
             var rCompleted = regionStats.Sum(s => s.Completed);
             var rRate = rTotal > 0 ? (double)rCompleted / rTotal : 0;
             var rCritical = regionStats.Sum(s => s.Corrective)
-                + regionStores.Count(s => !depositSet.Contains(s.Id));
+                + regionStores.Count(s => missedSet.Contains(s.Id));
 
             var storeScores = regionStores.Select(store =>
             {

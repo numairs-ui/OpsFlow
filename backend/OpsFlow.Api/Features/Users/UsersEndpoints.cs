@@ -8,6 +8,7 @@ using OpsFlow.Api.Features.Users.GetUserActivity;
 using OpsFlow.Api.Features.Users.GetUsers;
 using OpsFlow.Api.Features.Users.ReactivateUser;
 using OpsFlow.Api.Features.Users.RemoveStoreAssignment;
+using OpsFlow.Api.Features.Users.ResetPassword;
 using OpsFlow.Api.Features.Users.UpdateUser;
 
 namespace OpsFlow.Api.Features.Users;
@@ -48,6 +49,12 @@ internal static class UsersEndpoints
             return Results.NoContent();
         });
 
+        group.MapPost("/{userId}/reset-password", async (string userId, ResetPasswordBody? body, IMediator m) =>
+        {
+            var result = await m.Send(new ResetPasswordCommand(userId, body?.NewPassword));
+            return Results.Ok(result);
+        });
+
         group.MapGet("/{userId}/activity", async (string userId, IMediator m) =>
             Results.Ok(await m.Send(new GetUserActivityQuery(userId))));
 
@@ -72,3 +79,4 @@ internal static class UsersEndpoints
 
 internal sealed record UpdateUserBody(string DisplayName, string Role, Guid? StoreId, IReadOnlyList<Guid>? RegionIds);
 internal sealed record StoreAssignmentBody(Guid StoreId);
+internal sealed record ResetPasswordBody(string? NewPassword);

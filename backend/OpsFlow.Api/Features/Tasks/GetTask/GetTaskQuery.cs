@@ -8,7 +8,7 @@ internal sealed record TaskDetailDto(
     Guid Id,
     Guid? RecurringAssignmentId,
     string? RecurringAssignmentName,
-    Guid ChecklistId,
+    Guid? ChecklistId,
     string ChecklistName,
     string? ChecklistDescription,
     Guid StoreId,
@@ -28,5 +28,9 @@ internal sealed record TaskTemplateItemDto(
     Guid TemplateId,
     string TemplateName,
     int Order,
-    string FieldsJson
+    string FieldsJson,
+    // Scoring config (A3) — null ScoringType means this item is not scored.
+    string? ScoringType = null,
+    bool PhotoRequired = false,
+    int? FailScoreThreshold = null
 );

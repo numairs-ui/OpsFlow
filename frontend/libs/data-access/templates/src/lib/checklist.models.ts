@@ -1,8 +1,15 @@
 import type { TemplateScope } from './template.models.js';
 
+export type ScoringType = 'PassFail' | 'Scale1To5';
+
 export interface ChecklistItemInput {
   templateId: string;
   order: number;
+  scoringType?: ScoringType | null;
+  weight?: number;
+  photoRequired?: boolean;
+  failCorrectiveActionText?: string | null;
+  failScoreThreshold?: number | null;
 }
 
 export interface ChecklistDto {
@@ -25,6 +32,11 @@ export interface ChecklistItemDto {
   templateName: string;
   order: number;
   fieldsJson?: string;
+  scoringType?: ScoringType | null;
+  weight?: number;
+  photoRequired?: boolean;
+  failCorrectiveActionText?: string | null;
+  failScoreThreshold?: number | null;
 }
 
 export interface ChecklistDetailDto extends ChecklistDto {

@@ -22,6 +22,7 @@ internal sealed class GetTaskHandler(
             .Include(t => t.Checklist)
                 .ThenInclude(c => c!.Items.OrderBy(i => i.Order))
                     .ThenInclude(i => i.Template)
+            .Include(t => t.AdHocTaskTemplate)
             .Include(t => t.Store)
             .Include(t => t.RecurringAssignment)
             .FirstOrDefaultAsync(t => t.Id == query.TaskId, ct)
@@ -32,14 +33,31 @@ internal sealed class GetTaskHandler(
             && await db.UserStoreAssignments.AnyAsync(a => a.UserId == userId && a.StoreId == task.StoreId, ct);
         spec.AssertCanViewStore(task.Store!.RegionId, task.StoreId, assigned);
 
-        var templates = task.Checklist?.Items
-            .Select(i => new TaskTemplateItemDto(
-                i.TemplateId,
-                i.Template?.Name ?? "",
-                i.Order,
-                i.Template?.FieldsJson ?? "[]"
-            ))
-            .ToList() ?? [];
+        // Checklist-backed tasks expose every item's template; a standalone task exposes its single
+        // ad-hoc template (mode a); a notes-only task exposes none.
+        List<TaskTemplateItemDto> templates;
+        if (task.Checklist is not null)
+        {
+            templates = task.Checklist.Items
+                .Select(i => new TaskTemplateItemDto(
+                    i.TemplateId,
+                    i.Template?.Name ?? "",
+                    i.Order,
+                    i.Template?.FieldsJson ?? "[]",
+                    i.ScoringType,
+                    i.PhotoRequired,
+                    i.FailScoreThreshold
+                ))
+                .ToList();
+        }
+        else if (task.AdHocTaskTemplate is { } adHoc)
+        {
+            templates = [new TaskTemplateItemDto(adHoc.Id, adHoc.Name, 0, adHoc.FieldsJson)];
+        }
+        else
+        {
+            templates = [];
+        }
 
         var isMdog = task.Checklist?.Items.Any(i => i.Template?.Category == "Inventory") ?? false;
 
@@ -62,7 +80,7 @@ internal sealed class GetTaskHandler(
             task.RecurringAssignmentId,
             task.RecurringAssignment?.Name,
             task.ChecklistId,
-            task.Checklist?.Name ?? "",
+            task.Checklist?.Name ?? task.AdHocTaskTemplate?.Name ?? "Standalone Task",
             task.Checklist?.Description,
             task.StoreId,
             task.Store?.Name ?? "",

@@ -30,6 +30,52 @@ public sealed class TaskFieldValidatorTests
 
     private static string FieldsJson(object spec) => JsonSerializer.Serialize(new[] { spec });
 
+    private static TaskTemplate Template(Guid id, string fieldsJson, string category = "General") =>
+        new()
+        {
+            Id = id,
+            TenantId = "t1",
+            Name = "Template",
+            Category = category,
+            Scope = "Store",
+            FieldsJson = fieldsJson,
+            CreatedByUserId = "system",
+        };
+
+    // ── ValidateAdHoc (standalone tasks, A1) ─────────────────────────────────────
+
+    [Fact]
+    public void ValidateAdHoc_null_template_is_notes_only_no_errors()
+    {
+        var result = TaskFieldValidator.ValidateAdHoc(null, [], null);
+
+        result.Errors.Should().BeEmpty();
+        result.CorrectiveActions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ValidateAdHoc_required_field_missing_produces_error()
+    {
+        var templateId = Guid.NewGuid();
+        var template = Template(templateId, FieldsJson(new { Id = "f1", Type = "Text", Label = "Name", Required = true }));
+
+        var result = TaskFieldValidator.ValidateAdHoc(template, [], null);
+
+        result.Errors.Should().ContainSingle(e => e.ErrorMessage.Contains("Name"));
+    }
+
+    [Fact]
+    public void ValidateAdHoc_valid_submission_passes()
+    {
+        var templateId = Guid.NewGuid();
+        var template = Template(templateId, FieldsJson(new { Id = "f1", Type = "Text", Label = "Name", Required = true }));
+        var submission = new FieldSubmission(templateId, "f1", "Done");
+
+        var result = TaskFieldValidator.ValidateAdHoc(template, [submission], null);
+
+        result.Errors.Should().BeEmpty();
+    }
+
     [Fact]
     public void Required_field_missing_produces_error()
     {

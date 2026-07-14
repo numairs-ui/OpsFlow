@@ -118,6 +118,41 @@ public sealed class UserManagementTests : IClassFixture<TenantAwareWebApplicatio
     }
 
     // ────────────────────────────────────────────────────────────────
+    // Scenario 3b: Admin resets a user's password, gets a one-time temp password
+    // ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Admin_ResetsPassword_ReturnsTempPassword_SatisfyingPolicy()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseAdminToken();
+
+        var createResp = await _client.PostAsJsonAsync("/users", new
+        {
+            email = $"reset-test-{Guid.NewGuid():N}@test.com",
+            password = "TempPass1!",
+            displayName = "Reset Test User",
+            role = "store_employee",
+            storeId = TenantAwareWebApplicationFactory.StoreId,
+        });
+        createResp.StatusCode.Should().Be(HttpStatusCode.Created);
+        var userId = (await createResp.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("userId").GetString()!;
+
+        // Reset with a generated temp password (empty body).
+        var resetResp = await _client.PostAsJsonAsync<object?>($"/users/{userId}/reset-password", null);
+        resetResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var temp = (await resetResp.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("tempPassword").GetString()!;
+
+        temp.Should().NotBeNullOrEmpty();
+        temp.Length.Should().BeGreaterThanOrEqualTo(8);
+        temp.Should().MatchRegex("[A-Z]").And.MatchRegex("[a-z]")
+            .And.MatchRegex("[0-9]").And.MatchRegex("[^A-Za-z0-9]");
+    }
+
+    // ────────────────────────────────────────────────────────────────
     // Scenario 4: Admin adds and removes a store assignment for a user
     // ────────────────────────────────────────────────────────────────
 

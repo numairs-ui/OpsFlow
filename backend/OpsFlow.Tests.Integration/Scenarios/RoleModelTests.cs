@@ -148,14 +148,16 @@ public sealed class RoleModelTests : IClassFixture<F>
     }
 
     [Fact]
-    public async Task Admin_SystemDashboard_Returns401()
+    public async Task Admin_SystemDashboard_Returns200_ScopedToOwnRegions()
     {
+        // B6 admin fix: a region-scoped admin may call the system dashboard directly; the handler
+        // narrows the rollup to the admin's regions rather than denying access (as it once did).
         await _factory.SeedCommonDataAsync();
         UseToken(_factory.MintMultiRegionToken(F.AdminUserId, "admin", null, F.RegionId.ToString()));
 
         var response = await _client.GetAsync("/dashboard/system");
 
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]

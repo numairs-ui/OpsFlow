@@ -104,6 +104,14 @@ builder.Services.AddQuartz(q =>
         .ForJob(deferKey)
         .WithIdentity("ActivateDeferredTasksTrigger")
         .WithCronSchedule("0 0 6 * * ?")); // daily 6:00 AM
+
+    var depositEscalationKey = new JobKey("DepositEscalationJob");
+    q.AddJob<DepositEscalationJob>(opts => opts.WithIdentity(depositEscalationKey));
+    q.AddTrigger(opts => opts
+        .ForJob(depositEscalationKey)
+        .WithIdentity("DepositEscalationTrigger")
+        // Runs after the default 21:00 deadline; override via Jobs:DepositEscalationCron.
+        .WithCronSchedule(builder.Configuration["Jobs:DepositEscalationCron"] ?? "0 0 23 * * ?")); // daily 23:00
 });
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 

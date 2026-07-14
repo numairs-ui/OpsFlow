@@ -34,6 +34,27 @@
     position: relative;
   }
 
+  &__create {
+    margin: 0.9rem 1rem 0.4rem;
+    padding: 0.6rem 0.9rem;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--indigo);
+    color: var(--cream);
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    position: relative;
+    transition: filter 0.15s;
+
+    &:hover { filter: brightness(1.1); }
+  }
+
+  &__create-plus { font-size: 1.05rem; line-height: 1; }
+
   &__logo-mark {
     width: 28px; height: 28px;
     border-radius: 50%;

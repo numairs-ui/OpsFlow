@@ -42,4 +42,21 @@ internal static class DashboardMetrics
 
         return deposited.ToHashSet();
     }
+
+    /// <summary>
+    /// Stores flagged by the deposit-escalation job as having missed their deposit deadline for the
+    /// window's business day. This is the single source of the "missed deposit" signal the dashboards
+    /// surface — deadline-aware, so a store that simply hasn't deposited *yet* isn't a false alarm.
+    /// </summary>
+    public static async Task<HashSet<Guid>> GetStoresWithMissedDepositAsync(
+        TenantDbContext db, IReadOnlyCollection<Guid> storeIds, DashboardWindow window, CancellationToken ct)
+    {
+        var businessDate = DateOnly.FromDateTime(window.Start.UtcDateTime);
+        var flagged = await db.MissedDepositFlags
+            .Where(f => storeIds.Contains(f.StoreId) && f.BusinessDate == businessDate)
+            .Select(f => f.StoreId)
+            .ToListAsync(ct);
+
+        return flagged.ToHashSet();
+    }
 }

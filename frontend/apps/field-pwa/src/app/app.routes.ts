@@ -4,10 +4,12 @@ import { authGuard, kioskRedirectGuard } from '@org/data-access-auth';
 export const appRoutes: Route[] = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   {
+    // The employee dashboard and the task board were two overlapping screens; they are now one.
+    // /dashboard and /tasks both render the enriched board (My Tasks / Open Store Tasks / progress).
     path: 'dashboard',
     canActivate: [authGuard, kioskRedirectGuard],
     loadComponent: () =>
-      import('./dashboard/dashboard.component.js').then((m) => m.DashboardComponent),
+      import('./tasks/tasks.component.js').then((m) => m.TasksComponent),
   },
   {
     path: 'login',

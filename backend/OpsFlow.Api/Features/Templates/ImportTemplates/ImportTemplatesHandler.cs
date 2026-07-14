@@ -54,9 +54,14 @@ internal sealed class ImportTemplatesHandler(
                         FieldsJson = item.FieldsJson ?? "[]",
                         CreatedByUserId = userId,
                     });
+                    created++; // count only rows that actually persist something
                 }
-                // Checklist and Form types to be handled by respective domains
-                created++;
+                else if (item.Type == "Checklist")
+                {
+                    ImportChecklist(db, item, tenantId, userId);
+                    created++;
+                }
+                // Form has its own creation flow — Validate() rejects it before reaching here.
             }
             catch (Exception ex)
             {
@@ -68,6 +73,60 @@ internal sealed class ImportTemplatesHandler(
         return new ImportTemplatesResult(created, failed);
     }
 
+    /// <summary>
+    /// Materialize a Checklist import row into one Checklist + one TaskTemplate per sub-item + the
+    /// corresponding scored ChecklistTemplateItem rows — the shape a scored checklist actually needs,
+    /// rather than the old "one flat template with N crammed fields."
+    /// </summary>
+    private static void ImportChecklist(TenantDbContext db, ImportTemplateItem item, string tenantId, string userId)
+    {
+        var checklist = new Checklist
+        {
+            TenantId = tenantId,
+            Name = item.Name,
+            Description = item.Description,
+            Scope = item.Scope,
+            RegionId = item.RegionId,
+            StoreId = item.StoreId,
+            IsActive = true,
+            CreatedByUserId = userId,
+        };
+        db.Checklists.Add(checklist);
+
+        var order = 0;
+        foreach (var sub in item.Items!)
+        {
+            var template = new TaskTemplate
+            {
+                TenantId = tenantId,
+                Name = sub.Name,
+                Description = sub.Description,
+                Category = sub.Category ?? item.Category,
+                Scope = item.Scope,
+                RegionId = item.RegionId,
+                StoreId = item.StoreId,
+                FieldsJson = sub.FieldsJson ?? "[]",
+                CreatedByUserId = userId,
+            };
+            db.TaskTemplates.Add(template);
+
+            db.ChecklistTemplateItems.Add(new ChecklistTemplateItem
+            {
+                ChecklistId = checklist.Id,
+                TemplateId = template.Id,
+                Order = sub.Order != 0 ? sub.Order : order,
+                ScoringType = sub.ScoringType,
+                Weight = sub.Weight,
+                PhotoRequired = sub.PhotoRequired,
+                FailCorrectiveActionText = sub.FailCorrectiveActionText,
+                FailScoreThreshold = sub.ScoringType == "Scale1To5" ? sub.FailScoreThreshold : null,
+            });
+            order++;
+        }
+    }
+
+    private static readonly string[] AllowedScoringTypes = ["PassFail", "Scale1To5"];
+
     private static List<string> Validate(ImportTemplateItem item)
     {
         var errors = new List<string>();
@@ -78,6 +137,29 @@ internal sealed class ImportTemplatesHandler(
         if (!ValidScopes.Contains(item.Scope)) errors.Add($"Scope must be one of: {string.Join(", ", ValidScopes)}.");
         if (item.Scope == "Regional" && item.RegionId == null) errors.Add("RegionId is required for Regional scope.");
         if (item.Scope == "Store" && item.StoreId == null) errors.Add("StoreId is required for Store scope.");
+
+        if (item.Type == "Checklist")
+        {
+            if (item.Items is not { Count: > 0 })
+                errors.Add("A Checklist import must include at least one item.");
+            else
+            {
+                foreach (var sub in item.Items)
+                {
+                    if (string.IsNullOrWhiteSpace(sub.Name)) errors.Add("Each checklist item needs a name.");
+                    if (sub.ScoringType is not null && !AllowedScoringTypes.Contains(sub.ScoringType))
+                        errors.Add($"Item '{sub.Name}': ScoringType must be one of {string.Join(", ", AllowedScoringTypes)} (or null).");
+                    if (sub.FailScoreThreshold is { } t)
+                    {
+                        if (sub.ScoringType != "Scale1To5")
+                            errors.Add($"Item '{sub.Name}': FailScoreThreshold is only valid for Scale1To5.");
+                        else if (t is < 1 or > 5)
+                            errors.Add($"Item '{sub.Name}': FailScoreThreshold must be between 1 and 5.");
+                    }
+                }
+            }
+        }
+
         return errors;
     }
 }

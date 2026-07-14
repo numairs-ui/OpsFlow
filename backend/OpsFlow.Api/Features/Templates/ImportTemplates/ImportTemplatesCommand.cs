@@ -10,7 +10,21 @@ internal sealed record ImportTemplateItem(
     string Scope,
     Guid? RegionId,
     Guid? StoreId,
-    string? FieldsJson);
+    string? FieldsJson,
+    // For Type == "Checklist": each sub-item becomes a TaskTemplate + a scored ChecklistTemplateItem.
+    List<ImportChecklistItem>? Items = null);
+
+internal sealed record ImportChecklistItem(
+    string Name,
+    string? Description,
+    string? Category,
+    string? FieldsJson,
+    int Order = 0,
+    string? ScoringType = null,
+    decimal Weight = 1.0m,
+    bool PhotoRequired = false,
+    string? FailCorrectiveActionText = null,
+    int? FailScoreThreshold = null);
 
 internal sealed record ImportTemplatesCommand(List<ImportTemplateItem> Templates) : IRequest<ImportTemplatesResult>;
 
