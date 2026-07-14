@@ -6,6 +6,9 @@ on:
 
 env:
   NODE_VERSION: 20
+  # Live Azure Container App backend. Update here if the backend is ever moved/redeployed
+  # under a different FQDN — this is the single place both frontend deploy jobs read it from.
+  API_ORIGIN: https://opsflow-app.ambitiousplant-226f55e6.westus2.azurecontainerapps.io
 
 jobs:
   deploy-field-pwa:
@@ -29,6 +32,13 @@ jobs:
 
       - name: Build
         run: npx nx build field-pwa --configuration=production
+
+      # nx build always resets env.js's apiOrigin to '' (its committed dev default) — patch it
+      # to the live backend before deploying, or the deployed app silently can't reach the API.
+      - name: Patch API origin
+        run: |
+          sed -i "s#apiOrigin: ''#apiOrigin: '${{ env.API_ORIGIN }}'#" dist/apps/field-pwa/browser/env.js
+          grep apiOrigin dist/apps/field-pwa/browser/env.js
 
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
@@ -60,6 +70,13 @@ jobs:
 
       - name: Build
         run: npx nx build dashboard --configuration=production
+
+      # nx build always resets env.js's apiOrigin to '' (its committed dev default) — patch it
+      # to the live backend before deploying, or the deployed app silently can't reach the API.
+      - name: Patch API origin
+        run: |
+          sed -i "s#apiOrigin: ''#apiOrigin: '${{ env.API_ORIGIN }}'#" dist/apps/dashboard/browser/env.js
+          grep apiOrigin dist/apps/dashboard/browser/env.js
 
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
