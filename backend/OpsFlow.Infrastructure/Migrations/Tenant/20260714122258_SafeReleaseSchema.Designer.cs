@@ -12,8 +12,8 @@ using OpsFlow.Infrastructure;
 namespace OpsFlow.Migrations.Tenant
 {
     [DbContext(typeof(TenantDbContext))]
-    [Migration("20260710155115_ChecklistItemScoring")]
-    partial class ChecklistItemScoring
+    [Migration("20260714122258_SafeReleaseSchema")]
+    partial class SafeReleaseSchema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -591,6 +591,9 @@ namespace OpsFlow.Migrations.Tenant
                     b.Property<DateTimeOffset>("StartsAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("StoreId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("TenantId")
                         .IsRequired()
                         .HasColumnType("text");
@@ -599,22 +602,9 @@ namespace OpsFlow.Migrations.Tenant
 
                     b.HasIndex("ChecklistId");
 
-                    b.ToTable("RecurringAssignments");
-                });
-
-            modelBuilder.Entity("OpsFlow.Domain.Entities.RecurringAssignmentStore", b =>
-                {
-                    b.Property<Guid>("RecurringAssignmentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("StoreId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("RecurringAssignmentId", "StoreId");
-
                     b.HasIndex("StoreId");
 
-                    b.ToTable("RecurringAssignmentStores");
+                    b.ToTable("RecurringAssignments");
                 });
 
             modelBuilder.Entity("OpsFlow.Domain.Entities.RefreshToken", b =>
@@ -769,6 +759,10 @@ namespace OpsFlow.Migrations.Tenant
                     b.Property<string>("CompletedByVolunteerName")
                         .HasColumnType("text");
 
+                    b.Property<decimal?>("CompositeScorePercent")
+                        .HasPrecision(5, 1)
+                        .HasColumnType("numeric(5,1)");
+
                     b.Property<string>("CorrectiveActionsJson")
                         .IsRequired()
                         .HasColumnType("jsonb")
@@ -778,6 +772,11 @@ namespace OpsFlow.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("jsonb")
                         .HasColumnName("FieldValues");
+
+                    b.Property<string>("ItemScoresJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("ItemScores");
 
                     b.Property<Guid>("TaskInstanceId")
                         .HasColumnType("uuid");
@@ -1181,24 +1180,13 @@ namespace OpsFlow.Migrations.Tenant
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Checklist");
-                });
-
-            modelBuilder.Entity("OpsFlow.Domain.Entities.RecurringAssignmentStore", b =>
-                {
-                    b.HasOne("OpsFlow.Domain.Entities.RecurringAssignment", "RecurringAssignment")
-                        .WithMany("TargetStores")
-                        .HasForeignKey("RecurringAssignmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("OpsFlow.Domain.Entities.Store", "Store")
                         .WithMany()
                         .HasForeignKey("StoreId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("RecurringAssignment");
+                    b.Navigation("Checklist");
 
                     b.Navigation("Store");
                 });
@@ -1338,8 +1326,6 @@ namespace OpsFlow.Migrations.Tenant
 
             modelBuilder.Entity("OpsFlow.Domain.Entities.RecurringAssignment", b =>
                 {
-                    b.Navigation("TargetStores");
-
                     b.Navigation("TaskInstances");
                 });
 

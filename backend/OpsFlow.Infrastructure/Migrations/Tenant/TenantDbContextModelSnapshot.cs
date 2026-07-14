@@ -588,6 +588,9 @@ namespace OpsFlow.Migrations.Tenant
                     b.Property<DateTimeOffset>("StartsAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("StoreId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("TenantId")
                         .IsRequired()
                         .HasColumnType("text");
@@ -596,22 +599,9 @@ namespace OpsFlow.Migrations.Tenant
 
                     b.HasIndex("ChecklistId");
 
-                    b.ToTable("RecurringAssignments");
-                });
-
-            modelBuilder.Entity("OpsFlow.Domain.Entities.RecurringAssignmentStore", b =>
-                {
-                    b.Property<Guid>("RecurringAssignmentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("StoreId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("RecurringAssignmentId", "StoreId");
-
                     b.HasIndex("StoreId");
 
-                    b.ToTable("RecurringAssignmentStores");
+                    b.ToTable("RecurringAssignments");
                 });
 
             modelBuilder.Entity("OpsFlow.Domain.Entities.RefreshToken", b =>
@@ -1187,24 +1177,13 @@ namespace OpsFlow.Migrations.Tenant
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Checklist");
-                });
-
-            modelBuilder.Entity("OpsFlow.Domain.Entities.RecurringAssignmentStore", b =>
-                {
-                    b.HasOne("OpsFlow.Domain.Entities.RecurringAssignment", "RecurringAssignment")
-                        .WithMany("TargetStores")
-                        .HasForeignKey("RecurringAssignmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("OpsFlow.Domain.Entities.Store", "Store")
                         .WithMany()
                         .HasForeignKey("StoreId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("RecurringAssignment");
+                    b.Navigation("Checklist");
 
                     b.Navigation("Store");
                 });
@@ -1344,8 +1323,6 @@ namespace OpsFlow.Migrations.Tenant
 
             modelBuilder.Entity("OpsFlow.Domain.Entities.RecurringAssignment", b =>
                 {
-                    b.Navigation("TargetStores");
-
                     b.Navigation("TaskInstances");
                 });
 
