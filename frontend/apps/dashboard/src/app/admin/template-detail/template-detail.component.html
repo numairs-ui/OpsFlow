@@ -35,7 +35,7 @@
             </span>
             <span class="field-row__type">{{ field.type }}</span>
           </div>
-          @if (field.type === 'Numeric' && (field.rangeMin != null || field.rangeMax != null)) {
+          @if (field.type === 'Numeric' && (field.rangeMin !== undefined || field.rangeMax !== undefined)) {
             <p class="field-row__meta">Range: {{ field.rangeMin ?? '—' }} to {{ field.rangeMax ?? '—' }}</p>
           }
           @if (field.type === 'Numeric' && field.correctiveActionText) {

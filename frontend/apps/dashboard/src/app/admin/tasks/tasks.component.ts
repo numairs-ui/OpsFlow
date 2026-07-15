@@ -73,6 +73,14 @@ export class TasksComponent implements OnInit {
     this.router.navigate([], { queryParams: { filter: f }, queryParamsHandling: 'merge' });
   }
 
+  // The row uses [routerLink] directly (no native keyboard support), and also contains
+  // two nested <a> links with their own click handling — guard so Enter/Space on a nested
+  // link doesn't also bubble up and double-navigate via the row's own routerLink.
+  onRowKeydown(event: Event, taskId: string): void {
+    if (event.target !== event.currentTarget) return;
+    this.router.navigate(['/admin/tasks', taskId]);
+  }
+
   private load(f: TaskFilter): void {
     this.loading.set(true);
     this.error.set(null);

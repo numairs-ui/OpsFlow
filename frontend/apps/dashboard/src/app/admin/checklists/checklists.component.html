@@ -12,7 +12,16 @@
   }
 
   @if (loading()) {
-    <div class="loading">Loading...</div>
+    <div class="table-skeleton">
+      @for (i of [1,2,3,4,5]; track i) {
+        <div class="table-skeleton__row">
+          <div class="table-skeleton__cell table-skeleton__cell--wide"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--wide"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+        </div>
+      }
+    </div>
   } @else if (checklists().length === 0) {
     <div class="empty">No checklists found. Create one to get started.</div>
   } @else {
@@ -20,12 +29,12 @@
       <table class="table">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Scope</th>
-            <th>Items</th>
-            <th>Preview</th>
-            <th>Status</th>
-            <th>Actions</th>
+            <th scope="col">Name</th>
+            <th scope="col">Scope</th>
+            <th scope="col">Items</th>
+            <th scope="col">Preview</th>
+            <th scope="col">Status</th>
+            <th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -70,6 +79,54 @@
           }
         </tbody>
       </table>
+    </div>
+
+    <div class="list-cards">
+      @for (c of checklists(); track c.id) {
+        <div class="list-card" [class.list-card--inactive]="!c.isActive">
+          <div class="list-card__head">
+            <div>
+              <a class="list-card__title cell-primary" [routerLink]="['/admin/checklists', c.id]">{{ c.name }}</a>
+              @if (c.description) {
+                <div class="list-card__sub">{{ c.description }}</div>
+              }
+            </div>
+            <span class="badge" [class]="c.isActive ? 'badge--active' : 'badge--inactive'">
+              {{ c.isActive ? 'Active' : 'Inactive' }}
+            </span>
+          </div>
+          <dl class="list-card__fields">
+            <div class="list-card__field">
+              <dt>Scope</dt>
+              <dd>
+                <span class="badge" [class]="'badge--' + c.scope.toLowerCase()">{{ c.scope }}</span>
+                @if (c.regionName) { {{ c.regionName }} }
+                @if (c.storeName) { {{ c.storeName }} }
+              </dd>
+            </div>
+            <div class="list-card__field"><dt>Items</dt><dd>{{ c.itemCount }}</dd></div>
+            @if (c.firstThreeTemplateNames.length > 0) {
+              <div class="list-card__field">
+                <dt>Preview</dt>
+                <dd>
+                  {{ c.firstThreeTemplateNames.join(', ') }}
+                  @if (c.itemCount > 3) { (+{{ c.itemCount - 3 }} more) }
+                </dd>
+              </div>
+            }
+          </dl>
+          <div class="list-card__actions">
+            <button class="btn btn--sm btn--ghost" (click)="openEdit(c)">Edit Items</button>
+            <button
+              class="btn btn--sm"
+              [class]="c.isActive ? 'btn--danger' : 'btn--success'"
+              (click)="toggleActive(c)"
+            >
+              {{ c.isActive ? 'Deactivate' : 'Activate' }}
+            </button>
+          </div>
+        </div>
+      }
     </div>
   }
 </div>

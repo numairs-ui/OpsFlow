@@ -37,7 +37,7 @@ export class RecurringAssignmentsComponent implements OnInit {
 
   readonly currentUser = this.auth.currentUser;
 
-  readonly form = this.fb.group({
+  readonly form = this.fb.nonNullable.group({
     name: ['', Validators.required],
     checklistId: ['', Validators.required],
     storeId: ['', Validators.required],
@@ -78,11 +78,11 @@ export class RecurringAssignmentsComponent implements OnInit {
     if (this.form.invalid || this.saving()) return;
     const { name, checklistId, storeId, startsAt, endsAt, assignedToUserId } = this.form.getRawValue();
     const body: CreateRecurringAssignmentRequest = {
-      name: name!,
-      checklistId: checklistId!,
-      storeId: storeId!,
+      name,
+      checklistId,
+      storeId,
       cronExpression: this.cronExpression(),
-      startsAt: new Date(startsAt!).toISOString(),
+      startsAt: new Date(startsAt).toISOString(),
       endsAt: endsAt ? new Date(endsAt).toISOString() : undefined,
       assignedToUserId: assignedToUserId || undefined,
     };

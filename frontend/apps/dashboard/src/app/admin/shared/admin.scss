@@ -159,8 +159,10 @@
   border: 1px solid currentColor;
   white-space: nowrap;
 
-  &--active   { color: var(--green);  background: rgba(42,127,79,0.1);  border-color: var(--green); }
-  &--inactive { color: var(--muted);  background: var(--cream-deep);    border-color: var(--line); }
+  // Darkened text vs. --green/--muted so contrast clears WCAG AA 4.5:1 on these tinted backgrounds
+  // (the base tokens pass fine on plain paper/cream but fall short on the badge tints — see audit).
+  &--active   { color: #246c43;  background: rgba(42,127,79,0.1);  border-color: var(--green); }
+  &--inactive { color: #565260;  background: var(--cream-deep);    border-color: var(--line); }
   &--paused   { color: var(--amber-deep); background: rgba(251,190,61,0.12); border-color: var(--amber); }
 }
 
@@ -219,8 +221,9 @@
   }
 
   &--sm {
-    padding: 0.35rem 0.75rem;
+    padding: 0.6rem 0.75rem;
     font-size: 0.75rem;
+    min-height: 36px;
   }
 }
 
@@ -268,7 +271,7 @@
     color: var(--muted);
     cursor: pointer;
     padding: 4px;
-    width: 28px; height: 28px;
+    width: 36px; height: 36px;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     transition: background 0.2s, color 0.2s;
@@ -330,7 +333,7 @@
   transition: border-color 0.2s;
   outline: none;
 
-  &:focus { border-color: var(--indigo); }
+  &:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px var(--indigo-glow); }
   &::placeholder { color: var(--muted); }
 }
 

@@ -15,13 +15,16 @@
   }
 
   <div class="filters">
-    <input class="input filters__search" placeholder="Search form templates…"
+    <label class="sr-only" for="formTemplatesSearch">Search form templates</label>
+    <input id="formTemplatesSearch" class="input filters__search" placeholder="Search form templates…"
       [value]="filterSearch()" (input)="filterSearch.set($any($event.target).value); applyFilters()" />
-    <select class="input filters__scope" [value]="filterScope()" (change)="filterScope.set($any($event.target).value); applyFilters()">
+    <label class="sr-only" for="formTemplatesScope">Filter by scope</label>
+    <select id="formTemplatesScope" class="input filters__scope" [value]="filterScope()" (change)="filterScope.set($any($event.target).value); applyFilters()">
       <option value="">All scopes</option>
       @for (s of scopes; track s) { <option [value]="s">{{ s }}</option> }
     </select>
-    <select class="input filters__active" (change)="filterActive.set($any($event.target).value === '' ? undefined : $any($event.target).value === 'true'); applyFilters()">
+    <label class="sr-only" for="formTemplatesActive">Filter by status</label>
+    <select id="formTemplatesActive" class="input filters__active" (change)="filterActive.set($any($event.target).value === '' ? undefined : $any($event.target).value === 'true'); applyFilters()">
       <option value="true">Active</option>
       <option value="false">Inactive</option>
       <option value="">All</option>
@@ -29,19 +32,28 @@
   </div>
 
   @if (loading()) {
-    <div class="loading">Loading...</div>
+    <div class="table-skeleton">
+      @for (i of [1,2,3,4,5]; track i) {
+        <div class="table-skeleton__row">
+          <div class="table-skeleton__cell table-skeleton__cell--wide"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+        </div>
+      }
+    </div>
   } @else {
     <div class="table-wrap">
       <table class="table">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Propagation</th>
-            <th>Scope</th>
-            <th>Region / Store</th>
-            <th>Fields</th>
-            <th>Status</th>
-            <th class="table__actions-col">Actions</th>
+            <th scope="col">Name</th>
+            <th scope="col">Propagation</th>
+            <th scope="col">Scope</th>
+            <th scope="col" class="col--location">Region / Store</th>
+            <th scope="col">Fields</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="table__actions-col">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -52,7 +64,7 @@
               </td>
               <td class="text-muted">{{ t.propagationType }}</td>
               <td><span class="scope-badge scope-badge--{{ t.scope.toLowerCase() }}">{{ t.scope }}</span></td>
-              <td class="text-muted">{{ t.regionName ?? t.storeName ?? '—' }}</td>
+              <td class="text-muted col--location">{{ t.regionName ?? t.storeName ?? '—' }}</td>
               <td class="text-muted">{{ t.fieldCount }} field{{ t.fieldCount === 1 ? '' : 's' }}</td>
               <td>
                 <span class="badge" [class.badge--active]="t.isActive" [class.badge--inactive]="!t.isActive">
@@ -70,10 +82,54 @@
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" class="empty">No form templates found.</td></tr>
+            @if (hasActiveFilters()) {
+              <tr><td colspan="7" class="empty">
+                No form templates match your filters.
+                <button type="button" class="btn btn--sm btn--ghost" (click)="clearFilters()">Clear filters</button>
+              </td></tr>
+            } @else {
+              <tr><td colspan="7" class="empty">No form templates found.</td></tr>
+            }
           }
         </tbody>
       </table>
+    </div>
+
+    <div class="list-cards">
+      @for (t of templates(); track t.id) {
+        <div class="list-card" [class.list-card--inactive]="!t.isActive">
+          <div class="list-card__head">
+            <a class="list-card__title cell-primary" [routerLink]="['/admin/form-templates', t.id]">{{ t.name }}</a>
+            <span class="badge" [class.badge--active]="t.isActive" [class.badge--inactive]="!t.isActive">
+              {{ t.isActive ? 'Active' : 'Inactive' }}
+            </span>
+          </div>
+          <dl class="list-card__fields">
+            <div class="list-card__field"><dt>Propagation</dt><dd>{{ t.propagationType }}</dd></div>
+            <div class="list-card__field"><dt>Scope</dt><dd><span class="scope-badge scope-badge--{{ t.scope.toLowerCase() }}">{{ t.scope }}</span></dd></div>
+            <div class="list-card__field"><dt>Region / Store</dt><dd>{{ t.regionName ?? t.storeName ?? '—' }}</dd></div>
+            <div class="list-card__field"><dt>Fields</dt><dd>{{ t.fieldCount }} field{{ t.fieldCount === 1 ? '' : 's' }}</dd></div>
+          </dl>
+          @if (canEditScope(t.scope)) {
+            <div class="list-card__actions">
+              <button class="btn btn--sm btn--ghost" (click)="openEdit(t)">Edit</button>
+              <button class="btn btn--sm" [class]="t.isActive ? 'btn--danger-ghost' : 'btn--success-ghost'"
+                (click)="toggleActive(t)">
+                {{ t.isActive ? 'Deactivate' : 'Activate' }}
+              </button>
+            </div>
+          }
+        </div>
+      } @empty {
+        @if (hasActiveFilters()) {
+          <div class="empty">
+            No form templates match your filters.
+            <button type="button" class="btn btn--sm btn--ghost" (click)="clearFilters()">Clear filters</button>
+          </div>
+        } @else {
+          <div class="empty">No form templates found.</div>
+        }
+      }
     </div>
   }
 </div>

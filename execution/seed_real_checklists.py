@@ -286,8 +286,29 @@ EVENING_TEMPLATES = [
     },
 ]
 
-def upsert_template(name: str, description: str, category: str, fields: list) -> str:
-    """Insert a new TaskTemplate and return its ID. Existing ones with the same name are reused."""
+def explode_field(field: dict) -> dict:
+    """Mirrors execution/migrate_flat_walks_to_checklists.py's explode_flat_template rule, so
+    every seed/migration path produces the same scored-checklist shape:
+      * Boolean field -> PassFail-scored item; correctiveActionText -> FailCorrectiveActionText
+        (the item's own field set is emptied — the Pass/Fail toggle replaces the boolean).
+      * anything else -> unscored item (ScoringType = null) that keeps the original field
+        for data capture (numeric logs, free-text notes, etc.)."""
+    ftype = (field.get("type") or "").lower()
+    if ftype == "boolean":
+        return {
+            "fields_json": "[]",
+            "scoring_type": "PassFail",
+            "corrective": field.get("correctiveActionText"),
+        }
+    return {
+        "fields_json": json.dumps([field]),
+        "scoring_type": None,
+        "corrective": None,
+    }
+
+def upsert_item_template(name: str, description: str, category: str, fields_json: str) -> str:
+    """Insert a new single-check TaskTemplate and return its ID. Existing ones with the same
+    (name, category) are reused and refreshed in place."""
     cur.execute("""
         SELECT "Id" FROM "TaskTemplates"
         WHERE "TenantId" = %s AND "Name" = %s AND "Category" = %s
@@ -296,10 +317,8 @@ def upsert_template(name: str, description: str, category: str, fields: list) ->
     row = cur.fetchone()
     if row:
         tmpl_id = row[0]
-        # Update fields
         cur.execute("""UPDATE "TaskTemplates" SET "Fields" = %s::jsonb, "Description" = %s WHERE "Id" = %s""",
-                    (json.dumps(fields), description, tmpl_id))
-        print(f"    ↻ Updated template: {name} [{tmpl_id[:8]}…]")
+                    (fields_json, description, tmpl_id))
         return tmpl_id
 
     tmpl_id = uid()
@@ -307,29 +326,33 @@ def upsert_template(name: str, description: str, category: str, fields: list) ->
         INSERT INTO "TaskTemplates"
             ("Id","TenantId","Name","Description","Category","Scope","Fields","IsActive","CreatedByUserId","CreatedAt")
         VALUES (%s, %s, %s, %s, %s, 'System', %s::jsonb, true, 'seed', %s)
-    """, (tmpl_id, TENANT_ID, name, description, category, json.dumps(fields), ts()))
-    print(f"    + Created template: {name} [{tmpl_id[:8]}…]")
+    """, (tmpl_id, TENANT_ID, name, description, category, fields_json, ts()))
     return tmpl_id
 
 def replace_checklist_templates(checklist_id: str, checklist_name: str, templates: list[dict]):
-    """Remove all existing ChecklistTemplateItems and replace with the real ones."""
+    """Remove all existing ChecklistTemplateItems and replace with one scored item per atomic
+    check (the scored-checklist shape), instead of one flat template crammed with every field
+    from a section."""
     cur.execute('DELETE FROM "ChecklistTemplateItems" WHERE "ChecklistId" = %s', (checklist_id,))
     print(f"\n  Cleared existing templates for: {checklist_name}")
 
-    for order, tmpl_def in enumerate(templates, start=1):
-        tmpl_id = upsert_template(
-            tmpl_def["name"],
-            tmpl_def["description"],
-            tmpl_def["category"],
-            tmpl_def["fields"]
-        )
-        cur.execute("""
-            INSERT INTO "ChecklistTemplateItems" ("ChecklistId","TemplateId","Order")
-            VALUES (%s, %s, %s)
-            ON CONFLICT DO NOTHING
-        """, (checklist_id, tmpl_id, order))
+    item_count = 0
+    order = 1
+    for tmpl_def in templates:
+        for field in tmpl_def["fields"]:
+            exploded = explode_field(field)
+            label = field.get("label") or field["id"]
+            tmpl_id = upsert_item_template(label, tmpl_def["description"], tmpl_def["category"], exploded["fields_json"])
+            cur.execute("""
+                INSERT INTO "ChecklistTemplateItems"
+                  ("ChecklistId","TemplateId","Order","ScoringType","Weight","PhotoRequired","FailCorrectiveActionText")
+                VALUES (%s, %s, %s, %s, 1.0, false, %s)
+                ON CONFLICT DO NOTHING
+            """, (checklist_id, tmpl_id, order, exploded["scoring_type"], exploded["corrective"]))
+            order += 1
+            item_count += 1
 
-    print(f"  ✓ Linked {len(templates)} templates to {checklist_name}")
+    print(f"  ✓ Linked {item_count} scored checklist items ({len(templates)} sections) to {checklist_name}")
 
 # ── Execute ──────────────────────────────────────────────────────────────────
 try:
@@ -337,21 +360,22 @@ try:
     replace_checklist_templates(morning_id, "Morning Opening", MORNING_TEMPLATES)
     replace_checklist_templates(evening_id, "Evening Closing", EVENING_TEMPLATES)
     conn.commit()
-    print(f"\n✓ Done. Both checklists now have real fields from the daily ops PDF.")
+    print(f"\n✓ Done. Both checklists now have real, individually-scored items from the daily ops PDF.")
 
-    # Verification summary
+    # Verification summary — one row per checklist: total items and how many are scored.
     cur.execute("""
-        SELECT t."Name", COUNT(f) AS field_count
+        SELECT
+            (SELECT "Name" FROM "Checklists" WHERE "Id" = ci."ChecklistId") AS checklist_name,
+            COUNT(*) AS item_count,
+            COUNT(ci."ScoringType") AS scored_count
         FROM "ChecklistTemplateItems" ci
-        JOIN "TaskTemplates" t ON t."Id" = ci."TemplateId"
-        CROSS JOIN LATERAL jsonb_array_elements(t."Fields") AS f
         WHERE ci."ChecklistId" IN (%s, %s)
-        GROUP BY t."Name"
-        ORDER BY t."Name"
+        GROUP BY ci."ChecklistId"
+        ORDER BY checklist_name
     """, (morning_id, evening_id))
-    print("\nVerification — template field counts:")
+    print("\nVerification — items per checklist:")
     for row in cur.fetchall():
-        print(f"  {row[0]}: {row[1]} fields")
+        print(f"  {row[0]}: {row[1]} items ({row[2]} scored PassFail, {row[1] - row[2]} unscored data-capture)")
 
 except Exception as e:
     conn.rollback()

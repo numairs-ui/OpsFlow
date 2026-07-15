@@ -1,11 +1,137 @@
 <div class="page">
   <div class="page__header">
-    <h1 class="page__title">Store Settings</h1>
-    <p class="page__subtitle">Configure dough need targets, till base amounts, and operational settings per store.</p>
+    <h1 class="page__title">Settings</h1>
+    <p class="page__subtitle">Organization details, defaults for new stores, and per-store operational settings.</p>
   </div>
 
+  <!-- ── Tenant settings (super-admin only): identity, locale, new-store defaults ── -->
+  @if (isSuperAdmin()) {
+    <form class="settings-form" [formGroup]="orgForm" (ngSubmit)="saveOrg()">
+      @if (orgError(); as err) {
+        <div class="state-error">{{ err }}</div>
+      }
+      @if (orgLoading()) {
+        <div class="state-loading">Loading organization settings…</div>
+      } @else {
+        <!-- Organization identity + display conventions -->
+        <section class="settings-section">
+          <h2 class="section-title">Organization</h2>
+          <p class="section-hint">Identity and display conventions used across the platform.</p>
+
+          <div class="field-group">
+            <label class="field-label" for="orgName">Organization Name</label>
+            <input id="orgName" class="input-text" formControlName="name" placeholder="e.g. Bajco" />
+            @if (orgForm.controls.name.invalid && orgForm.controls.name.touched) {
+              <span class="field-error">A name (max 200 characters) is required.</span>
+            }
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label class="field-label" for="logoUrl">Logo URL</label>
+              <input id="logoUrl" class="input-text" formControlName="logoUrl" placeholder="https://…" />
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="primaryContactEmail">Primary Contact Email</label>
+              <input id="primaryContactEmail" class="input-text" type="email" formControlName="primaryContactEmail" placeholder="ops@example.com" />
+              @if (orgForm.controls.primaryContactEmail.invalid && orgForm.controls.primaryContactEmail.touched) {
+                <span class="field-error">Enter a valid email address.</span>
+              }
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label class="field-label" for="localeCode">Locale (date &amp; number format)</label>
+              <select id="localeCode" class="select" formControlName="localeCode" (change)="onLocaleChange($any($event.target).value)">
+                <option value="">Default (English, US)</option>
+                @for (l of locales; track l.code) {
+                  <option [value]="l.code">{{ l.label }}</option>
+                }
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="currencyCode">Currency</label>
+              <input id="currencyCode" class="input-text" formControlName="currencyCode" placeholder="USD" maxlength="3" />
+            </div>
+          </div>
+          <p class="section-hint">Locale changes apply after the next reload.</p>
+        </section>
+
+        <!-- Defaults new stores inherit -->
+        <section class="settings-section">
+          <h2 class="section-title">Defaults for New Stores</h2>
+          <p class="section-hint">Applied automatically when a store is created. Each store can be overridden afterward. Leave blank to use the system default.</p>
+
+          <div class="field-row">
+            <div class="field-group">
+              <label class="field-label" for="defTimezone">Default Timezone</label>
+              <select id="defTimezone" class="select" formControlName="defaultTimezoneId">
+                <option value="">System default (America/New_York)</option>
+                @for (tz of timezones; track tz) {
+                  <option [value]="tz">{{ tz }}</option>
+                }
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="defGrace">Default Overdue Grace (minutes)</label>
+              <input id="defGrace" class="input-text" type="number" min="0" max="480" formControlName="defaultOverdueGraceMinutes" placeholder="30" />
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="defDeadline">Default Deposit Deadline</label>
+              <input id="defDeadline" class="input-text" type="time" formControlName="defaultDepositDeadlineLocalTime" />
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-group">
+              <label class="field-label" for="defTillA">Default Till A Base ($)</label>
+              <input id="defTillA" class="input-text" type="number" min="0" step="0.01" formControlName="defaultTillABase" placeholder="e.g. 200.00" />
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="defTillB">Default Till B Base ($)</label>
+              <input id="defTillB" class="input-text" type="number" min="0" step="0.01" formControlName="defaultTillBBase" placeholder="e.g. 200.00" />
+            </div>
+          </div>
+
+          <p class="section-hint">Default dough need targets (Day 2 / Day 3 per size).</p>
+          <table class="dough-table">
+            <thead>
+              <tr><th>Size</th><th>Day 2 Need</th><th>Day 3 Need</th></tr>
+            </thead>
+            <tbody>
+              @for (row of defaultDoughRows(); track row.key) {
+                <tr>
+                  <td class="dough-label">{{ row.label }}</td>
+                  <td>
+                    <label class="sr-only" [for]="'defd2-' + row.key">{{ row.label }} Day 2 default</label>
+                    <input [id]="'defd2-' + row.key" class="input-num" type="number" min="0"
+                      [value]="row.day2" (input)="updateDefaultDoughRow(row.key, 'day2', +$any($event.target).value)" />
+                  </td>
+                  <td>
+                    <label class="sr-only" [for]="'defd3-' + row.key">{{ row.label }} Day 3 default</label>
+                    <input [id]="'defd3-' + row.key" class="input-num" type="number" min="0"
+                      [value]="row.day3" (input)="updateDefaultDoughRow(row.key, 'day3', +$any($event.target).value)" />
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+
+        <div class="form-actions">
+          @if (orgSaved()) {
+            <span class="saved-badge">&#10003; Saved</span>
+          }
+          <button class="btn btn--primary" type="submit" [disabled]="orgSaving() || orgForm.invalid">
+            {{ orgSaving() ? 'Saving…' : 'Save Organization Settings' }}
+          </button>
+        </div>
+      }
+    </form>
+  }
+
+  <!-- ── Per-store operational settings ─────────────────────────────────────── -->
   <div class="store-selector">
-    <label class="field-label" for="storeSelect">Select Store</label>
+    <label class="field-label" for="storeSelect">Store Operational Settings</label>
     <select id="storeSelect" class="select" (change)="selectStore($any($event.target).value)">
       <option value="">— Choose a store —</option>
       @for (store of stores(); track store.id) {
@@ -17,71 +143,15 @@
   @if (loading()) {
     <div class="state-loading">Loading settings...</div>
   }
-
   @if (error(); as err) {
     <div class="state-error">{{ err }}</div>
   }
 
   @if (selectedStoreId() && !loading()) {
     <form class="settings-form" (ngSubmit)="save()">
-
-      <!-- Dough Need Targets -->
-      <section class="settings-section">
-        <h2 class="section-title">Dough Need Targets</h2>
-        <p class="section-hint">Day 2 and Day 3 need quantities per dough size. Used to compute surplus/deficit in the MDOG task form.</p>
-        <table class="dough-table">
-          <thead>
-            <tr>
-              <th>Size</th>
-              <th>Day 2 Need</th>
-              <th>Day 3 Need</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (row of doughRows(); track row.key) {
-              <tr>
-                <td class="dough-label">{{ row.label }}</td>
-                <td>
-                  <input class="input-num" type="number" min="0"
-                    [value]="row.day2"
-                    (input)="updateDoughRow(row.key, 'day2', +$any($event.target).value)" />
-                </td>
-                <td>
-                  <input class="input-num" type="number" min="0"
-                    [value]="row.day3"
-                    (input)="updateDoughRow(row.key, 'day3', +$any($event.target).value)" />
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </section>
-
-      <!-- Till Base Amounts -->
-      <section class="settings-section" [formGroup]="form">
-        <h2 class="section-title">Till Base Amounts</h2>
-        <p class="section-hint">Base float amounts for Till A and Till B. Used for variance detection in till count tasks.</p>
-        <div class="field-row">
-          <div class="field-group">
-            <label class="field-label" for="tillABase">Till A Base ($)</label>
-            <input id="tillABase" class="input-text" type="number" min="0" step="0.01" formControlName="tillABase" placeholder="e.g. 200.00" />
-            @if (form.controls.tillABase.invalid && form.controls.tillABase.touched) {
-              <span class="field-error">Must be 0 or greater.</span>
-            }
-          </div>
-          <div class="field-group">
-            <label class="field-label" for="tillBBase">Till B Base ($)</label>
-            <input id="tillBBase" class="input-text" type="number" min="0" step="0.01" formControlName="tillBBase" placeholder="e.g. 200.00" />
-            @if (form.controls.tillBBase.invalid && form.controls.tillBBase.touched) {
-              <span class="field-error">Must be 0 or greater.</span>
-            }
-          </div>
-        </div>
-      </section>
-
-      <!-- Operational Settings -->
       <section class="settings-section" [formGroup]="form">
         <h2 class="section-title">Operational Settings</h2>
+        <p class="section-hint">Dough need targets and till bases live in each store's detail panel (Stores → open a store).</p>
         <div class="field-row">
           <div class="field-group">
             <label class="field-label" for="timezoneId">Timezone</label>
@@ -95,6 +165,10 @@
             <label class="field-label" for="overdueGraceMinutes">Overdue Grace Period (minutes)</label>
             <input id="overdueGraceMinutes" class="input-text" type="number" min="0" max="480" formControlName="overdueGraceMinutes" />
           </div>
+          <div class="field-group">
+            <label class="field-label" for="depositDeadline">Deposit Deadline</label>
+            <input id="depositDeadline" class="input-text" type="time" formControlName="depositDeadlineLocalTime" />
+          </div>
         </div>
       </section>
 
@@ -106,7 +180,6 @@
           {{ saving() ? 'Saving…' : 'Save Settings' }}
         </button>
       </div>
-
     </form>
   }
 </div>

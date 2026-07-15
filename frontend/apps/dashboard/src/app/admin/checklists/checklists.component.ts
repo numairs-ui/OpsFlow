@@ -40,7 +40,7 @@ export class ChecklistsComponent implements OnInit {
   readonly scopes: TemplateScope[] = ['System', 'Regional', 'Store'];
   readonly selectedScope = signal<string>('System');
 
-  readonly form = this.fb.group({
+  readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, noWhitespace]],
     description: [''],
     scope: ['System' as TemplateScope, Validators.required],
@@ -137,7 +137,7 @@ export class ChecklistsComponent implements OnInit {
 
     if (editing) {
       const header: UpdateChecklistRequest = {
-        name: name!, description: description ?? undefined,
+        name, description,
         scope: scope as TemplateScope,
         regionId: regionId || undefined,
         storeId: storeId || undefined,
@@ -153,7 +153,7 @@ export class ChecklistsComponent implements OnInit {
       });
     } else {
       this.checklistSvc.createChecklist({
-        name: name!, description: description ?? undefined,
+        name, description,
         scope: scope as TemplateScope,
         regionId: regionId || undefined,
         storeId: storeId || undefined,

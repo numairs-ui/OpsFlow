@@ -141,8 +141,9 @@ for cl_id, tasks in [(cl1_id, morning), (cl2_id, evening)]:
             VALUES (%s,%s,%s,%s,%s,'Store',%s,'[]'::jsonb,true,%s,%s) ON CONFLICT DO NOTHING
         """, (t_id, TENANT_ID, name, desc, cat, store1_id, admin_uid, now()))
         cur.execute("""
-            INSERT INTO "ChecklistTemplateItems" ("ChecklistId","TemplateId","Order")
-            VALUES (%s,%s,%s) ON CONFLICT DO NOTHING
+            INSERT INTO "ChecklistTemplateItems"
+              ("ChecklistId","TemplateId","Order","ScoringType","Weight","PhotoRequired")
+            VALUES (%s,%s,%s,'PassFail',1.0,false) ON CONFLICT DO NOTHING
         """, (cl_id, t_id, len([r for r in tt_rows if r[1] == cl_id])))
 
 print(f"  2 checklists, {len(tt_rows)} task templates")

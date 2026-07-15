@@ -29,7 +29,7 @@ export class CreateTaskComponent implements OnInit {
   readonly mode = signal<TaskMode>('template');
   readonly isTemplateMode = computed(() => this.mode() === 'template');
 
-  readonly form = this.fb.group({
+  readonly form = this.fb.nonNullable.group({
     storeId: ['', Validators.required],
     dueAt: [this.defaultDueAt(), Validators.required],
     taskTemplateId: [''],
@@ -70,8 +70,8 @@ export class CreateTaskComponent implements OnInit {
     const { storeId, dueAt, taskTemplateId, notes, assignedToUserId } = this.form.getRawValue();
 
     const body: CreateTaskRequest = {
-      storeId: storeId!,
-      dueAt: new Date(dueAt!).toISOString(),
+      storeId,
+      dueAt: new Date(dueAt).toISOString(),
       notes: notes || undefined,
       taskTemplateId: this.isTemplateMode() ? (taskTemplateId || undefined) : undefined,
       assignedToUserId: assignedToUserId || undefined,

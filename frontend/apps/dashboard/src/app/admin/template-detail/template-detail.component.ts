@@ -35,6 +35,6 @@ export class TemplateDetailComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/admin/templates']);
+    this.router.navigate(['/admin/templates/task-templates']);
   }
 }

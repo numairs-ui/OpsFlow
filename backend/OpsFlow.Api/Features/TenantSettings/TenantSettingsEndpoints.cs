@@ -1,4 +1,5 @@
 using MediatR;
+using OpsFlow.Api.Features.StoreSettings.GetStoreSettings;
 using OpsFlow.Api.Features.TenantSettings.GetTenantSettings;
 using OpsFlow.Api.Features.TenantSettings.UpdateTenantSettings;
 
@@ -15,7 +16,11 @@ internal static class TenantSettingsEndpoints
 
         group.MapPut("/", async (UpdateTenantSettingsBody body, IMediator m) =>
         {
-            await m.Send(new UpdateTenantSettingsCommand(body.Name, body.LogoUrl, body.PrimaryContactEmail));
+            await m.Send(new UpdateTenantSettingsCommand(
+                body.Name, body.LogoUrl, body.PrimaryContactEmail,
+                body.DefaultTimezoneId, body.DefaultOverdueGraceMinutes, body.DefaultDepositDeadlineLocalTime,
+                body.DefaultTillABase, body.DefaultTillBBase, body.DefaultDoughNeedTargets,
+                body.LocaleCode, body.CurrencyCode));
             return Results.NoContent();
         });
 
@@ -26,4 +31,12 @@ internal static class TenantSettingsEndpoints
 internal sealed record UpdateTenantSettingsBody(
     string Name,
     string? LogoUrl,
-    string? PrimaryContactEmail);
+    string? PrimaryContactEmail,
+    string? DefaultTimezoneId,
+    int? DefaultOverdueGraceMinutes,
+    TimeOnly? DefaultDepositDeadlineLocalTime,
+    decimal? DefaultTillABase,
+    decimal? DefaultTillBBase,
+    Dictionary<string, DoughNeedTargetDto>? DefaultDoughNeedTargets,
+    string? LocaleCode,
+    string? CurrencyCode);

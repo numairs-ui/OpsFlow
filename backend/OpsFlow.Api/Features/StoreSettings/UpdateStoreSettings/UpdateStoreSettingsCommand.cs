@@ -9,5 +9,6 @@ internal sealed record UpdateStoreSettingsCommand(
     decimal? TillBBase,
     Dictionary<string, DoughNeedTargetDto> DoughNeedTargets,
     string TimezoneId,
-    int OverdueGraceMinutes
+    int OverdueGraceMinutes,
+    TimeOnly? DepositDeadlineLocalTime
 ) : IRequest;

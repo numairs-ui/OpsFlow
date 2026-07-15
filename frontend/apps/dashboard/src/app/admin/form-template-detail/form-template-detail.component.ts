@@ -44,6 +44,6 @@ export class FormTemplateDetailComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/admin/form-templates']);
+    this.router.navigate(['/admin/templates/forms']);
   }
 }

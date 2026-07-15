@@ -102,4 +102,51 @@ public sealed class DepositEscalationJobTests
         second.Should().Be(0);
         db.MissedDepositFlags.Should().HaveCount(1);
     }
+
+    [Fact]
+    public async Task UsesTenantDefaultDeadline_WhenStoreHasNone()
+    {
+        await using var db = NewDb();
+        // Store has no deadline of its own; the org default (UTC midnight → always passed) applies.
+        var store = SeedStore(db, deadline: null, tz: "UTC");
+        await db.SaveChangesAsync();
+
+        var count = await DepositEscalationJob.FlagMissedDepositsAsync(
+            db, TenantId, DateTimeOffset.UtcNow, default, tenantDefaultDeadline: new TimeOnly(0, 0));
+
+        count.Should().Be(1);
+        db.MissedDepositFlags.Should().ContainSingle(f => f.StoreId == store.Id);
+    }
+
+    [Fact]
+    public async Task StoreDeadline_OverridesTenantDefault()
+    {
+        await using var db = NewDb();
+        // Store's own end-of-day deadline should win over the org default of UTC midnight.
+        SeedStore(db, deadline: new TimeOnly(23, 59, 59), tz: "UTC");
+        await db.SaveChangesAsync();
+
+        var morning = new DateTimeOffset(DateTime.UtcNow.Date.AddHours(9), TimeSpan.Zero);
+        var count = await DepositEscalationJob.FlagMissedDepositsAsync(
+            db, TenantId, morning, default, tenantDefaultDeadline: new TimeOnly(0, 0));
+
+        count.Should().Be(0);
+        db.MissedDepositFlags.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task FallsBackToNinePm_WhenNeitherStoreNorTenantDeadlineSet()
+    {
+        await using var db = NewDb();
+        var store = SeedStore(db, deadline: null, tz: "UTC");
+        await db.SaveChangesAsync();
+
+        // No store deadline and no tenant default → hardcoded 21:00 fallback. Pinned late enough to pass.
+        var latenight = new DateTimeOffset(DateTime.UtcNow.Date.AddHours(22), TimeSpan.Zero);
+        var count = await DepositEscalationJob.FlagMissedDepositsAsync(
+            db, TenantId, latenight, default, tenantDefaultDeadline: null);
+
+        count.Should().Be(1);
+        db.MissedDepositFlags.Should().ContainSingle(f => f.StoreId == store.Id);
+    }
 }

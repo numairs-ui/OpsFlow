@@ -26,9 +26,9 @@ export class CreateMenuComponent {
 
   readonly options: CreateOption[] = [
     { label: 'One-time task', desc: 'A single standalone task', icon: '✓', route: '/admin/create-task' },
-    { label: 'Recurring', desc: 'Repeat on a schedule across stores', icon: '🔁', route: '/admin/recurring-assignments' },
-    { label: 'Checklist', desc: 'A scored multi-item checklist', icon: '☑', route: '/admin/checklists' },
-    { label: 'Form', desc: 'A form that routes for approval', icon: '📄', route: '/admin/form-templates' },
+    { label: 'Recurring', desc: 'Repeat on a schedule across stores', icon: '🔁', route: '/admin/templates/recurring' },
+    { label: 'Checklist', desc: 'A scored multi-item checklist', icon: '☑', route: '/admin/templates/checklists' },
+    { label: 'Form', desc: 'A form that routes for approval', icon: '📄', route: '/admin/templates/forms' },
   ];
 
   choose(option: CreateOption): void {

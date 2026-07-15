@@ -49,31 +49,70 @@ def f(label: str, ftype: str, required: bool = True,
 def sub(label: str, required: bool = True) -> dict:
     return {"id": uid(), "label": label, "required": required}
 
-def update_template(template_id: str, fields: list[dict]) -> None:
-    cur.execute(
-        'UPDATE "TaskTemplates" SET "Fields" = %s WHERE "Id" = %s',
-        (json.dumps(fields), template_id)
-    )
-    print(f"  updated {template_id[:8]}  ({len(fields)} fields)")
+def explode_field(field: dict) -> dict:
+    """Mirrors execution/migrate_flat_walks_to_checklists.py's explode_flat_template rule, so
+    every seed/migration path produces the same scored-checklist shape:
+      * Boolean field -> PassFail-scored item; correctiveActionText -> FailCorrectiveActionText
+        (the item's own field set is emptied — the Pass/Fail toggle replaces the boolean).
+      * anything else (Text/Numeric/Checklist-with-subItems) -> unscored item (ScoringType = null)
+        that keeps the original field for data capture."""
+    ftype = (field.get("type") or "").lower()
+    if ftype == "boolean":
+        return {
+            "fields_json": "[]",
+            "scoring_type": "PassFail",
+            "corrective": field.get("correctiveActionText"),
+        }
+    return {
+        "fields_json": json.dumps([field]),
+        "scoring_type": None,
+        "corrective": None,
+    }
 
-def create_template(name: str, fields: list[dict], category: str = "Operations") -> str:
+def create_item_template(name: str, fields_json: str, category: str = "Operations") -> str:
     tid = uid()
     cur.execute(
         'INSERT INTO "TaskTemplates"'
         ' ("Id","TenantId","Name","Category","Scope","Fields","IsActive","CreatedByUserId","CreatedAt")'
         ' VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)',
-        (tid, TENANT_ID, name, category, "System", json.dumps(fields),
+        (tid, TENANT_ID, name, category, "System", fields_json,
          True, "seed", datetime.now(timezone.utc))
     )
-    print(f"  created  {tid[:8]}  {name}  ({len(fields)} fields)")
     return tid
 
-def link_template(checklist_id: str, template_id: str, order: int) -> None:
+def unlink_template(checklist_id: str, template_id: str) -> None:
+    """Remove a stale flat template's link before replacing it with exploded scored items."""
     cur.execute(
-        'INSERT INTO "ChecklistTemplateItems" ("ChecklistId","TemplateId","Order")'
-        ' VALUES (%s,%s,%s) ON CONFLICT DO NOTHING',
-        (checklist_id, template_id, order)
+        'DELETE FROM "ChecklistTemplateItems" WHERE "ChecklistId"=%s AND "TemplateId"=%s',
+        (checklist_id, template_id)
     )
+
+def get_order(checklist_id: str, template_id: str, default: int = 0) -> int:
+    """Look up a template's current sort position before replacing it, so the exploded
+    replacement items land in roughly the same place instead of all defaulting to 0."""
+    cur.execute(
+        'SELECT "Order" FROM "ChecklistTemplateItems" WHERE "ChecklistId"=%s AND "TemplateId"=%s',
+        (checklist_id, template_id)
+    )
+    row = cur.fetchone()
+    return row[0] if row else default
+
+def explode_and_link(checklist_id: str, section_name: str, category: str, fields: list[dict], order_start: int) -> int:
+    """Create one atomic TaskTemplate + one scored ChecklistTemplateItem per field (the
+    scored-checklist shape), instead of one flat template crammed with every field in the
+    section. Returns the number of items created, so callers can offset subsequent order_starts."""
+    for i, field in enumerate(fields):
+        exploded = explode_field(field)
+        label = field.get("label") or field["id"]
+        tid = create_item_template(label, exploded["fields_json"], category)
+        cur.execute(
+            'INSERT INTO "ChecklistTemplateItems"'
+            ' ("ChecklistId","TemplateId","Order","ScoringType","Weight","PhotoRequired","FailCorrectiveActionText")'
+            ' VALUES (%s,%s,%s,%s,1.0,false,%s) ON CONFLICT DO NOTHING',
+            (checklist_id, tid, order_start + i, exploded["scoring_type"], exploded["corrective"])
+        )
+    print(f"  linked {len(fields)} scored items for section: {section_name}")
+    return len(fields)
 
 def create_checklist(name: str) -> str:
     cid = uid()
@@ -356,50 +395,53 @@ try:
     cur.execute('DELETE FROM "ChecklistTemplateItems" WHERE "TemplateId" = %s', (T_OPENING_CASH,))
     print(f"  removed Opening Cash Management from Morning Opening")
 
-    # Add Communications template at order 0
-    t_comms = create_template("Communications", COMMUNICATIONS_FIELDS, "Operations")
-    link_template(MORNING_OPENING_CL, t_comms, 0)
+    # Each section used to be one flat template with all its fields crammed in; explode
+    # every field into its own atomic, scored TaskTemplate + ChecklistTemplateItem instead
+    # (Boolean -> PassFail item, everything else -> unscored data-capture item), mirroring
+    # execution/migrate_flat_walks_to_checklists.py's validated transform rule.
+    order_cursor = explode_and_link(MORNING_OPENING_CL, "Communications", "Operations", COMMUNICATIONS_FIELDS, 0)
 
-    # Shift existing templates up by 1 to make room
-    for tid, new_order in [
-        (T_OPENING_TASKS, 1),
-        (T_MDOG,          2),
-        (T_CUT_TABLE,     3),
-        (T_SAUCE_STATION, 4),
-        (T_LOBBY,         5),
-    ]:
-        cur.execute(
-            'UPDATE "ChecklistTemplateItems" SET "Order"=%s WHERE "ChecklistId"=%s AND "TemplateId"=%s',
-            (new_order, MORNING_OPENING_CL, tid)
-        )
+    unlink_template(MORNING_OPENING_CL, T_OPENING_TASKS)
+    order_cursor += explode_and_link(MORNING_OPENING_CL, "Opening Tasks", "Operations", OPENING_TASKS_FIELDS, order_cursor)
 
-    # Update all Morning Opening templates with exact PDF fields
-    update_template(T_OPENING_TASKS, OPENING_TASKS_FIELDS)
-    update_template(T_MDOG,          MDOG_FIELDS)
-    update_template(T_CUT_TABLE,     CUT_TABLE_FIELDS)
-    update_template(T_SAUCE_STATION, SAUCE_STATION_FIELDS)
-    update_template(T_LOBBY,         CUSTOMER_LOBBY_FIELDS)
+    unlink_template(MORNING_OPENING_CL, T_MDOG)
+    order_cursor += explode_and_link(MORNING_OPENING_CL, "3-Day Dough & Cheese Management (MDOG)", "Inventory", MDOG_FIELDS, order_cursor)
+
+    unlink_template(MORNING_OPENING_CL, T_CUT_TABLE)
+    order_cursor += explode_and_link(MORNING_OPENING_CL, "Set Up Cut Table", "Operations", CUT_TABLE_FIELDS, order_cursor)
+
+    unlink_template(MORNING_OPENING_CL, T_SAUCE_STATION)
+    order_cursor += explode_and_link(MORNING_OPENING_CL, "Set Up Sauce Station", "Operations", SAUCE_STATION_FIELDS, order_cursor)
+
+    unlink_template(MORNING_OPENING_CL, T_LOBBY)
+    order_cursor += explode_and_link(MORNING_OPENING_CL, "Set Up Customer Lobby", "Cleaning", CUSTOMER_LOBBY_FIELDS, order_cursor)
 
     # ── 2. Cash Management (standalone checklist) ─────────────────────────────
     print("\n── Cash Management (new standalone checklist) ───────────────────────")
     cash_cl_id = create_checklist("Cash Management")
-    t_cash = create_template("Cash Management", CASH_FIELDS, "Finance")
-    link_template(cash_cl_id, t_cash, 1)
+    explode_and_link(cash_cl_id, "Cash Management", "Finance", CASH_FIELDS, 0)
     cash_ra_id = create_recurring_assignment("Daily Cash Management", cash_cl_id)
     print(f"  recurring assignment {cash_ra_id[:8]}")
 
     # ── 3. Midday: add two real PDF sections alongside existing ───────────────
     print("\n── Midday Safety & Compliance (adding PDF sections) ─────────────────")
-    t_ongoing = create_template("Ongoing Duties During Lunch", ONGOING_DUTIES_FIELDS, "Operations")
-    t_prerush  = create_template("Pre-Rush Walk Through",       PRE_RUSH_FIELDS,       "Operations")
-    link_template(MIDDAY_CL, t_ongoing, 6)
-    link_template(MIDDAY_CL, t_prerush, 7)
+    midday_cursor = explode_and_link(MIDDAY_CL, "Ongoing Duties During Lunch", "Operations", ONGOING_DUTIES_FIELDS, 6)
+    explode_and_link(MIDDAY_CL, "Pre-Rush Walk Through", "Operations", PRE_RUSH_FIELDS, 6 + midday_cursor)
 
-    # ── 4. Evening Closing: update all templates with exact PDF fields ─────────
+    # ── 4. Evening Closing: replace each flat template with exploded scored items ──
     print("\n── Evening Closing ───────────────────────────────────────────────────")
-    update_template(T_DEPLOYMENT,   DEPLOYMENT_GUIDE_FIELDS)
-    update_template(T_CLOSING_CL,   CLOSING_CHECKLIST_FIELDS)
-    update_template(T_CLOSING_ADMIN, CLOSING_ADMIN_FIELDS)
+    deployment_order = get_order(EVENING_CLOSING_CL, T_DEPLOYMENT)
+    unlink_template(EVENING_CLOSING_CL, T_DEPLOYMENT)
+    explode_and_link(EVENING_CLOSING_CL, "Deployment Guide", "Cleaning", DEPLOYMENT_GUIDE_FIELDS, deployment_order)
+
+    closing_cl_order = get_order(EVENING_CLOSING_CL, T_CLOSING_CL)
+    unlink_template(EVENING_CLOSING_CL, T_CLOSING_CL)
+    explode_and_link(EVENING_CLOSING_CL, "Closing Checklist", "Cleaning", CLOSING_CHECKLIST_FIELDS, closing_cl_order)
+
+    closing_admin_order = get_order(EVENING_CLOSING_CL, T_CLOSING_ADMIN)
+    unlink_template(EVENING_CLOSING_CL, T_CLOSING_ADMIN)
+    explode_and_link(EVENING_CLOSING_CL, "Closing Admin & Cash", "Finance", CLOSING_ADMIN_FIELDS, closing_admin_order)
+
     print(f"  Pre-Close Walk Through ({T_PRE_CLOSE_WT[:8]}) left as-is (invented)")
 
     # ── 5. Fresh task instances for today ─────────────────────────────────────
@@ -449,17 +491,16 @@ try:
     print("\n── Verification ──────────────────────────────────────────────────────")
 
     cur.execute("""
-        SELECT cl."Name", COUNT(ci."TemplateId"), SUM(jsonb_array_length(tt."Fields"))
+        SELECT cl."Name", COUNT(ci."TemplateId"), COUNT(ci."ScoringType")
         FROM "Checklists" cl
         JOIN "ChecklistTemplateItems" ci ON ci."ChecklistId" = cl."Id"
-        JOIN "TaskTemplates" tt ON tt."Id" = ci."TemplateId"
         WHERE cl."StoreId"=%s
         GROUP BY cl."Name" ORDER BY cl."Name"
     """, (STORE_ID,))
-    print(f"\n  {'Checklist':<35} {'Templates':>9} {'Total Fields':>12}")
+    print(f"\n  {'Checklist':<35} {'Items':>7} {'Scored':>7} {'Unscored':>9}")
     print("  " + "-"*60)
     for r in cur.fetchall():
-        print(f"  {r[0]:<35} {r[1]:>9} {r[2]:>12}")
+        print(f"  {r[0]:<35} {r[1]:>7} {r[2]:>7} {r[1]-r[2]:>9}")
 
     print("\n✓ Done. All templates rebuilt from F0890 field map.")
 

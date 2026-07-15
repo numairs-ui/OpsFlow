@@ -4,9 +4,25 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { OrgService, type Region, type Store, type StoreEmployee, type User } from '@org/data-access-org';
+import { InventoryService } from '@org/data-access-tasks';
+import type { DoughNeedTargetDto, StoreSettingsDto } from '@org/data-access-tasks';
 import { noWhitespace } from '@org/ui-core';
 
 const ROSTER_ROLES = ['store_employee', 'store_manager'];
+
+interface DoughRow {
+  key: string;
+  label: string;
+  day2: number;
+  day3: number;
+}
+
+const DOUGH_SIZES: { key: string; label: string }[] = [
+  { key: 'dough_10in', label: '10" Dough' },
+  { key: 'dough_12in', label: '12" Dough' },
+  { key: 'dough_14in', label: '14" Dough' },
+  { key: 'dough_16in', label: '16" Dough' },
+];
 
 @Component({
   selector: 'app-stores',
@@ -16,6 +32,7 @@ const ROSTER_ROLES = ['store_employee', 'store_manager'];
 })
 export class StoresComponent implements OnInit {
   private readonly org = inject(OrgService);
+  private readonly inventorySvc = inject(InventoryService);
   private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
 
@@ -31,6 +48,20 @@ export class StoresComponent implements OnInit {
   readonly detailStore = signal<Store | null>(null);
   readonly storeEmployees = signal<StoreEmployee[]>([]);
   readonly storeEmployeesLoading = signal(false);
+
+  // Per-store operational baselines (dough need targets + till bases), shown in the store detail
+  // panel. These are reference values the manager's checklist submissions are measured against
+  // (till variance detection, MDOG surplus/deficit) — set here by the admin, not submitted.
+  readonly baselineSettings = signal<StoreSettingsDto | null>(null);
+  readonly doughRows = signal<DoughRow[]>(DOUGH_SIZES.map((s) => ({ key: s.key, label: s.label, day2: 24, day3: 48 })));
+  readonly baselineLoading = signal(false);
+  readonly baselineSaving = signal(false);
+  readonly baselineSaved = signal(false);
+
+  readonly baselineForm = this.fb.nonNullable.group({
+    tillABase: [null as number | null, [Validators.min(0)]],
+    tillBBase: [null as number | null, [Validators.min(0)]],
+  });
 
   // "Assign Roster" picker — a bottom sheet listing staff the caller can already manage
   // (super_admin: everyone; region-scoped admin: staff in its own regions) who aren't already
@@ -55,7 +86,7 @@ export class StoresComponent implements OnInit {
       .map(([storeName, users]) => ({ storeName, users }));
   });
 
-  readonly form = this.fb.group({
+  readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, noWhitespace]],
     address: [''],
     regionId: ['', Validators.required],
@@ -119,7 +150,7 @@ export class StoresComponent implements OnInit {
   onSubmit(): void {
     if (this.form.invalid || this.saving()) return;
     const { name, address, regionId } = this.form.getRawValue();
-    const body = { name: name!, address: address ?? undefined, regionId: regionId! };
+    const body = { name, address, regionId };
     const onSuccess = () => { this.saving.set(false); this.saved.set(true); setTimeout(() => this.saved.set(false), 2500); this.closeForm(); this.load(); };
     const onError = () => { this.error.set('Failed to save store.'); this.saving.set(false); };
     this.saving.set(true);
@@ -155,6 +186,60 @@ export class StoresComponent implements OnInit {
       next: (employees) => { this.storeEmployees.set(employees); this.storeEmployeesLoading.set(false); },
       error: () => this.storeEmployeesLoading.set(false),
     });
+
+    // Load this store's operational baselines for the "Store Baselines" section.
+    this.baselineSaved.set(false);
+    this.baselineLoading.set(true);
+    this.inventorySvc.getStoreSettings(store.id).subscribe({
+      next: (s) => {
+        this.baselineSettings.set(s);
+        this.baselineForm.patchValue({ tillABase: s.tillABase ?? null, tillBBase: s.tillBBase ?? null });
+        this.doughRows.set(DOUGH_SIZES.map((d) => ({
+          key: d.key,
+          label: d.label,
+          day2: s.doughNeedTargets?.[d.key]?.day2Need ?? 24,
+          day3: s.doughNeedTargets?.[d.key]?.day3Need ?? 48,
+        })));
+        this.baselineLoading.set(false);
+      },
+      error: () => this.baselineLoading.set(false),
+    });
+  }
+
+  updateDoughRow(key: string, field: 'day2' | 'day3', value: number): void {
+    this.doughRows.update((rows) => rows.map((r) => (r.key === key ? { ...r, [field]: value } : r)));
+  }
+
+  saveBaselines(): void {
+    const store = this.detailStore();
+    const current = this.baselineSettings();
+    if (!store || !current || this.baselineForm.invalid || this.baselineSaving()) return;
+
+    const { tillABase, tillBBase } = this.baselineForm.getRawValue();
+    const doughNeedTargets: Record<string, DoughNeedTargetDto> = {};
+    for (const row of this.doughRows()) {
+      doughNeedTargets[row.key] = { day2Need: row.day2, day3Need: row.day3 };
+    }
+
+    this.baselineSaving.set(true);
+    // Preserve timezone/overdue-grace (edited on the Settings page) — updateStoreSettings takes the full DTO.
+    this.inventorySvc.updateStoreSettings(store.id, {
+      tillABase: tillABase ?? undefined,
+      tillBBase: tillBBase ?? undefined,
+      doughNeedTargets,
+      timezoneId: current.timezoneId,
+      overdueGraceMinutes: current.overdueGraceMinutes,
+    }).subscribe({
+      next: () => { this.baselineSaving.set(false); this.baselineSaved.set(true); setTimeout(() => this.baselineSaved.set(false), 2500); },
+      error: () => { this.baselineSaving.set(false); this.error.set('Failed to save store baselines.'); },
+    });
+  }
+
+  // Guard so Enter/Space on a nested action button doesn't also bubble up and
+  // re-trigger the row's own open-detail action.
+  onRowKeydown(event: Event, store: Store): void {
+    if (event.target !== event.currentTarget) return;
+    this.openDetail(store);
   }
 
   private openDetailById(storeId: string): void {
@@ -172,6 +257,8 @@ export class StoresComponent implements OnInit {
   closeDetail(): void {
     this.detailStore.set(null);
     this.storeEmployees.set([]);
+    this.baselineSettings.set(null);
+    this.baselineSaved.set(false);
   }
 
   editFromDetail(): void {

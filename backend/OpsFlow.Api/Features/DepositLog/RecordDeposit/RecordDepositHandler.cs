@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using OpsFlow.Api.Hubs;
+using OpsFlow.Api.Security;
 using OpsFlow.Infrastructure;
 using System.Security.Claims;
 
@@ -24,7 +25,15 @@ internal sealed class RecordDepositHandler(
             ?? httpContextAccessor.HttpContext.Request.Headers["X-Tenant-Id"].FirstOrDefault()
             ?? throw new UnauthorizedAccessException("tenantId claim missing.");
 
+        var spec = user.ToCaller().Scope();
+
         await using var db = await factory.CreateAsync(ct);
+
+        var store = await db.Stores.FindAsync([cmd.StoreId], ct)
+            ?? throw new KeyNotFoundException($"Store {cmd.StoreId} not found.");
+        var assigned = spec.IsStoreScoped
+            && await db.UserStoreAssignments.AnyAsync(a => a.UserId == userId && a.StoreId == cmd.StoreId, ct);
+        spec.AssertCanManageStore(store.RegionId, store.Id, assigned);
 
         var today = DateTimeOffset.UtcNow.Date;
         var alreadyExists = await db.DepositLogs

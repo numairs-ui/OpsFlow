@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
@@ -47,7 +47,7 @@ export class FormTemplatesComponent implements OnInit {
 
   readonly currentUser = this.auth.currentUser;
 
-  readonly form = this.fb.group({
+  readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, noWhitespace]],
     description: [''],
     scope: ['System' as TemplateScope, Validators.required],
@@ -78,6 +78,17 @@ export class FormTemplatesComponent implements OnInit {
   }
 
   applyFilters(): void { this.load(); }
+
+  readonly hasActiveFilters = computed(() =>
+    !!this.filterSearch() || !!this.filterScope() || this.filterActive() !== true
+  );
+
+  clearFilters(): void {
+    this.filterSearch.set('');
+    this.filterScope.set('');
+    this.filterActive.set(true);
+    this.load();
+  }
 
   openCreate(): void {
     this.editingTemplate.set(null);
@@ -134,7 +145,7 @@ export class FormTemplatesComponent implements OnInit {
 
     if (editing) {
       this.templateSvc.updateFormTemplate(editing.id, {
-        name: name!, description: description ?? undefined,
+        name, description,
         propagationType: this.propagationType(), approvalSteps: this.approvalSteps(), fieldsJson,
       }).subscribe({
         next: () => { this.saving.set(false); this.saved.set(true); setTimeout(() => this.saved.set(false), 2500); this.closeForm(); this.load(); },
@@ -142,7 +153,7 @@ export class FormTemplatesComponent implements OnInit {
       });
     } else {
       this.templateSvc.createFormTemplate({
-        name: name!, description: description ?? undefined,
+        name, description,
         scope: scope as TemplateScope,
         regionId: regionId || undefined,
         storeId: storeId || undefined,
