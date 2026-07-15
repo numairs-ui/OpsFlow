@@ -15,7 +15,16 @@
   }
 
   @if (loading()) {
-    <div class="loading">Loading...</div>
+    <div class="table-skeleton">
+      @for (i of [1,2,3,4,5]; track i) {
+        <div class="table-skeleton__row">
+          <div class="table-skeleton__cell table-skeleton__cell--wide"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--wide"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+        </div>
+      }
+    </div>
   } @else {
     @for (group of storesByRegion(); track group.region?.id) {
       <div class="region-group">
@@ -24,18 +33,22 @@
           <table class="table table--clickable">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Address</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th class="table__actions-col">Actions</th>
+                <th scope="col">Name</th>
+                <th scope="col" class="col--address">Address</th>
+                <th scope="col">Status</th>
+                <th scope="col">Created</th>
+                <th scope="col" class="table__actions-col">Actions</th>
               </tr>
             </thead>
             <tbody>
               @for (store of group.stores; track store.id) {
-                <tr [class.table__row--inactive]="!store.isActive" (click)="openDetail(store)">
+                <tr [class.table__row--inactive]="!store.isActive"
+                  tabindex="0" role="button" [attr.aria-label]="'View ' + store.name"
+                  (click)="openDetail(store)"
+                  (keydown.enter)="onRowKeydown($event, store)"
+                  (keydown.space)="$event.preventDefault(); onRowKeydown($event, store)">
                   <td class="td--name">{{ store.name }}</td>
-                  <td class="text-muted">{{ store.address || '—' }}</td>
+                  <td class="text-muted col--address">{{ store.address || '—' }}</td>
                   <td>
                     <span class="badge" [class.badge--active]="store.isActive" [class.badge--inactive]="!store.isActive">
                       {{ store.isActive ? 'Active' : 'Inactive' }}
@@ -54,6 +67,35 @@
               }
             </tbody>
           </table>
+        </div>
+
+        <div class="list-cards">
+          @for (store of group.stores; track store.id) {
+            <div class="list-card list-card--clickable" [class.list-card--inactive]="!store.isActive"
+              tabindex="0" role="button" [attr.aria-label]="'View ' + store.name"
+              (click)="openDetail(store)"
+              (keydown.enter)="onRowKeydown($event, store)"
+              (keydown.space)="$event.preventDefault(); onRowKeydown($event, store)">
+              <div class="list-card__head">
+                <span class="list-card__title">{{ store.name }}</span>
+                <span class="badge" [class.badge--active]="store.isActive" [class.badge--inactive]="!store.isActive">
+                  {{ store.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </div>
+              <dl class="list-card__fields">
+                <div class="list-card__field"><dt>Address</dt><dd>{{ store.address || '—' }}</dd></div>
+                <div class="list-card__field"><dt>Created</dt><dd>{{ store.createdAt | slice:0:10 }}</dd></div>
+              </dl>
+              <div class="list-card__actions">
+                <button class="btn btn--sm btn--ghost" (click)="$event.stopPropagation(); openEdit(store)">Edit</button>
+                @if (store.isActive) {
+                  <button class="btn btn--sm btn--danger-ghost" (click)="$event.stopPropagation(); deactivate(store)">Deactivate</button>
+                } @else {
+                  <button class="btn btn--sm btn--success-ghost" (click)="$event.stopPropagation(); reactivate(store)">Reactivate</button>
+                }
+              </div>
+            </div>
+          }
         </div>
       </div>
     } @empty {
@@ -119,6 +161,62 @@
             </tbody>
           </table>
           <p class="roster-count">{{ storeEmployees().length }} staff member{{ storeEmployees().length === 1 ? '' : 's' }}</p>
+        }
+      </div>
+
+      <!-- Store Baselines: admin-set per-store reference values (dough need targets + till bases)
+           that the manager's checklist submissions are measured against. -->
+      <div class="detail-section" [formGroup]="baselineForm">
+        <h3 class="detail-section__title">Store Baselines</h3>
+        @if (baselineLoading()) {
+          <p class="loading-inline">Loading baselines…</p>
+        } @else {
+          <p class="baseline-hint">Dough need targets (Day 2 / Day 3) drive the surplus/deficit shown in the MDOG task; till bases power cash-variance detection on the closing count. Managers don't set these — they're the reference the store is measured against.</p>
+
+          <table class="table table--compact baseline-table">
+            <thead>
+              <tr>
+                <th scope="col">Dough</th>
+                <th scope="col">Day 2 Need</th>
+                <th scope="col">Day 3 Need</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of doughRows(); track row.key) {
+                <tr>
+                  <td class="dough-label">{{ row.label }}</td>
+                  <td>
+                    <label class="sr-only" [for]="'d2-' + row.key">{{ row.label }} Day 2 need</label>
+                    <input [id]="'d2-' + row.key" class="input-num" type="number" min="0"
+                      [value]="row.day2" (input)="updateDoughRow(row.key, 'day2', +$any($event.target).value)" />
+                  </td>
+                  <td>
+                    <label class="sr-only" [for]="'d3-' + row.key">{{ row.label }} Day 3 need</label>
+                    <input [id]="'d3-' + row.key" class="input-num" type="number" min="0"
+                      [value]="row.day3" (input)="updateDoughRow(row.key, 'day3', +$any($event.target).value)" />
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          <div class="baseline-tills">
+            <div class="field">
+              <label class="label" for="tillABase">Till A Base ($)</label>
+              <input id="tillABase" class="input" type="number" min="0" step="0.01" formControlName="tillABase" placeholder="e.g. 200.00" />
+            </div>
+            <div class="field">
+              <label class="label" for="tillBBase">Till B Base ($)</label>
+              <input id="tillBBase" class="input" type="number" min="0" step="0.01" formControlName="tillBBase" placeholder="e.g. 200.00" />
+            </div>
+          </div>
+
+          <div class="baseline-actions">
+            @if (baselineSaved()) { <span class="saved-badge">&#10003; Saved</span> }
+            <button type="button" class="btn btn--sm btn--primary" [disabled]="baselineSaving() || baselineForm.invalid" (click)="saveBaselines()">
+              {{ baselineSaving() ? 'Saving…' : 'Save Baselines' }}
+            </button>
+          </div>
         }
       </div>
     </div>

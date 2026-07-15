@@ -1,8 +1,17 @@
 @use '../shared/admin.scss' as *;
+@use '../shared/admin-listing.scss' as *;
 
 .cell-name {
   font-weight: 500;
   color: #0f172a;
+  max-width: 180px;
+  word-break: break-word;
+}
+
+// Checklist/store names can run long — wrap instead of stretching the row.
+.cell-wrap {
+  max-width: 180px;
+  word-break: break-word;
 }
 
 .cron-badge {

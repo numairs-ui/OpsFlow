@@ -12,5 +12,6 @@ internal sealed record StoreSettingsDto(
     decimal? TillBBase,
     Dictionary<string, DoughNeedTargetDto> DoughNeedTargets,
     string TimezoneId,
-    int OverdueGraceMinutes
+    int OverdueGraceMinutes,
+    TimeOnly? DepositDeadlineLocalTime
 );

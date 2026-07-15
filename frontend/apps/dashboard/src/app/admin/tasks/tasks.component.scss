@@ -1,4 +1,5 @@
 @use '../shared/admin.scss' as *;
+@use '../shared/admin-listing.scss' as *;
 
 .filter-toggle {
   display: inline-flex;
@@ -25,6 +26,15 @@
       color: var(--cream);
     }
   }
+}
+
+.cell-primary {
+  font-weight: 500;
+  color: var(--indigo);
+  text-decoration: none;
+  display: inline-block;
+
+  &:hover { text-decoration: underline; }
 }
 
 .empty-state {

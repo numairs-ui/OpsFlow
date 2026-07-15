@@ -62,12 +62,28 @@ export class UsersComponent implements OnInit {
     return list;
   });
 
+  readonly hasActiveFilters = computed(() => !!this.searchQuery() || !!this.roleFilter());
+
+  clearFilters(): void {
+    this.searchQuery.set('');
+    this.roleFilter.set('');
+  }
+
+  // Rows are keyboard-activatable (tabindex + role=button), but also contain real
+  // buttons in the actions cell — guard so Enter/Space on a nested button doesn't
+  // also bubble up and re-trigger the row's own open-detail action.
+  onRowKeydown(event: Event, user: User): void {
+    if (event.target !== event.currentTarget) return;
+    this.cancelDeactivate();
+    this.openDetail(user);
+  }
+
   readonly availableStoresForAssignment = computed(() => {
     const assignedIds = new Set(this.assignments().map((a) => a.storeId));
     return this.stores().filter((s) => s.isActive && !assignedIds.has(s.id));
   });
 
-  readonly form = this.fb.group({
+  readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', Validators.required],
     displayName: ['', [Validators.required, noWhitespace]],
@@ -177,8 +193,8 @@ export class UsersComponent implements OnInit {
     const editing = this.editingUser();
     if (editing) {
       this.org.updateUser(editing.userId, {
-        displayName: displayName!,
-        role: role!,
+        displayName,
+        role,
         storeId: scopedStore,
         regionIds: scopedRegions,
       }).subscribe({
@@ -187,10 +203,10 @@ export class UsersComponent implements OnInit {
       });
     } else {
       this.org.createUser({
-        email: email!,
-        password: password!,
-        displayName: displayName!,
-        role: role!,
+        email,
+        password,
+        displayName,
+        role,
         storeId: scopedStore,
         regionIds: scopedRegions,
       }).subscribe({

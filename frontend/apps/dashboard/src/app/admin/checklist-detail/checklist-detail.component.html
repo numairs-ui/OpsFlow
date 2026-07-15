@@ -64,8 +64,8 @@
 
           <div class="scoring-grid">
             <div class="field">
-              <label class="label">Scoring</label>
-              <select class="input" [ngModel]="it.scoringType ?? ''" (ngModelChange)="setScoringType(i, $event)">
+              <label class="label" [for]="'scoringType-' + i">Scoring</label>
+              <select [id]="'scoringType-' + i" class="input" [ngModel]="it.scoringType ?? ''" (ngModelChange)="setScoringType(i, $event)">
                 @for (s of scoringTypes; track s.value) {
                   <option [value]="s.value">{{ s.label }}</option>
                 }
@@ -73,15 +73,15 @@
             </div>
 
             <div class="field">
-              <label class="label">Weight</label>
-              <input class="input" type="number" min="0.1" step="0.1"
+              <label class="label" [for]="'weight-' + i">Weight</label>
+              <input [id]="'weight-' + i" class="input" type="number" min="0.1" step="0.1"
                 [ngModel]="it.weight" (ngModelChange)="patchItem(i, { weight: +$event })" />
             </div>
 
             @if (it.scoringType === 'Scale1To5') {
               <div class="field">
-                <label class="label">Fail at or below</label>
-                <select class="input"
+                <label class="label" [for]="'failThreshold-' + i">Fail at or below</label>
+                <select [id]="'failThreshold-' + i" class="input"
                   [ngModel]="it.failScoreThreshold" (ngModelChange)="patchItem(i, { failScoreThreshold: +$event })">
                   @for (n of [1,2,3,4,5]; track n) {
                     <option [value]="n">{{ n }}</option>
@@ -101,8 +101,8 @@
 
           @if (it.scoringType) {
             <div class="field">
-              <label class="label">Corrective action on fail (optional)</label>
-              <input class="input" placeholder="e.g. Re-clean and re-inspect within 24h"
+              <label class="label" [for]="'correctiveAction-' + i">Corrective action on fail (optional)</label>
+              <input [id]="'correctiveAction-' + i" class="input" placeholder="e.g. Re-clean and re-inspect within 24h"
                 [ngModel]="it.failCorrectiveActionText"
                 (ngModelChange)="patchItem(i, { failCorrectiveActionText: $event })" />
             </div>

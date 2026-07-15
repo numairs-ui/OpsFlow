@@ -1,4 +1,63 @@
 @use '../shared/admin.scss' as *;
+@use '../shared/admin-listing.scss' as *;
+
+// Free-text addresses can be long — wrap instead of stretching the row/column.
+.col--address {
+  max-width: 260px;
+  word-break: break-word;
+}
+
+// ─── Store Baselines section (dough targets + till bases in the detail panel) ──
+.baseline-hint {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 0.75rem;
+}
+
+.baseline-table {
+  .dough-label { font-weight: 500; color: var(--ink); white-space: nowrap; }
+
+  .input-num {
+    width: 72px;
+    padding: 0.4rem 0.55rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--cream);
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    color: var(--ink);
+    outline: none;
+
+    &:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px var(--indigo-glow); }
+  }
+}
+
+.baseline-tills {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+
+  .field { flex: 1; }
+}
+
+.baseline-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+
+  .saved-badge {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--green);
+  }
+}
 
 .region-group {
   margin-bottom: 32px;

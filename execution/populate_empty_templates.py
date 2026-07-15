@@ -37,6 +37,26 @@ def f(label, ftype, required=True, range_min=None, range_max=None, corrective=No
 def sub(label, required=True):
     return {"id": uid(), "label": label, "required": required}
 
+def explode_field(field: dict) -> dict:
+    """Mirrors execution/migrate_flat_walks_to_checklists.py's explode_flat_template rule, so
+    every seed/migration path produces the same scored-checklist shape:
+      * Boolean field -> PassFail-scored item; correctiveActionText -> FailCorrectiveActionText
+        (the item's own field set is emptied — the Pass/Fail toggle replaces the boolean).
+      * anything else -> unscored item (ScoringType = null) that keeps the original field
+        for data capture."""
+    ftype = (field.get("type") or "").lower()
+    if ftype == "boolean":
+        return {
+            "fields_json": "[]",
+            "scoring_type": "PassFail",
+            "corrective": field.get("correctiveActionText"),
+        }
+    return {
+        "fields_json": json.dumps([field]),
+        "scoring_type": None,
+        "corrective": None,
+    }
+
 # ─────────────────────────────────────────────────────────────────────────────
 # FIELD DEFINITIONS  — all 15 empty templates
 # ─────────────────────────────────────────────────────────────────────────────
@@ -245,24 +265,53 @@ TEMPLATES = {
 # Apply updates
 # ─────────────────────────────────────────────────────────────────────────────
 print("Populating empty templates:\n")
-total_fields = 0
+total_items = 0
 
 for id_prefix, tmpl in TEMPLATES.items():
     # Find the full UUID by prefix
-    cur.execute('SELECT "Id" FROM "TaskTemplates" WHERE "Id"::text LIKE %s AND "TenantId"=%s',
+    cur.execute('SELECT "Id","Category" FROM "TaskTemplates" WHERE "Id"::text LIKE %s AND "TenantId"=%s',
                 (f"{id_prefix}%", TENANT_ID))
     row = cur.fetchone()
     if not row:
         print(f"  SKIP {id_prefix} — not found")
         continue
-    full_id = str(row[0])
-    fields = tmpl["fields"]
-    cur.execute('UPDATE "TaskTemplates" SET "Fields"=%s WHERE "Id"=%s',
-                (json.dumps(fields), full_id))
-    print(f"  ✓ {tmpl['name']:<35} {len(fields)} fields")
-    total_fields += len(fields)
+    full_id, category = str(row[0]), row[1]
 
-print(f"\n  Total: {total_fields} new fields across {len(TEMPLATES)} templates")
+    cur.execute('SELECT "ChecklistId","Order" FROM "ChecklistTemplateItems" WHERE "TemplateId"=%s', (full_id,))
+    link_row = cur.fetchone()
+    if not link_row:
+        print(f"  SKIP {tmpl['name']} — not linked to any checklist")
+        continue
+    checklist_id, order_start = link_row
+
+    # Each "shell" was a single checklist item standing in for a whole section of checks.
+    # Replace it with one atomic, scored ChecklistTemplateItem per field (Boolean -> PassFail,
+    # everything else -> unscored data-capture) instead of cramming every check into one
+    # template's Fields array — the scored-checklist shape, mirroring
+    # execution/migrate_flat_walks_to_checklists.py's validated transform rule.
+    cur.execute('DELETE FROM "ChecklistTemplateItems" WHERE "ChecklistId"=%s AND "TemplateId"=%s',
+                (checklist_id, full_id))
+
+    fields = tmpl["fields"]
+    for i, field in enumerate(fields):
+        exploded = explode_field(field)
+        label = field.get("label") or field["id"]
+        new_id = uid()
+        cur.execute("""
+            INSERT INTO "TaskTemplates"
+                ("Id","TenantId","Name","Category","Scope","Fields","IsActive","CreatedByUserId","CreatedAt")
+            VALUES (%s,%s,%s,%s,'System',%s,true,'seed',%s)
+        """, (new_id, TENANT_ID, label, category, exploded["fields_json"], datetime.now(timezone.utc)))
+        cur.execute("""
+            INSERT INTO "ChecklistTemplateItems"
+                ("ChecklistId","TemplateId","Order","ScoringType","Weight","PhotoRequired","FailCorrectiveActionText")
+            VALUES (%s,%s,%s,%s,1.0,false,%s) ON CONFLICT DO NOTHING
+        """, (checklist_id, new_id, order_start + i, exploded["scoring_type"], exploded["corrective"]))
+
+    print(f"  ✓ {tmpl['name']:<35} exploded into {len(fields)} scored items")
+    total_items += len(fields)
+
+print(f"\n  Total: {total_items} scored items across {len(TEMPLATES)} sections")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Reset today's task instances to Pending

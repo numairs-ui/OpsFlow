@@ -142,6 +142,28 @@ def _find_flat_walks(cur, tenant_id: str) -> list[tuple[str, str, list[dict]]]:
     return out
 
 
+def _find_or_create_template(cur, tenant_id: str, created_by: str, name: str, fields_json: str) -> str:
+    """Reuse an existing TaskTemplate with the same (TenantId, Name, Scope='System') rather than
+    always inserting — two exploded items (from the same or different flat templates) can share
+    a label (e.g. a common step name), and TaskTemplates has a real unique constraint on that
+    triple. Discovered via a real --apply run hitting IX_TaskTemplates_TenantId_Name_Scope."""
+    cur.execute(
+        'SELECT "Id" FROM "TaskTemplates" WHERE "TenantId" = %s AND "Name" = %s AND "Scope" = \'System\'',
+        (tenant_id, name),
+    )
+    row = cur.fetchone()
+    if row:
+        return row[0]
+
+    template_id = str(uuid.uuid4())
+    cur.execute(
+        'INSERT INTO "TaskTemplates" ("Id","TenantId","Name","Category","Scope","Fields","IsActive","CreatedByUserId","CreatedAt") '
+        'VALUES (%s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s)',
+        (template_id, tenant_id, name, "Walk", "System", fields_json, True, created_by, _ts()),
+    )
+    return template_id
+
+
 def _apply(cur, tenant_id: str, created_by: str, specs: list[dict[str, Any]]) -> int:
     count = 0
     for spec in specs:
@@ -152,16 +174,11 @@ def _apply(cur, tenant_id: str, created_by: str, specs: list[dict[str, Any]]) ->
             (checklist_id, tenant_id, spec["name"], "System", True, created_by, _ts()),
         )
         for item in spec["items"]:
-            template_id = str(uuid.uuid4())
-            cur.execute(
-                'INSERT INTO "TaskTemplates" ("Id","TenantId","Name","Category","Scope","Fields","IsActive","CreatedByUserId","CreatedAt") '
-                'VALUES (%s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s)',
-                (template_id, tenant_id, item["name"], "Walk", "System", item["fieldsJson"], True, created_by, _ts()),
-            )
+            template_id = _find_or_create_template(cur, tenant_id, created_by, item["name"], item["fieldsJson"])
             cur.execute(
                 'INSERT INTO "ChecklistTemplateItems" '
                 '("ChecklistId","TemplateId","Order","ScoringType","Weight","PhotoRequired","FailCorrectiveActionText","FailScoreThreshold") '
-                'VALUES (%s,%s,%s,%s,%s,%s,%s,%s)',
+                'VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING',
                 (checklist_id, template_id, item["order"], item["scoringType"], item["weight"],
                  item["photoRequired"], item["failCorrectiveActionText"], item["failScoreThreshold"]),
             )

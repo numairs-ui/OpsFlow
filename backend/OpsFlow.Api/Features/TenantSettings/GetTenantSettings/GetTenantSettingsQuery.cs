@@ -1,4 +1,5 @@
 using MediatR;
+using OpsFlow.Api.Features.StoreSettings.GetStoreSettings;
 
 namespace OpsFlow.Api.Features.TenantSettings.GetTenantSettings;
 
@@ -9,4 +10,14 @@ internal sealed record TenantSettingsDto(
     string Name,
     string? LogoUrl,
     string? PrimaryContactEmail,
-    bool IsActive);
+    bool IsActive,
+    // Org-wide defaults new stores inherit (null → server falls back to the code literal).
+    string? DefaultTimezoneId,
+    int? DefaultOverdueGraceMinutes,
+    TimeOnly? DefaultDepositDeadlineLocalTime,
+    decimal? DefaultTillABase,
+    decimal? DefaultTillBBase,
+    Dictionary<string, DoughNeedTargetDto>? DefaultDoughNeedTargets,
+    // Org display conventions honored app-wide (null → app default en-US / USD).
+    string? LocaleCode,
+    string? CurrencyCode);

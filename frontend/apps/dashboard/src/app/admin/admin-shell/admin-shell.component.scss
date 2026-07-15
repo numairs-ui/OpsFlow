@@ -77,19 +77,6 @@
     letter-spacing: -0.01em;
   }
 
-  &__role-tag {
-    font-family: var(--mono);
-    font-size: 0.55rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    background: var(--amber);
-    color: var(--ink);
-    padding: 0.18rem 0.45rem;
-    border-radius: 4px;
-    margin-left: auto;
-  }
-
   &__nav {
     list-style: none;
     padding: 0.875rem 0;
@@ -159,7 +146,7 @@
   &__user-email {
     font-family: var(--mono);
     font-size: 0.65rem;
-    color: rgba(245,239,224,0.45);
+    color: rgba(245,239,224,0.6);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -340,7 +327,7 @@
     &__user-email {
       font-family: var(--mono);
       font-size: 0.65rem;
-      color: rgba(245, 239, 224, 0.45);
+      color: rgba(245, 239, 224, 0.6);
     }
 
     &__logout {

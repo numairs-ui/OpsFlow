@@ -25,6 +25,7 @@ export interface StoreSettingsDto {
   doughNeedTargets: Record<string, DoughNeedTargetDto>;
   timezoneId: string;
   overdueGraceMinutes: number;
+  depositDeadlineLocalTime?: string | null;
 }
 
 export interface UpdateStoreSettingsRequest {
@@ -33,4 +34,5 @@ export interface UpdateStoreSettingsRequest {
   doughNeedTargets: Record<string, DoughNeedTargetDto>;
   timezoneId: string;
   overdueGraceMinutes: number;
+  depositDeadlineLocalTime?: string | null;
 }

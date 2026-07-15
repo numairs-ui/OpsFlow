@@ -1,4 +1,5 @@
 @use '../shared/admin.scss' as *;
+@use '../shared/admin-listing.scss' as *;
 
 .filters {
   display: flex;
@@ -17,11 +18,14 @@
 .col--actions  { width: 230px; white-space: nowrap; }
 
 // ─── Row actions ─────────────────────────────────────────────────────────────
+// Allow wrap so multi-button states (e.g. "Resetting…" + "Deactivate") wrap to a
+// second line inside the cell instead of overflowing the fixed-width column.
 .row-actions {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  flex-wrap: nowrap;
+  row-gap: 0.3rem;
+  flex-wrap: wrap;
 }
 
 // ─── Danger filled button (for two-step confirm) ──────────────────────────────

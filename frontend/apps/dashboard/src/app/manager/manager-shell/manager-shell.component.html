@@ -26,14 +26,14 @@
       <li class="sidebar__section-label">Forms</li>
       <li>
         <a routerLink="submissions" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon" aria-hidden="true"></span> Form Submissions
+          <span class="sidebar__icon" aria-hidden="true"></span> Forms
         </a>
       </li>
     </ul>
 
     <div class="sidebar__footer">
       <div class="sidebar__user-info">
-        <span class="sidebar__user-name">{{ user()?.sub }}</span>
+        <span class="sidebar__user-name">{{ user()?.email ?? user()?.sub }}</span>
         <span class="sidebar__user-role">{{ roleLabel(user()?.role) }}</span>
       </div>
       <button class="sidebar__logout" (click)="onLogout()">Sign out</button>

@@ -216,8 +216,9 @@ def make_checklist(name: str, scope: str, store_id: str, tasks: list[tuple]) -> 
                 ON CONFLICT DO NOTHING
             """, (t_id, TENANT_ID, full_tname, desc, cat, store_id, admin_uid, now()))
         cur.execute("""
-            INSERT INTO "ChecklistTemplateItems" ("ChecklistId","TemplateId","Order")
-            VALUES (%s,%s,%s) ON CONFLICT DO NOTHING
+            INSERT INTO "ChecklistTemplateItems"
+              ("ChecklistId","TemplateId","Order","ScoringType","Weight","PhotoRequired")
+            VALUES (%s,%s,%s,'PassFail',1.0,false) ON CONFLICT DO NOTHING
         """, (c_id, t_id, order))
     return c_id, tt_ids
 

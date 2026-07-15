@@ -25,7 +25,14 @@ internal sealed class DepositEscalationJob(
         var factory = services.GetRequiredService<TenantDbContextFactory>();
         await using var db = await factory.CreateForTenantAsync(tenantId, ct);
 
-        var flaggedCount = await FlagMissedDepositsAsync(db, tenantId, DateTimeOffset.UtcNow, ct);
+        // Org-wide default deposit deadline (used when a store has none of its own).
+        var masterDb = services.GetRequiredService<MasterDbContext>();
+        var tenantDefaultDeadline = await masterDb.Tenants
+            .Where(t => t.Id == tenantId)
+            .Select(t => t.DefaultDepositDeadlineLocalTime)
+            .FirstOrDefaultAsync(ct);
+
+        var flaggedCount = await FlagMissedDepositsAsync(db, tenantId, DateTimeOffset.UtcNow, ct, tenantDefaultDeadline);
         if (flaggedCount > 0)
             logger.LogInformation("Deposit escalation flagged {Count} store(s) for tenant {TenantId}.",
                 flaggedCount, tenantId);
@@ -37,7 +44,8 @@ internal sealed class DepositEscalationJob(
     /// stores already flagged for the business day are skipped. Returns how many new flags were written.
     /// </summary>
     internal static async Task<int> FlagMissedDepositsAsync(
-        TenantDbContext db, string tenantId, DateTimeOffset utcNow, CancellationToken ct)
+        TenantDbContext db, string tenantId, DateTimeOffset utcNow, CancellationToken ct,
+        TimeOnly? tenantDefaultDeadline = null)
     {
         // Same "today" the dashboards use, so the flag's business day lines up with what they read.
         var window = DashboardWindow.Today();
@@ -66,7 +74,7 @@ internal sealed class DepositEscalationJob(
             if (depositedSet.Contains(store.Id) || alreadyFlagged.Contains(store.Id)) continue;
 
             settings.TryGetValue(store.Id, out var s);
-            var deadline = s?.DepositDeadlineLocalTime ?? DefaultDeadline;
+            var deadline = s?.DepositDeadlineLocalTime ?? tenantDefaultDeadline ?? DefaultDeadline;
             var timezoneId = s?.TimezoneId ?? "America/New_York";
 
             if (!DeadlinePassed(utcNow, timezoneId, deadline)) continue;

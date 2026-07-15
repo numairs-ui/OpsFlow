@@ -30,6 +30,7 @@ internal sealed class UpdateStoreSettingsHandler(TenantDbContextFactory factory)
         settings.DoughNeedTargetsJson = JsonSerializer.Serialize(cmd.DoughNeedTargets, JsonOptions);
         settings.TimezoneId = cmd.TimezoneId;
         settings.OverdueGraceMinutes = cmd.OverdueGraceMinutes;
+        settings.DepositDeadlineLocalTime = cmd.DepositDeadlineLocalTime;
 
         await db.SaveChangesAsync(ct);
     }
