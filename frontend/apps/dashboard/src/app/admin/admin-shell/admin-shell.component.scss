@@ -126,14 +126,6 @@
     }
   }
 
-  &__icon {
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: currentColor;
-    flex-shrink: 0;
-    opacity: 0.7;
-  }
-
   &__footer {
     padding: 1rem 1.25rem;
     border-top: 1px solid rgba(245,239,224,0.1);

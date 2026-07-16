@@ -63,11 +63,13 @@
               </td>
               <td class="text-muted">{{ region.createdAt | slice:0:10 }}</td>
               @if (canManageRegions()) {
-                <td class="table__actions" (click)="$event.stopPropagation()">
-                  <button class="btn btn--sm btn--ghost" (click)="openEdit(region)">Edit</button>
-                  @if (region.isActive) {
-                    <button class="btn btn--sm btn--danger-ghost" (click)="deactivate(region)">Deactivate</button>
-                  }
+                <td (click)="$event.stopPropagation()">
+                  <div class="table__actions">
+                    <button class="btn btn--sm btn--ghost" (click)="openEdit(region)">Edit</button>
+                    @if (region.isActive) {
+                      <button class="btn btn--sm btn--danger-ghost" (click)="deactivate(region)">Deactivate</button>
+                    }
+                  </div>
                 </td>
               }
             </tr>

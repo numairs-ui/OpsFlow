@@ -130,7 +130,20 @@
 
   &__row--inactive td { opacity: 0.5; }
   &__actions-col { width: 160px; }
-  &__actions { display: flex; gap: 0.4rem; }
+
+  // Layout lives on this inner wrapper, not the <td>, so the <td> keeps its default
+  // `display: table-cell` — a `display: flex` directly on a table cell makes the
+  // browser insert an anonymous table-cell box around it for layout purposes, and the
+  // element carrying the visible border-bottom (this one) then only sizes to its own
+  // content instead of the full row height, making the divider look broken/offset next
+  // to the action buttons whenever a sibling cell in that row is taller.
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    row-gap: 0.3rem;
+    flex-wrap: wrap;
+  }
 }
 
 .empty {

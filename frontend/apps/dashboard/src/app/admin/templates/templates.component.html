@@ -77,14 +77,16 @@
                   {{ t.isActive ? 'Active' : 'Inactive' }}
                 </span>
               </td>
-              <td class="table__actions">
-                @if (canEditScope(t.scope)) {
-                  <button class="btn btn--sm btn--ghost" (click)="openEdit(t)">Edit</button>
-                  <button class="btn btn--sm" [class]="t.isActive ? 'btn--danger-ghost' : 'btn--success-ghost'"
-                    (click)="toggleActive(t)">
-                    {{ t.isActive ? 'Deactivate' : 'Activate' }}
-                  </button>
-                }
+              <td>
+                <div class="table__actions">
+                  @if (canEditScope(t.scope)) {
+                    <button class="btn btn--sm btn--ghost" (click)="openEdit(t)">Edit</button>
+                    <button class="btn btn--sm" [class]="t.isActive ? 'btn--danger-ghost' : 'btn--success-ghost'"
+                      (click)="toggleActive(t)">
+                      {{ t.isActive ? 'Deactivate' : 'Activate' }}
+                    </button>
+                  }
+                </div>
               </td>
             </tr>
           } @empty {
