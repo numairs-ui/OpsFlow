@@ -17,7 +17,7 @@ internal sealed class LoginHandler(
         var auth = await authProvider.AuthenticateAsync(cmd.Email, cmd.Password, cmd.TenantId, ct)
             ?? throw new UnauthorizedAccessException("Invalid credentials.");
 
-        var accessToken = tokenService.MintAccessToken(auth);
+        var accessToken = tokenService.MintAccessToken(auth, cmd.Email);
         var (raw, hash, expiresAt) = tokenService.GenerateRefreshToken();
 
         await using var tenantDb = await tenantFactory.CreateForTenantAsync(cmd.TenantId, ct);

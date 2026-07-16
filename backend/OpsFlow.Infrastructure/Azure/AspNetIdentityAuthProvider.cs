@@ -53,4 +53,10 @@ internal sealed class AspNetIdentityAuthProvider(UserManager<IdentityUser> userM
         var token = await userManager.GeneratePasswordResetTokenAsync(user);
         await userManager.ResetPasswordAsync(user, token, newPassword);
     }
+
+    public async Task<string?> GetEmailAsync(string userId, CancellationToken ct = default)
+    {
+        var user = await userManager.FindByIdAsync(userId);
+        return user?.Email;
+    }
 }

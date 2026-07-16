@@ -57,6 +57,7 @@ public sealed class OpsFlowWebApplicationFactory : WebApplicationFactory<Program
             => Task.FromResult(Guid.NewGuid().ToString());
         public Task UpdateUserAsync(UpdateUserRequest request, CancellationToken ct = default) => Task.CompletedTask;
         public Task ResetPasswordAsync(string userId, string newPassword, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<string?> GetEmailAsync(string userId, CancellationToken ct = default) => Task.FromResult<string?>(null);
     }
 }
 

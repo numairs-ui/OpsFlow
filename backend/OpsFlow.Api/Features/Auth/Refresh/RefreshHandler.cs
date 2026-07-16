@@ -10,6 +10,7 @@ namespace OpsFlow.Api.Features.Auth.Refresh;
 internal sealed class RefreshHandler(
     TenantDbContextFactory tenantFactory,
     TokenService tokenService,
+    IAuthProvider authProvider,
     IHttpContextAccessor httpContextAccessor) : IRequestHandler<RefreshCommand, RefreshResult>
 {
     public async Task<RefreshResult> Handle(RefreshCommand _, CancellationToken ct)
@@ -51,8 +52,9 @@ internal sealed class RefreshHandler(
         tokenService.SetRefreshCookie(ctx.Response, tenantId, newRaw, newExpiresAt);
 
         var regionIds = OpsFlow.Domain.Authorization.UserRegionScope.Decode(stored.RegionIdsCsv, null);
+        var email = await authProvider.GetEmailAsync(stored.UserId, ct);
         var accessToken = tokenService.MintAccessToken(new AuthResult(
-            stored.UserId, tenantId, stored.UserRole, stored.StoreId, regionIds));
+            stored.UserId, tenantId, stored.UserRole, stored.StoreId, regionIds), email);
 
         return new RefreshResult(accessToken, 15 * 60);
     }

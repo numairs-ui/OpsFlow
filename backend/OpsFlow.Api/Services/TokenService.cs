@@ -13,7 +13,7 @@ internal sealed class TokenService(IConfiguration configuration, IWebHostEnviron
     private const int AccessTokenMinutes = 15;
     private const int RefreshTokenDays = 30;
 
-    public string MintAccessToken(AuthResult auth)
+    public string MintAccessToken(AuthResult auth, string? email = null)
     {
         var secret = configuration["JWT_SECRET"]!;
         var issuer = configuration["JWT_ISSUER"] ?? "OpsFlow";
@@ -28,6 +28,8 @@ internal sealed class TokenService(IConfiguration configuration, IWebHostEnviron
             new("tenantId", auth.TenantId),
             new("role", auth.Role),
         };
+        // Email is surfaced for identity display only — absent on legacy tokens minted before this claim existed.
+        if (email is not null) claims.Add(new("email", email));
         if (auth.StoreId is not null) claims.Add(new("storeId", auth.StoreId));
         // Region scope is a set — one "regionId" claim per assigned region (supervisor: 1, admin: N).
         foreach (var regionId in auth.RegionIds)
