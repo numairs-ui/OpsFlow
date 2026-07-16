@@ -55,13 +55,15 @@
                     </span>
                   </td>
                   <td class="text-muted">{{ store.createdAt | slice:0:10 }}</td>
-                  <td class="table__actions" (click)="$event.stopPropagation()">
-                    <button class="btn btn--sm btn--ghost" (click)="openEdit(store)">Edit</button>
-                    @if (store.isActive) {
-                      <button class="btn btn--sm btn--danger-ghost" (click)="deactivate(store)">Deactivate</button>
-                    } @else {
-                      <button class="btn btn--sm btn--success-ghost" (click)="reactivate(store)">Reactivate</button>
-                    }
+                  <td (click)="$event.stopPropagation()">
+                    <div class="table__actions">
+                      <button class="btn btn--sm btn--ghost" (click)="openEdit(store)">Edit</button>
+                      @if (store.isActive) {
+                        <button class="btn btn--sm btn--danger-ghost" (click)="deactivate(store)">Deactivate</button>
+                      } @else {
+                        <button class="btn btn--sm btn--success-ghost" (click)="reactivate(store)">Reactivate</button>
+                      }
+                    </div>
                   </td>
                 </tr>
               }

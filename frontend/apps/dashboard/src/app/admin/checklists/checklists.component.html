@@ -65,15 +65,17 @@
                   {{ c.isActive ? 'Active' : 'Inactive' }}
                 </span>
               </td>
-              <td class="table__actions">
-                <button class="btn btn--sm btn--ghost" (click)="openEdit(c)">Edit Items</button>
-                <button
-                  class="btn btn--sm"
-                  [class]="c.isActive ? 'btn--danger' : 'btn--success'"
-                  (click)="toggleActive(c)"
-                >
-                  {{ c.isActive ? 'Deactivate' : 'Activate' }}
-                </button>
+              <td>
+                <div class="table__actions">
+                  <button class="btn btn--sm btn--ghost" (click)="openEdit(c)">Edit Items</button>
+                  <button
+                    class="btn btn--sm"
+                    [class]="c.isActive ? 'btn--danger' : 'btn--success'"
+                    (click)="toggleActive(c)"
+                  >
+                    {{ c.isActive ? 'Deactivate' : 'Activate' }}
+                  </button>
+                </div>
               </td>
             </tr>
           }
