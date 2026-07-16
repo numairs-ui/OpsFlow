@@ -1,6 +1,6 @@
 # OpsFlow — Project State & Decision Log
 
-> Last updated: 2026-07-14 · Moved here from the repo root (was `/PROJECT_STATE.md`) on 2026-07-14.
+> Last updated: 2026-07-16 · Moved here from the repo root (was `/PROJECT_STATE.md`) on 2026-07-14.
 >
 > **This is a running log, not the spec.** It records what shipped, when, and why. For the
 > authoritative current picture, use:
@@ -27,6 +27,7 @@ OpsFlow is a multi-tenant **operational-compliance platform for multi-store food
 - **Latest release (PRs #90/#91/#92, ✅ live in production as of 2026-07-14):** standalone/notes-only tasks, scored checklists with auto-generated corrective tasks (replaces the never-built "Manager Walk"), a single unified "+ Create" entry point, working photo upload, admin-triggered password reset, missed-deposit alerting, real dashboards for every role, and kiosk sessions that no longer drop after ~15 minutes. Backed by one additive migration (`SafeReleaseSchema`), applied to `bajco-dev`; smoke-tested directly against prod. Full detail: [release notes](product/OpsFlow_Release_Notes_2026-07.md).
 - **Deferred out of that release:** multi-store recurring broadcast (would require dropping a live `StoreId` column — too risky, single-store recurring is unaffected), self-service email password reset, and the one-time walk→scored-checklist data migration (`execution/migrate_flat_walks_to_checklists.py`) hasn't run against production yet. `execution/` seed scripts were updated 2026-07-15 to emit the scored-checklist shape (one atomic, scored `ChecklistTemplateItem` per check, matching `ImportTemplatesHandler`'s `ImportChecklist`) instead of the old flat-template shape.
 - **Found during go-live, fixed:** an unclaimed Nx Cloud workspace was hard-failing CI (`nxCloudId` removed from `frontend/nx.json`, PR #91). **Found, not yet fixed:** `VERCEL_TOKEN`/`VERCEL_ORG_ID`/`VERCEL_PROJECT_ID_*` were never configured as repo secrets, so `deploy.yml`'s Vercel auto-deploy has never actually worked — every frontend deploy so far has been manual via the Vercel CLI (recipe: [ARCHITECTURE.md §6](ARCHITECTURE.md)).
+- **In review, not yet live (PR #93, `feat/track-b-post-prd-audit` → `main`):** a separate, later "Admin UI/UX overhaul" — IA restructure, org-wide tenant defaults (additive migration), the pre-existing supervisor `regionId`/`regionIds` bug fix, `RecordDeposit` scope fix, 404-vs-500 fix, WCAG pass across admin listing pages. Its own branch reused the `feat/track-b-post-prd-audit` name after PR #90 merged, so a large diff against `main` here is expected (it's real, new, unmerged work) — not a sign anything is out of sync. This branch also carries a recovered `email`-JWT-claim auth refactor (see the decision table below) and the 2026-07-16 repo hygiene pass (§10 of `ARCHITECTURE.md`).
 
 ---
 
@@ -142,5 +143,6 @@ Decisions specific to this build that aren't already captured as ADRs:
 | `ChecklistTemplateItems` junction | Checklist → ordered list of TaskTemplates | Same template reusable across multiple checklists |
 | Store-prefixed checklist names | e.g. "Westside: Morning Opening" | DB `UNIQUE (TenantId, Name, Scope)` constraint prevents duplicates |
 | Vertical slices in .NET | Each feature: Handler + Command/Query + Validator in one folder | Cohesion over layers; avoids "service sprawl" of a horizontal architecture |
+| Email JWT claim resolved via `IAuthProvider.GetEmailAsync`, not stored on `RefreshToken` | Login mints it from the input email directly; refresh calls the provider (Supabase `GetUserById` / `UserManager.FindByIdAsync`) | No schema change needed for a display-only field; costs one extra provider call per 15-minute token refresh |
 
 Role/authorization-model decisions now live in [ADR-0001](adr/0001-six-role-multi-region-authorization.md) and [ADR-0002](adr/0002-scope-authorizer-pure-module.md) — don't duplicate them here.

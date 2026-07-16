@@ -1,8 +1,10 @@
 # OpsFlow — Product & Architecture Overview
 
-> **Status:** Current as of 2026-07-14. Supersedes the architecture sections of `PROJECT_STATE.md` (last updated 2026-06-19, predates the 6-role migration and the move off Render). This is the canonical reference — please correct it in place as the system evolves rather than starting a new doc.
+> **Status:** Current as of 2026-07-16. Supersedes the architecture sections of `docs/PROJECT_STATE.md`. This is the canonical reference — please correct it in place as the system evolves rather than starting a new doc.
 >
 > **2026-07-14 release:** the post-PRD-audit release (task nucleus + 6 targeted fixes, minus multi-store recurring which was deferred) is **live in production**. See `docs/product/OpsFlow_PRD_V2.md` (current as-built PRD, supersedes V1) and `docs/product/OpsFlow_Release_Notes_2026-07.md`. §7 below reflects the post-release state.
+>
+> **What's actually deployed right now, verified (2026-07-16):** the Azure Container App's active revision runs an image tagged `a5ddb8c` — traced via `az acr repository show-manifests` — which **is** commit `a5ddb8c` on `main` (the PR #90 squash-merge). Both Vercel frontends were last deployed the same day. If you're ever unsure whether prod matches `main` or some other branch, verify like this rather than guessing from branch-divergence size alone — a large diff between `main` and an open PR's branch usually just means real, not-yet-merged work, not a deploy-source mismatch.
 
 ---
 
@@ -197,7 +199,7 @@ Build from a clean checkout of `origin/main` (e.g. a `git worktree`), not a work
 - `dotnet` job — restores/builds `backend/OpsFlow.sln`, runs `OpsFlow.Tests.Unit` + `OpsFlow.Tests.Integration`, uploads `.trx` results.
 - `angular` job — Node 20, `npm ci`, `nx affected --target=lint`, `nx affected --target=test --ci`, production builds of both apps.
 
-Known flaky-but-unrelated-to-content CI failures: Angular job shallow-checkout issues, and a .NET Quartz/LoggerFactory flake — verify locally and it's safe to merge past these specifically.
+**Fixed (2026-07-16):** the Angular job's long-standing shallow-checkout flake (`nx affected --base=origin/main` failing with "ambiguous argument 'origin/main'" on every single PR, content-independent — confirmed on a docs-only PR) is resolved via `fetch-depth: 0` on the checkout step. The .NET suite still has an intermittent Quartz/LoggerFactory host-startup race under `WebApplicationFactory` — rerun locally (`dotnet test` from `backend/`) before treating a red `.NET Tests` check as a real regression, but it's now the only known flake, not two.
 
 **Secrets:** backend secrets (`SUPABASE_SERVICE_ROLE_KEY`, `MASTER_DB_CONNECTION_STRING`, `JWT_SECRET`, etc.) are not committed — injected via the hosting platform's secret store. `appsettings.json` only holds non-secret defaults. Frontend has no `NG_APP_*`/environment files checked in beyond the `env.js` runtime-config pattern above.
 
@@ -239,7 +241,7 @@ Known flaky-but-unrelated-to-content CI failures: Angular job shallow-checkout i
 |---|---|---|
 | Six roles, set-valued region scope for `admin`, dedicated `store_kiosk` role | Rejected a single scalar-region model (too restrictive for multi-region admins) and treating kiosk as "just a view" (need claim-by-name with no personal login) | [ADR-0001](adr/0001-six-role-multi-region-authorization.md) |
 | Authorization scope as one pure, DI-free module (`ScopeSpec`) rather than marker interfaces or per-entity checks | Marker-interface/per-entity approaches were leaky or non-EF-translatable; no `IScopeAuthorizer` interface since there's one real implementation | [ADR-0002](adr/0002-scope-authorizer-pure-module.md) |
-| Vertical Slice Architecture (backend) | Cohesion over layers; avoids "service sprawl" of a horizontal (Controller/Service/Repository) split | `PROJECT_STATE.md` §13 |
+| Vertical Slice Architecture (backend) | Cohesion over layers; avoids "service sprawl" of a horizontal (Controller/Service/Repository) split | `docs/PROJECT_STATE.md`, Key Architectural Decisions section |
 | JWT in memory (Angular Signal) + refresh token in httpOnly cookie | Access token never touches localStorage (XSS-resistant); refresh survives page reload | — |
 | Refresh-token rotation, `IsUsed` flag | Prevents replay of a stolen refresh token | — |
 | `TaskTemplate.Fields` as JSONB, not EAV tables | Fields are schema-flexible per template type without table explosion | — |
@@ -260,3 +262,17 @@ Known flaky-but-unrelated-to-content CI failures: Angular job shallow-checkout i
 - Product requirements: `docs/product/OpsFlow_PRD_V2.md` (current, as-built — supersedes V1); `docs/product/OpsFlow_PRD_V1.md` (original design spec, historical); `docs/product/OpsFlow_Release_Notes_2026-07.md` (plain-language what's-new for the 2026-07-14 release)
 - Domain glossary: `docs/planning/ubiquitous-language.md`
 - Build plan (waves/tracer bullets): `docs/planning/Tracer_Bullets_V1.md`
+- Skills (project + Matt Pocock pack, curated subset): `.claude/skills/` — one dir per skill, flat, no subcategories. `mp-*` prefix = sourced from the Matt Pocock Skills pack (`Matt Pacock Skills/` at repo root has the full pack, including categories not yet curated in — deprecated/, in-progress/, personal/).
+- Git safety hook (blocks `reset --hard`, `clean -f`/`-fd`, `checkout .`/`restore .`, `branch -D`, force-push — not routine push): `.claude/hooks/block-dangerous-git.sh`, wired in `.claude/settings.json`.
+
+---
+
+## 10. Repo Hygiene (2026-07-16)
+
+A parallel session ran an unstashed, forceful branch reset from the repo root and wiped another session's uncommitted work (an `email`-claim auth refactor — recovered from the losing session's own handoff notes, see PR history on `feat/track-b-post-prd-audit`). That incident, plus a pile of long-standing stray root-level content nobody had cleaned up, prompted a full pass:
+
+- **Branches:** every branch except `main` and `feat/track-b-post-prd-audit` (the currently open PR) was fully merged and has been deleted, both remote and local. If you see any other branch in the future, either it's genuinely new work in progress or it's drift that should be cleaned up the same way — confirm with `git branch -r --merged origin/main` plus `gh pr list --state all` (watch for squash-merges: a branch can be fully merged in content while `--merged` still calls it unmerged, because the squash commit isn't the branch's own commit).
+- **Stray root content** (`Design Process/`, `bencium-controlled-ux-designer/`, `frontend-design/`, `awesome-fixes.md`, root `PROJECT_STATE.md`, a broken `awesome-ux-skills` submodule gitlink with no `.gitmodules` entry) has been cleaned up — moved into `.claude/skills/`/`docs/` where it had real content, deleted where it didn't. See the `chore: repo hygiene` commit for the full list.
+- **Guardrail hook installed** (see §9 above) specifically to prevent a repeat of the incident that prompted this.
+
+If you're a future session and something here looks stale again, it means someone (agent or human) made an uncommitted or unreconciled change since — don't assume the previous state was wrong without checking `git log`/`git status` first.
