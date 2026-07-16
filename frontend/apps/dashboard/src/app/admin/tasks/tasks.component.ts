@@ -5,20 +5,23 @@ import { OrgService } from '@org/data-access-org';
 import { TaskService } from '@org/data-access-tasks';
 import type { TaskInstanceDto, TaskStatus } from '@org/data-access-tasks';
 
-export type TaskFilter = 'open' | 'overdue';
+export type TaskFilter = 'open' | 'upcoming' | 'overdue';
 
 const FILTER_STATUSES: Record<TaskFilter, TaskStatus[]> = {
   open: ['Pending', 'InProgress'],
+  upcoming: ['Pending', 'InProgress'],
   overdue: ['Overdue', 'CorrectiveActionRaised'],
 };
 
 const FILTER_LABEL: Record<TaskFilter, string> = {
   open: 'Open Tasks',
+  upcoming: 'Upcoming Tasks',
   overdue: 'Overdue Tasks',
 };
 
 const FILTER_SUBTITLE: Record<TaskFilter, string> = {
   open: 'Tasks due today, across every store you can see.',
+  upcoming: 'Tasks due after today, across every store you can see.',
   overdue: 'Tasks past their due date and not yet resolved, across every store you can see.',
 };
 
@@ -58,7 +61,8 @@ export class TasksComponent implements OnInit {
     });
 
     this.route.queryParams.subscribe((params) => {
-      const f: TaskFilter = params['filter'] === 'overdue' ? 'overdue' : 'open';
+      const raw = params['filter'];
+      const f: TaskFilter = raw === 'overdue' || raw === 'upcoming' ? raw : 'open';
       this.filter.set(f);
       this.load(f);
     });
@@ -85,7 +89,11 @@ export class TasksComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    const from = f === 'open' ? this.todayStart.toISOString() : undefined;
+    // "Upcoming" starts right where "Open" ends (today's window), and — like "Overdue" —
+    // has no upper bound, so any future-dated one-time task is always visible somewhere.
+    const from = f === 'open' ? this.todayStart.toISOString()
+      : f === 'upcoming' ? new Date(this.todayEnd.getTime() + 1).toISOString()
+      : undefined;
     const to = f === 'open' ? this.todayEnd.toISOString() : undefined;
 
     // No storeId filter — GetTasksQuery already scopes results via WhereStoreInScope,
