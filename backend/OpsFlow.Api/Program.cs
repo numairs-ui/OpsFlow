@@ -158,6 +158,11 @@ app.UseExceptionHandler(errorApp =>
             var errors = vex.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage });
             await context.Response.WriteAsJsonAsync(new { message = "Validation failed.", errors });
         }
+        else if (ex is KeyNotFoundException)
+        {
+            context.Response.StatusCode = 404;
+            await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+        }
         else
         {
             context.Response.StatusCode = 500;

@@ -73,33 +73,52 @@ export const appRoutes: Route[] = [
             (m) => m.RosterComponent
           ),
       },
+      // ── Templates area: one shell with a type toggle over four child tabs ──
       {
         path: 'templates',
         loadComponent: () =>
-          import('./admin/templates/templates.component.js').then(
-            (m) => m.TemplatesComponent
+          import('./admin/templates-shell/templates-shell.component.js').then(
+            (m) => m.TemplatesShellComponent
           ),
+        children: [
+          { path: '', redirectTo: 'task-templates', pathMatch: 'full' },
+          {
+            path: 'task-templates',
+            loadComponent: () =>
+              import('./admin/templates/templates.component.js').then(
+                (m) => m.TemplatesComponent
+              ),
+          },
+          {
+            path: 'checklists',
+            loadComponent: () =>
+              import('./admin/checklists/checklists.component.js').then(
+                (m) => m.ChecklistsComponent
+              ),
+          },
+          {
+            path: 'recurring',
+            loadComponent: () =>
+              import('./admin/recurring-assignments/recurring-assignments.component.js').then(
+                (m) => m.RecurringAssignmentsComponent
+              ),
+          },
+          {
+            path: 'forms',
+            loadComponent: () =>
+              import('./admin/form-templates/form-templates.component.js').then(
+                (m) => m.FormTemplatesComponent
+              ),
+          },
+        ],
       },
+
+      // Detail pages — top-level siblings so the toggle isn't shown on them.
       {
-        path: 'templates/:id',
+        path: 'task-templates/:id',
         loadComponent: () =>
           import('./admin/template-detail/template-detail.component.js').then(
             (m) => m.TemplateDetailComponent
-          ),
-      },
-      {
-        path: 'system-templates',
-        data: { systemOnly: true },
-        loadComponent: () =>
-          import('./admin/templates/templates.component.js').then(
-            (m) => m.TemplatesComponent
-          ),
-      },
-      {
-        path: 'checklists',
-        loadComponent: () =>
-          import('./admin/checklists/checklists.component.js').then(
-            (m) => m.ChecklistsComponent
           ),
       },
       {
@@ -110,26 +129,18 @@ export const appRoutes: Route[] = [
           ),
       },
       {
-        path: 'recurring-assignments',
-        loadComponent: () =>
-          import('./admin/recurring-assignments/recurring-assignments.component.js').then(
-            (m) => m.RecurringAssignmentsComponent
-          ),
-      },
-      {
-        path: 'form-templates',
-        loadComponent: () =>
-          import('./admin/form-templates/form-templates.component.js').then(
-            (m) => m.FormTemplatesComponent
-          ),
-      },
-      {
         path: 'form-templates/:id',
         loadComponent: () =>
           import('./admin/form-template-detail/form-template-detail.component.js').then(
             (m) => m.FormTemplateDetailComponent
           ),
       },
+
+      // Back-compat redirects for old flat routes / bookmarks.
+      { path: 'system-templates', redirectTo: 'templates/task-templates', pathMatch: 'full' },
+      { path: 'checklists', redirectTo: 'templates/checklists', pathMatch: 'full' },
+      { path: 'recurring-assignments', redirectTo: 'templates/recurring', pathMatch: 'full' },
+      { path: 'form-templates', redirectTo: 'templates/forms', pathMatch: 'full' },
       {
         path: 'store-settings',
         loadComponent: () =>

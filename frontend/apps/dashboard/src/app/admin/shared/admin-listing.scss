@@ -1,0 +1,125 @@
+// ─── Listing-page-only styles — split from admin.scss so pages that don't ────
+// render a table (overview, detail panels, settings forms) don't pay the byte
+// cost via @use. Import this alongside admin.scss only in the 8 listing pages
+// (users, stores, regions, templates, form-templates, checklists,
+// recurring-assignments, tasks).
+
+// ─── Table skeleton (loading placeholder that reserves row height, avoids CLS) ─
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.table-skeleton {
+  background: var(--paper);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  overflow: hidden;
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0.875rem 1.25rem;
+    border-bottom: 1px solid var(--line);
+    &:last-child { border-bottom: none; }
+  }
+
+  &__cell {
+    height: 0.9rem;
+    border-radius: 4px;
+    background: var(--cream-deep);
+    animation: skeleton-pulse 1.4s ease-in-out infinite;
+
+    &--wide { flex: 2; }
+    &--narrow { flex: 1; }
+  }
+}
+
+// ─── Visually-hidden but screen-reader-accessible label ─────────────────────
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+// ─── Mobile card/stacked layout (replaces tables below the mobile breakpoint) ─
+// Matches the shell's own breakpoint (admin-shell.component.scss). Sass can't read
+// :root custom properties in @media, so 768px is repeated here — same convention
+// documented in styles.scss next to $breakpoint-mobile.
+.list-cards { display: none; }
+
+@media (max-width: 768px) {
+  .table-wrap { display: none; }
+  .list-cards { display: flex; flex-direction: column; gap: 0.75rem; }
+}
+
+.list-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+
+  &--inactive { opacity: 0.55; }
+  &--clickable { cursor: pointer; }
+
+  &__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  &__title {
+    font-family: var(--sans);
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 0.95rem;
+  }
+
+  &__sub {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 0.15rem;
+  }
+
+  &__fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  &__field {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+
+    dt {
+      font-family: var(--mono);
+      font-size: 0.6rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    dd {
+      color: var(--ink-soft);
+      text-align: right;
+      word-break: break-word;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--line);
+  }
+}

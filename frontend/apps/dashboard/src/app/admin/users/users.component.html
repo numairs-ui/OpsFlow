@@ -12,9 +12,11 @@
   }
 
   <div class="filters">
-    <input class="input filters__search" placeholder="Search by name or email…"
+    <label class="sr-only" for="usersSearch">Search by name or email</label>
+    <input id="usersSearch" class="input filters__search" placeholder="Search by name or email…"
       [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)" />
-    <select class="input filters__role" [value]="roleFilter()" (change)="roleFilter.set($any($event.target).value)">
+    <label class="sr-only" for="usersRoleFilter">Filter by role</label>
+    <select id="usersRoleFilter" class="input filters__role" [value]="roleFilter()" (change)="roleFilter.set($any($event.target).value)">
       <option value="">All roles</option>
       @for (r of roles; track r.value) {
         <option [value]="r.value">{{ r.label }}</option>
@@ -23,23 +25,36 @@
   </div>
 
   @if (loading()) {
-    <div class="loading">Loading...</div>
+    <div class="table-skeleton">
+      @for (i of [1,2,3,4,5]; track i) {
+        <div class="table-skeleton__row">
+          <div class="table-skeleton__cell table-skeleton__cell--wide"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--wide"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+        </div>
+      }
+    </div>
   } @else {
     <div class="table-wrap">
       <table class="table table--clickable">
         <thead>
           <tr>
-            <th class="col--name">Name</th>
-            <th>Email</th>
-            <th class="col--role">Role</th>
-            <th class="col--location">Store / Region</th>
-            <th class="col--status">Status</th>
-            <th class="col--actions">Actions</th>
+            <th class="col--name" scope="col">Name</th>
+            <th scope="col">Email</th>
+            <th class="col--role" scope="col">Role</th>
+            <th class="col--location" scope="col">Store / Region</th>
+            <th class="col--status" scope="col">Status</th>
+            <th class="col--actions" scope="col">Actions</th>
           </tr>
         </thead>
         <tbody>
           @for (user of filteredUsers(); track user.userId) {
-            <tr [class.table__row--inactive]="!user.isActive" (click)="cancelDeactivate(); openDetail(user)">
+            <tr [class.table__row--inactive]="!user.isActive"
+              tabindex="0" role="button" [attr.aria-label]="'View ' + user.displayName"
+              (click)="cancelDeactivate(); openDetail(user)"
+              (keydown.enter)="onRowKeydown($event, user)"
+              (keydown.space)="$event.preventDefault(); onRowKeydown($event, user)">
               <td class="td--name col--name">
                 {{ user.displayName }}
                 @if (user.mustChangePassword) {
@@ -84,10 +99,80 @@
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="6" class="empty">No users found.</td></tr>
+            @if (hasActiveFilters()) {
+              <tr><td colspan="6" class="empty">
+                No users match your search.
+                <button type="button" class="btn btn--sm btn--ghost" (click)="clearFilters()">Clear filters</button>
+              </td></tr>
+            } @else {
+              <tr><td colspan="6" class="empty">No users found.</td></tr>
+            }
           }
         </tbody>
       </table>
+    </div>
+
+    <div class="list-cards">
+      @for (user of filteredUsers(); track user.userId) {
+        <div class="list-card" [class.list-card--inactive]="!user.isActive" [class.list-card--clickable]="true"
+          tabindex="0" role="button" [attr.aria-label]="'View ' + user.displayName"
+          (click)="cancelDeactivate(); openDetail(user)"
+          (keydown.enter)="onRowKeydown($event, user)"
+          (keydown.space)="$event.preventDefault(); onRowKeydown($event, user)">
+          <div class="list-card__head">
+            <span class="list-card__title">
+              {{ user.displayName }}
+              @if (user.mustChangePassword) {
+                <span class="pw-warn" title="Must change password on next login">&#9888;</span>
+              }
+            </span>
+            <span class="badge" [class.badge--active]="user.isActive" [class.badge--inactive]="!user.isActive">
+              {{ user.isActive ? 'Active' : 'Inactive' }}
+            </span>
+          </div>
+          <dl class="list-card__fields">
+            <div class="list-card__field"><dt>Email</dt><dd>{{ user.email }}</dd></div>
+            <div class="list-card__field"><dt>Role</dt><dd><span class="role-badge role-badge--{{ user.role }}">{{ roleLabel(user.role) }}</span></dd></div>
+            <div class="list-card__field">
+              <dt>Store / Region</dt>
+              <dd>
+                @if (user.storeName) { {{ user.storeName }} }
+                @else if (user.regionName) { {{ user.regionName }} }
+                @else { — }
+              </dd>
+            </div>
+          </dl>
+          <div class="list-card__actions">
+            <button class="btn btn--sm btn--ghost" (click)="$event.stopPropagation(); openEdit(user)">Edit</button>
+            @if (user.isActive) {
+              @if (confirmingResetUserId() === user.userId) {
+                <button class="btn btn--sm btn--amber" (click)="$event.stopPropagation(); executeResetPassword(user)">Reset PW?</button>
+                <button class="btn btn--sm btn--ghost" (click)="$event.stopPropagation(); cancelResetPassword()">✕</button>
+              } @else if (confirmingUserId() === user.userId) {
+                <button class="btn btn--sm btn--danger" (click)="$event.stopPropagation(); executeDeactivate(user)">Confirm?</button>
+                <button class="btn btn--sm btn--ghost" (click)="$event.stopPropagation(); cancelDeactivate()">✕</button>
+              } @else {
+                <button class="btn btn--sm btn--ghost" [disabled]="resettingUserId() === user.userId"
+                  (click)="$event.stopPropagation(); cancelDeactivate(); beginResetPassword(user.userId)">
+                  {{ resettingUserId() === user.userId ? 'Resetting…' : 'Reset PW' }}
+                </button>
+                <button class="btn btn--sm btn--danger-ghost" (click)="$event.stopPropagation(); cancelResetPassword(); beginDeactivate(user.userId)">Deactivate</button>
+              }
+            } @else {
+              <button class="btn btn--sm btn--success-ghost" (click)="$event.stopPropagation(); reactivate(user)">Reactivate</button>
+            }
+          </div>
+        </div>
+      } @empty {
+        @if (hasActiveFilters()) {
+          <div class="empty">
+            No users match your search.
+            <button type="button" class="btn btn--sm btn--ghost" (click)="clearFilters()">Clear filters</button>
+          </div>
+        } @else {
+          <div class="empty">No users found.</div>
+        }
+      }
     </div>
   }
 </div>

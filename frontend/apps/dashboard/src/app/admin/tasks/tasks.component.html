@@ -28,7 +28,16 @@
   }
 
   @if (loading()) {
-    <div class="loading">Loading...</div>
+    <div class="table-skeleton">
+      @for (i of [1,2,3,4,5]; track i) {
+        <div class="table-skeleton__row">
+          <div class="table-skeleton__cell table-skeleton__cell--wide"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--wide"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+        </div>
+      }
+    </div>
   } @else if (tasks().length === 0) {
     <div class="empty-state">
       <p>No {{ filter() }} tasks right now — nice work.</p>
@@ -38,16 +47,19 @@
       <table class="table table--clickable">
         <thead>
           <tr>
-            <th>Store</th>
-            <th>Checklist</th>
-            <th>Due</th>
-            <th>Status</th>
-            <th>Assigned to</th>
+            <th scope="col">Store</th>
+            <th scope="col">Checklist</th>
+            <th scope="col">Due</th>
+            <th scope="col">Status</th>
+            <th scope="col">Assigned to</th>
           </tr>
         </thead>
         <tbody>
           @for (task of tasks(); track task.id) {
-            <tr [routerLink]="['/admin/tasks', task.id]">
+            <tr [routerLink]="['/admin/tasks', task.id]"
+              tabindex="0" role="button" [attr.aria-label]="'View task for ' + task.checklistName"
+              (keydown.enter)="onRowKeydown($event, task.id)"
+              (keydown.space)="$event.preventDefault(); onRowKeydown($event, task.id)">
               <td class="td--name">
                 <a [routerLink]="['/admin/stores']" [queryParams]="{ detail: task.storeId }" (click)="$event.stopPropagation()">{{ task.storeName }}</a>
               </td>
@@ -63,6 +75,29 @@
           }
         </tbody>
       </table>
+    </div>
+
+    <div class="list-cards">
+      @for (task of tasks(); track task.id) {
+        <div class="list-card list-card--clickable"
+          [routerLink]="['/admin/tasks', task.id]"
+          tabindex="0" role="button" [attr.aria-label]="'View task for ' + task.checklistName"
+          (keydown.enter)="onRowKeydown($event, task.id)"
+          (keydown.space)="$event.preventDefault(); onRowKeydown($event, task.id)">
+          <div class="list-card__head">
+            <a class="list-card__title cell-primary" [routerLink]="['/admin/tasks', task.id]" (click)="$event.stopPropagation()">{{ task.checklistName }}</a>
+            <span class="pill {{ statusPillClass(task.status) }}">{{ task.status }}</span>
+          </div>
+          <dl class="list-card__fields">
+            <div class="list-card__field">
+              <dt>Store</dt>
+              <dd><a [routerLink]="['/admin/stores']" [queryParams]="{ detail: task.storeId }" (click)="$event.stopPropagation()">{{ task.storeName }}</a></dd>
+            </div>
+            <div class="list-card__field"><dt>Due</dt><dd>{{ task.dueAt | date:'short' }}</dd></div>
+            <div class="list-card__field"><dt>Assigned to</dt><dd>{{ assigneeName(task.assignedToUserId) }}</dd></div>
+          </dl>
+        </div>
+      }
     </div>
   }
 </div>

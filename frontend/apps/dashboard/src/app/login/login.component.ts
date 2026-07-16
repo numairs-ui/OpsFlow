@@ -5,7 +5,6 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { Router } from '@angular/router';
 import { AuthService, type CurrentUser } from '@org/data-access-auth';
 
 @Component({
@@ -16,13 +15,12 @@ import { AuthService, type CurrentUser } from '@org/data-access-auth';
 })
 export class LoginComponent {
   private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
 
   readonly loading = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
-  readonly form = this.fb.group({
+  readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', Validators.required],
     tenantId: ['bajco-dev', Validators.required],
@@ -44,12 +42,13 @@ export class LoginComponent {
 
     try {
       const { email, password, tenantId } = this.form.getRawValue();
-      await this.auth.login({
-        email: email!,
-        password: password!,
-        tenantId: tenantId!,
-      });
-      await this.navigateByRole(this.auth.currentUser()!);
+      await this.auth.login({ email, password, tenantId });
+      const user = this.auth.currentUser();
+      if (!user) {
+        this.errorMessage.set('Invalid email or password.');
+        return;
+      }
+      await this.navigateByRole(user);
     } catch {
       this.errorMessage.set('Invalid email or password.');
     } finally {
@@ -64,6 +63,10 @@ export class LoginComponent {
       supervisor: '/supervisor',
       store_manager: '/manager',
     };
-    await this.router.navigate([routes[user.role] ?? '/login']);
+    const target = routes[user.role] ?? '/login';
+    // Full-page load (not SPA nav) so the app re-bootstraps and picks up the org's
+    // locale/currency — LOCALE_ID is fixed at bootstrap (see app.config). The session is
+    // restored from the refresh cookie during app-init.
+    window.location.assign(target);
   }
 }

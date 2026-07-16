@@ -1,0 +1,45 @@
+:host { display: block; }
+
+.templates-shell__eyebrow {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--indigo);
+  margin: 0 0 0.75rem;
+}
+
+// Pill toggle — mirrors the .filter-toggle pattern used on the Tasks page.
+.templates-tabs {
+  display: inline-flex;
+  gap: 0.3rem;
+  padding: 0.3rem;
+  background: var(--cream-deep);
+  border-radius: 100px;
+  margin-bottom: 1.75rem;
+
+  &__tab {
+    padding: 0.45rem 1.1rem;
+    border-radius: 100px;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s var(--ease);
+    white-space: nowrap;
+
+    &:hover { color: var(--ink); }
+    &.active { background: var(--ink); color: var(--cream); }
+    &:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+  }
+}
+
+@media (max-width: 768px) {
+  .templates-tabs {
+    display: flex;
+    flex-wrap: wrap;
+  }
+}

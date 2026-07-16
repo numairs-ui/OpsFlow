@@ -4,7 +4,12 @@
       <h1 class="page__title">Task Templates</h1>
       <p class="page__subtitle">Define reusable task definitions with dynamic fields.</p>
     </div>
-    <button class="btn btn--primary" (click)="openCreate()">+ New Template</button>
+    <div class="header-actions">
+      @if (currentUser()?.role === 'super_admin') {
+        <a class="btn btn--ghost" routerLink="/admin/template-import">Import</a>
+      }
+      <button class="btn btn--primary" (click)="openCreate()">+ New Template</button>
+    </div>
   </div>
 
   @if (error()) {
@@ -16,13 +21,16 @@
 
   <!-- Filters -->
   <div class="filters">
-    <input class="input filters__search" placeholder="Search templates…"
+    <label class="sr-only" for="templatesSearch">Search templates</label>
+    <input id="templatesSearch" class="input filters__search" placeholder="Search templates…"
       [value]="filterSearch()" (input)="filterSearch.set($any($event.target).value); applyFilters()" />
-    <select class="input filters__scope" [value]="filterScope()" (change)="filterScope.set($any($event.target).value); applyFilters()">
+    <label class="sr-only" for="templatesScope">Filter by scope</label>
+    <select id="templatesScope" class="input filters__scope" [value]="filterScope()" (change)="filterScope.set($any($event.target).value); applyFilters()">
       <option value="">All scopes</option>
       @for (s of scopes; track s) { <option [value]="s">{{ s }}</option> }
     </select>
-    <select class="input filters__active" (change)="filterActive.set($any($event.target).value === '' ? undefined : $any($event.target).value === 'true'); applyFilters()">
+    <label class="sr-only" for="templatesActive">Filter by status</label>
+    <select id="templatesActive" class="input filters__active" (change)="filterActive.set($any($event.target).value === '' ? undefined : $any($event.target).value === 'true'); applyFilters()">
       <option value="true">Active</option>
       <option value="false">Inactive</option>
       <option value="">All</option>
@@ -30,30 +38,39 @@
   </div>
 
   @if (loading()) {
-    <div class="loading">Loading...</div>
+    <div class="table-skeleton">
+      @for (i of [1,2,3,4,5]; track i) {
+        <div class="table-skeleton__row">
+          <div class="table-skeleton__cell table-skeleton__cell--wide"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+        </div>
+      }
+    </div>
   } @else {
     <div class="table-wrap">
       <table class="table">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Scope</th>
-            <th>Region / Store</th>
-            <th>Fields</th>
-            <th>Status</th>
-            <th class="table__actions-col">Actions</th>
+            <th scope="col">Name</th>
+            <th scope="col">Category</th>
+            <th scope="col">Scope</th>
+            <th scope="col" class="col--location">Region / Store</th>
+            <th scope="col">Fields</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="table__actions-col">Actions</th>
           </tr>
         </thead>
         <tbody>
           @for (t of templates(); track t.id) {
             <tr [class.table__row--inactive]="!t.isActive">
               <td class="template-name">
-                <a class="cell-primary" [routerLink]="['/admin/templates', t.id]">{{ t.name }}</a>
+                <a class="cell-primary" [routerLink]="['/admin/task-templates', t.id]">{{ t.name }}</a>
               </td>
               <td class="text-muted">{{ t.category }}</td>
               <td><span class="scope-badge scope-badge--{{ t.scope.toLowerCase() }}">{{ t.scope }}</span></td>
-              <td class="text-muted">{{ t.regionName ?? t.storeName ?? '—' }}</td>
+              <td class="text-muted col--location">{{ t.regionName ?? t.storeName ?? '—' }}</td>
               <td class="text-muted">{{ t.fieldCount }} field{{ t.fieldCount === 1 ? '' : 's' }}</td>
               <td>
                 <span class="badge" [class.badge--active]="t.isActive" [class.badge--inactive]="!t.isActive">
@@ -71,10 +88,54 @@
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" class="empty">No templates found.</td></tr>
+            @if (hasActiveFilters()) {
+              <tr><td colspan="7" class="empty">
+                No templates match your filters.
+                <button type="button" class="btn btn--sm btn--ghost" (click)="clearFilters()">Clear filters</button>
+              </td></tr>
+            } @else {
+              <tr><td colspan="7" class="empty">No templates found.</td></tr>
+            }
           }
         </tbody>
       </table>
+    </div>
+
+    <div class="list-cards">
+      @for (t of templates(); track t.id) {
+        <div class="list-card" [class.list-card--inactive]="!t.isActive">
+          <div class="list-card__head">
+            <a class="list-card__title cell-primary" [routerLink]="['/admin/task-templates', t.id]">{{ t.name }}</a>
+            <span class="badge" [class.badge--active]="t.isActive" [class.badge--inactive]="!t.isActive">
+              {{ t.isActive ? 'Active' : 'Inactive' }}
+            </span>
+          </div>
+          <dl class="list-card__fields">
+            <div class="list-card__field"><dt>Category</dt><dd>{{ t.category }}</dd></div>
+            <div class="list-card__field"><dt>Scope</dt><dd><span class="scope-badge scope-badge--{{ t.scope.toLowerCase() }}">{{ t.scope }}</span></dd></div>
+            <div class="list-card__field"><dt>Region / Store</dt><dd>{{ t.regionName ?? t.storeName ?? '—' }}</dd></div>
+            <div class="list-card__field"><dt>Fields</dt><dd>{{ t.fieldCount }} field{{ t.fieldCount === 1 ? '' : 's' }}</dd></div>
+          </dl>
+          @if (canEditScope(t.scope)) {
+            <div class="list-card__actions">
+              <button class="btn btn--sm btn--ghost" (click)="openEdit(t)">Edit</button>
+              <button class="btn btn--sm" [class]="t.isActive ? 'btn--danger-ghost' : 'btn--success-ghost'"
+                (click)="toggleActive(t)">
+                {{ t.isActive ? 'Deactivate' : 'Activate' }}
+              </button>
+            </div>
+          }
+        </div>
+      } @empty {
+        @if (hasActiveFilters()) {
+          <div class="empty">
+            No templates match your filters.
+            <button type="button" class="btn btn--sm btn--ghost" (click)="clearFilters()">Clear filters</button>
+          </div>
+        } @else {
+          <div class="empty">No templates found.</div>
+        }
+      }
     </div>
   }
 </div>

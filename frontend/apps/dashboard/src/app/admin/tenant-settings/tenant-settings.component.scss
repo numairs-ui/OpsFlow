@@ -62,7 +62,7 @@
   width: 100%;
   box-sizing: border-box;
 
-  &:focus { outline: none; border-color: #3b82f6; }
+  &:focus { outline: none; border-color: var(--indigo); box-shadow: 0 0 0 3px var(--indigo-glow); }
 }
 
 .form-actions {

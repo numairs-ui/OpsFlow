@@ -181,6 +181,6 @@ export class ChecklistDetailComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/admin/checklists']);
+    this.router.navigate(['/admin/templates/checklists']);
   }
 }

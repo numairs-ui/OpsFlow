@@ -3,7 +3,6 @@
     <div class="sidebar__brand">
       <span class="sidebar__logo-mark"><em>O</em></span>
       <span class="sidebar__logo-name">OpsFlow</span>
-      <span class="sidebar__role-tag">{{ roleLabel(user()?.role) }}</span>
     </div>
 
     <button type="button" class="sidebar__create" (click)="openCreate()">
@@ -14,7 +13,7 @@
       <li class="sidebar__section-label">Overview</li>
       <li>
         <a routerLink="overview" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon"></span> System Dashboard
+          <span class="sidebar__icon"></span> Dashboard
         </a>
       </li>
       <li>
@@ -24,7 +23,7 @@
       </li>
       <li>
         <a routerLink="submissions" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon"></span> Form Submissions
+          <span class="sidebar__icon"></span> Forms
         </a>
       </li>
       <li class="sidebar__section-label">Organisation</li>
@@ -43,63 +42,22 @@
           <span class="sidebar__icon"></span> Users
         </a>
       </li>
-      <li>
-        <a routerLink="roster" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon"></span> Store Roster
-        </a>
-      </li>
       <li class="sidebar__section-label">Templates</li>
-      @if (isSuperAdmin()) {
-        <li>
-          <a routerLink="system-templates" routerLinkActive="active" class="sidebar__link">
-            <span class="sidebar__icon"></span> System Templates
-          </a>
-        </li>
-      }
       <li>
         <a routerLink="templates" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon"></span> All Templates
+          <span class="sidebar__icon"></span> Templates
         </a>
       </li>
-      <li>
-        <a routerLink="checklists" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon"></span> Checklists
-        </a>
-      </li>
-      <li>
-        <a routerLink="recurring-assignments" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon"></span> Recurring Assignments
-        </a>
-      </li>
-      <li>
-        <a routerLink="form-templates" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon"></span> Form Templates
-        </a>
-      </li>
-      @if (isSuperAdmin()) {
-        <li>
-          <a routerLink="template-import" routerLinkActive="active" class="sidebar__link">
-            <span class="sidebar__icon"></span> Template Import
-          </a>
-        </li>
-      }
       <li class="sidebar__section-label">Configuration</li>
       <li>
         <a routerLink="store-settings" routerLinkActive="active" class="sidebar__link">
-          <span class="sidebar__icon"></span> Store Settings
+          <span class="sidebar__icon"></span> Settings
         </a>
       </li>
-      @if (isSuperAdmin()) {
-        <li>
-          <a routerLink="tenant-settings" routerLinkActive="active" class="sidebar__link">
-            <span class="sidebar__icon"></span> Tenant Settings
-          </a>
-        </li>
-      }
     </ul>
 
     <div class="sidebar__footer">
-      <span class="sidebar__user-email">{{ roleLabel(user()?.role) }}</span>
+      <span class="sidebar__user-email">{{ user()?.email ?? roleLabel(user()?.role) }}</span>
       <button class="sidebar__logout" (click)="onLogout()">Sign out</button>
     </div>
   </nav>
@@ -138,7 +96,8 @@
 
   <!-- More sheet: the rest of the sidebar nav, for screens too narrow for a full sidebar -->
   @if (moreOpen()) {
-    <div class="more-sheet__scrim" (click)="closeMore()"></div>
+    <div class="more-sheet__scrim" role="button" tabindex="0" aria-label="Close menu"
+      (click)="closeMore()" (keydown.enter)="closeMore()" (keydown.space)="$event.preventDefault(); closeMore()"></div>
     <div class="more-sheet">
       <div class="more-sheet__handle"></div>
       <ul class="more-sheet__nav">
@@ -155,7 +114,7 @@
         </li>
         <li>
           <a routerLink="submissions" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
-            <app-nav-icon name="submissions" /> Form Submissions
+            <app-nav-icon name="submissions" /> Forms
           </a>
         </li>
         <li class="more-sheet__section-label">Organisation</li>
@@ -164,57 +123,21 @@
             Regions
           </a>
         </li>
-        <li>
-          <a routerLink="roster" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
-            Store Roster
-          </a>
-        </li>
         <li class="more-sheet__section-label">Templates</li>
-        @if (isSuperAdmin()) {
-          <li>
-            <a routerLink="system-templates" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
-              System Templates
-            </a>
-          </li>
-        }
         <li>
-          <a routerLink="checklists" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
-            Checklists
+          <a routerLink="templates" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
+            Templates
           </a>
         </li>
-        <li>
-          <a routerLink="recurring-assignments" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
-            Recurring Assignments
-          </a>
-        </li>
-        <li>
-          <a routerLink="form-templates" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
-            Form Templates
-          </a>
-        </li>
-        @if (isSuperAdmin()) {
-          <li>
-            <a routerLink="template-import" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
-              Template Import
-            </a>
-          </li>
-        }
         <li class="more-sheet__section-label">Configuration</li>
         <li>
           <a routerLink="store-settings" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
-            Store Settings
+            Settings
           </a>
         </li>
-        @if (isSuperAdmin()) {
-          <li>
-            <a routerLink="tenant-settings" routerLinkActive="active" class="more-sheet__link" (click)="closeMore()">
-              Tenant Settings
-            </a>
-          </li>
-        }
       </ul>
       <div class="more-sheet__footer">
-        <span class="more-sheet__user-email">{{ roleLabel(user()?.role) }}</span>
+        <span class="more-sheet__user-email">{{ user()?.email ?? roleLabel(user()?.role) }}</span>
         <button class="more-sheet__logout" (click)="onLogout()">Sign out</button>
       </div>
     </div>

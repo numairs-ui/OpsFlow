@@ -34,8 +34,32 @@ namespace OpsFlow.Migrations.Master
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("CurrencyCode")
+                        .HasColumnType("text");
+
+                    b.Property<TimeOnly?>("DefaultDepositDeadlineLocalTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<string>("DefaultDoughNeedTargetsJson")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("DefaultOverdueGraceMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("DefaultTillABase")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("DefaultTillBBase")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("DefaultTimezoneId")
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("LocaleCode")
+                        .HasColumnType("text");
 
                     b.Property<string>("LogoUrl")
                         .HasColumnType("text");

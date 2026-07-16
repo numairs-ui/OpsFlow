@@ -1,12 +1,13 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
-import { PercentPipe } from '@angular/common';
+import { DatePipe, PercentPipe } from '@angular/common';
+import { forkJoin } from 'rxjs';
 import { AuthService } from '@org/data-access-auth';
 import { DashboardService } from '@org/data-access-tasks';
 import type { RegionDashboardDto, StoreScoreDto } from '@org/data-access-tasks';
 
 @Component({
   selector: 'app-supervisor-overview',
-  imports: [PercentPipe],
+  imports: [DatePipe, PercentPipe],
   templateUrl: './overview.component.html',
   styleUrl: './overview.component.scss',
 })
@@ -14,10 +15,13 @@ export class SupervisorOverviewComponent implements OnInit, OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly dashboardSvc = inject(DashboardService);
 
-  readonly regionId = computed(() => this.auth.currentUser()?.regionId ?? '');
+  // A supervisor can be assigned to more than one region (region scope is a set) — fetch and
+  // merge every assigned region's dashboard rather than just the first (`regionId` back-compat field).
+  readonly regionIds = computed(() => this.auth.currentUser()?.regionIds ?? []);
   readonly data = signal<RegionDashboardDto | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  readonly lastUpdated = signal<Date | null>(null);
 
   private pollTimer?: ReturnType<typeof setInterval>;
 
@@ -29,14 +33,19 @@ export class SupervisorOverviewComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void { clearInterval(this.pollTimer); }
 
   private load(): void {
-    const rid = this.regionId();
-    if (!rid) {
+    const rids = this.regionIds();
+    if (rids.length === 0) {
       this.loading.set(false);
       this.error.set('No region assigned to your account. Contact an administrator.');
       return;
     }
-    this.dashboardSvc.getRegionDashboard(rid).subscribe({
-      next: (d) => { this.data.set(d); this.loading.set(false); },
+    forkJoin(rids.map((id) => this.dashboardSvc.getRegionDashboard(id))).subscribe({
+      next: (results) => {
+        const stores = results.flatMap((r) => r.stores).sort((a, b) => b.compositeScore - a.compositeScore);
+        this.data.set({ stores });
+        this.loading.set(false);
+        this.lastUpdated.set(new Date());
+      },
       error: () => { this.error.set('Failed to load regional dashboard.'); this.loading.set(false); },
     });
   }

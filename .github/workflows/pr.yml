@@ -67,7 +67,10 @@ jobs:
         run: npx nx affected --target=lint --base=origin/main --head=HEAD --parallel=3
 
       - name: Test (affected)
-        run: npx nx affected --target=test --base=origin/main --head=HEAD --parallel=3 --ci
+        # No --ci flag: dashboard/field-pwa use @angular/build:unit-test, whose schema doesn't
+        # recognize it (additionalProperties: false rejects unknown options outright). Watch mode
+        # is already disabled per-project (project.json "watch": false / vite configs "watch: false").
+        run: npx nx affected --target=test --base=origin/main --head=HEAD --parallel=3
 
       - name: Build field-pwa
         run: npx nx build field-pwa --configuration=production

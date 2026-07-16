@@ -2,7 +2,9 @@
   <div class="page__header">
     <div>
       <h1 class="page__title">Regional Dashboard</h1>
-      <p class="page__subtitle">Store leaderboard &amp; critical alerts — refreshes every 60 seconds.</p>
+      <p class="page__subtitle">Store leaderboard &amp; critical alerts — refreshes every 60 seconds.
+        @if (lastUpdated()) { <span class="live-indicator">Updated {{ lastUpdated() | date:'h:mm:ss a' }}</span> }
+      </p>
     </div>
   </div>
 

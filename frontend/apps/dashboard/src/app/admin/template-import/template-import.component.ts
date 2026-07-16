@@ -49,17 +49,14 @@ export class TemplateImportComponent {
 
     try {
       const data = JSON.parse(text);
-      const templates: ImportTemplateItem[] = Array.isArray(data)
-        ? data
-        : Array.isArray(data.templates)
-          ? data.templates
-          : null!;
+      const raw: unknown = Array.isArray(data) ? data : data.templates;
 
-      if (!Array.isArray(templates)) {
+      if (!Array.isArray(raw)) {
         this.parseError.set('JSON must be an array of templates, or an object with a "templates" array.');
         return;
       }
 
+      const templates = raw as ImportTemplateItem[];
       this.parsed.set(templates);
       const task = templates.filter(t => t.type === 'Task').length;
       const checklist = templates.filter(t => t.type === 'Checklist').length;

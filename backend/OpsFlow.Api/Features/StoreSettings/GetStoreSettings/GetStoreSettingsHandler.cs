@@ -35,7 +35,7 @@ internal sealed class GetStoreSettingsHandler(
 
         var settings = await db.StoreSettings.FindAsync([query.StoreId], ct);
         if (settings == null)
-            return new StoreSettingsDto(query.StoreId, null, null, DefaultTargets, "America/New_York", 30);
+            return new StoreSettingsDto(query.StoreId, null, null, DefaultTargets, "America/New_York", 30, null);
 
         Dictionary<string, DoughNeedTargetDto> targets;
         try
@@ -48,6 +48,6 @@ internal sealed class GetStoreSettingsHandler(
             targets = DefaultTargets;
         }
 
-        return new StoreSettingsDto(settings.StoreId, settings.TillABase, settings.TillBBase, targets, settings.TimezoneId, settings.OverdueGraceMinutes);
+        return new StoreSettingsDto(settings.StoreId, settings.TillABase, settings.TillBBase, targets, settings.TimezoneId, settings.OverdueGraceMinutes, settings.DepositDeadlineLocalTime);
     }
 }

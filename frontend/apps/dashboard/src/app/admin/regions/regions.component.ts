@@ -57,7 +57,7 @@ export class RegionsComponent implements OnInit {
       .map(([regionName, stores]) => ({ regionName, stores }));
   });
 
-  readonly form = this.fb.group({
+  readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, noWhitespace]],
     description: [''],
   });
@@ -95,7 +95,7 @@ export class RegionsComponent implements OnInit {
   onSubmit(): void {
     if (this.form.invalid || this.saving()) return;
     const { name, description } = this.form.getRawValue();
-    const body = { name: name!, description: description ?? undefined };
+    const body = { name, description };
     const onSuccess = () => { this.saving.set(false); this.saved.set(true); setTimeout(() => this.saved.set(false), 2500); this.closeForm(); this.load(); };
     const onError = () => { this.error.set('Failed to save region.'); this.saving.set(false); };
     this.saving.set(true);
@@ -125,6 +125,13 @@ export class RegionsComponent implements OnInit {
   closeDetail(): void {
     this.detailRegion.set(null);
     this.regionStores.set([]);
+  }
+
+  // Guard so Enter/Space on a nested action button doesn't also bubble up and
+  // re-trigger the row's own open-detail action.
+  onRowKeydown(event: Event, region: Region): void {
+    if (event.target !== event.currentTarget) return;
+    this.openDetail(region);
   }
 
   editFromDetail(): void {

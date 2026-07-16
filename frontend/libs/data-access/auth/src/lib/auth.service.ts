@@ -73,6 +73,7 @@ export class AuthService {
         tenantId: decoded.tenantId,
         role: decoded.role,
         storeId: decoded.storeId,
+        email: decoded.email,
         regionId: regionIds[0],
         regionIds,
       };

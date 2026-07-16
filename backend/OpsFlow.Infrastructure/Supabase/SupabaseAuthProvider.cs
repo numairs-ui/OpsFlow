@@ -86,4 +86,11 @@ internal sealed class SupabaseAuthProvider(
         var admin = supabase.AdminAuth(_serviceKey);
         await admin.UpdateUserById(userId, new AdminUserAttributes { Password = newPassword });
     }
+
+    public async Task<string?> GetEmailAsync(string userId, CancellationToken ct = default)
+    {
+        var admin = supabase.AdminAuth(_serviceKey);
+        var user = await admin.GetUserById(userId);
+        return user?.Email;
+    }
 }

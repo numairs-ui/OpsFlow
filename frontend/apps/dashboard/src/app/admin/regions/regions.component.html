@@ -23,24 +23,37 @@
   }
 
   @if (loading()) {
-    <div class="loading">Loading...</div>
+    <div class="table-skeleton">
+      @for (i of [1,2,3,4,5]; track i) {
+        <div class="table-skeleton__row">
+          <div class="table-skeleton__cell table-skeleton__cell--wide"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--wide"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+        </div>
+      }
+    </div>
   } @else {
     <div class="table-wrap">
       <table class="table table--clickable">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Description</th>
-            <th>Status</th>
-            <th>Created</th>
+            <th scope="col">Name</th>
+            <th scope="col">Description</th>
+            <th scope="col">Status</th>
+            <th scope="col">Created</th>
             @if (canManageRegions()) {
-              <th class="table__actions-col">Actions</th>
+              <th scope="col" class="table__actions-col">Actions</th>
             }
           </tr>
         </thead>
         <tbody>
           @for (region of regions(); track region.id) {
-            <tr [class.table__row--inactive]="!region.isActive" (click)="openDetail(region)">
+            <tr [class.table__row--inactive]="!region.isActive"
+              tabindex="0" role="button" [attr.aria-label]="'View ' + region.name"
+              (click)="openDetail(region)"
+              (keydown.enter)="onRowKeydown($event, region)"
+              (keydown.space)="$event.preventDefault(); onRowKeydown($event, region)">
               <td class="td--name">{{ region.name }}</td>
               <td class="text-muted">{{ region.description || '—' }}</td>
               <td>
@@ -63,6 +76,37 @@
           }
         </tbody>
       </table>
+    </div>
+
+    <div class="list-cards">
+      @for (region of regions(); track region.id) {
+        <div class="list-card list-card--clickable" [class.list-card--inactive]="!region.isActive"
+          tabindex="0" role="button" [attr.aria-label]="'View ' + region.name"
+          (click)="openDetail(region)"
+          (keydown.enter)="onRowKeydown($event, region)"
+          (keydown.space)="$event.preventDefault(); onRowKeydown($event, region)">
+          <div class="list-card__head">
+            <span class="list-card__title">{{ region.name }}</span>
+            <span class="badge" [class.badge--active]="region.isActive" [class.badge--inactive]="!region.isActive">
+              {{ region.isActive ? 'Active' : 'Inactive' }}
+            </span>
+          </div>
+          <dl class="list-card__fields">
+            <div class="list-card__field"><dt>Description</dt><dd>{{ region.description || '—' }}</dd></div>
+            <div class="list-card__field"><dt>Created</dt><dd>{{ region.createdAt | slice:0:10 }}</dd></div>
+          </dl>
+          @if (canManageRegions()) {
+            <div class="list-card__actions">
+              <button class="btn btn--sm btn--ghost" (click)="$event.stopPropagation(); openEdit(region)">Edit</button>
+              @if (region.isActive) {
+                <button class="btn btn--sm btn--danger-ghost" (click)="$event.stopPropagation(); deactivate(region)">Deactivate</button>
+              }
+            </div>
+          }
+        </div>
+      } @empty {
+        <div class="empty">No regions found.</div>
+      }
     </div>
   }
 </div>

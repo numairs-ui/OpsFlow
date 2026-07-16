@@ -123,7 +123,7 @@ public sealed class UpdateDraftTests : IClassFixture<TenantAwareWebApplicationFa
     }
 
     [Fact]
-    public async Task PatchDraft_WhenNotFound_Returns500()
+    public async Task PatchDraft_WhenNotFound_Returns404()
     {
         var token = _factory.MintToken(TenantAwareWebApplicationFactory.EmployeeUserId, "store_employee");
         _client.DefaultRequestHeaders.Authorization =
@@ -133,7 +133,7 @@ public sealed class UpdateDraftTests : IClassFixture<TenantAwareWebApplicationFa
             $"/form-submissions/{Guid.NewGuid()}/draft",
             new { fieldValues = new Dictionary<string, string>() });
 
-        // KeyNotFoundException → 500 (no special mapping for it yet)
-        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        // KeyNotFoundException → 404 (Program.cs exception middleware maps it explicitly)
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }

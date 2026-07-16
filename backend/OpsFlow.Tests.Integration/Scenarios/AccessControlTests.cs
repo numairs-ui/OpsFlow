@@ -545,6 +545,19 @@ public sealed class AccessControlTests : IClassFixture<TenantAwareWebApplication
     }
 
     [Fact]
+    public async Task RecordDeposit_AsRegionScopedAdmin_ForOutOfRegionStore_Returns401()
+    {
+        await _factory.SeedCommonDataAsync();
+        var (_, foreignStoreId) = await SeedForeignStoreAsync();
+
+        UseRegionScopedAdmin();
+        var response = await _client.PostAsJsonAsync($"/stores/{foreignStoreId}/deposit-log", new { amount = 100m });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized,
+            because: "a region-scoped admin must not be able to record a deposit for a store outside its assigned regions");
+    }
+
+    [Fact]
     public async Task GetUser_AsRegionScopedAdmin_ForUserInOutOfRegionStore_Returns401()
     {
         await _factory.SeedCommonDataAsync();
@@ -751,6 +764,19 @@ public sealed class AccessControlTests : IClassFixture<TenantAwareWebApplication
 
         response.StatusCode.Should().Be(HttpStatusCode.OK,
             because: "the new scope check must not block a region-scoped admin from its own region's deposit log list");
+    }
+
+    [Fact]
+    public async Task RecordDeposit_AsRegionScopedAdmin_ForInRegionStore_Returns201()
+    {
+        await _factory.SeedCommonDataAsync();
+        UseRegionScopedAdmin();
+
+        var response = await _client.PostAsJsonAsync(
+            $"/stores/{TenantAwareWebApplicationFactory.StoreId}/deposit-log", new { amount = 100m });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
+            because: "the new scope check must not block a region-scoped admin from recording a deposit for its own region's store");
     }
 
     [Fact]

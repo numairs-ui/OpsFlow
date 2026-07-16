@@ -1,5 +1,11 @@
 @use '../shared/admin.scss' as *;
 
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
 .state-loading {
   padding: 24px;
   color: #888;
@@ -67,7 +73,7 @@
   border-radius: 6px;
   font-size: 14px;
 
-  &:focus { outline: none; border-color: #3b82f6; }
+  &:focus { outline: none; border-color: var(--indigo); box-shadow: 0 0 0 3px var(--indigo-glow); }
 }
 
 .field-row {
@@ -90,13 +96,20 @@
   color: #374151;
 }
 
+.field-error {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--rust);
+  margin-top: 4px;
+}
+
 .input-text {
   padding: 9px 12px;
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 14px;
 
-  &:focus { outline: none; border-color: #3b82f6; }
+  &:focus { outline: none; border-color: var(--indigo); box-shadow: 0 0 0 3px var(--indigo-glow); }
 }
 
 .select {
@@ -106,7 +119,7 @@
   font-size: 14px;
   background: #fff;
 
-  &:focus { outline: none; border-color: #3b82f6; }
+  &:focus { outline: none; border-color: var(--indigo); box-shadow: 0 0 0 3px var(--indigo-glow); }
 }
 
 .store-selector {

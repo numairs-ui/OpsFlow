@@ -17,7 +17,7 @@ export class TenantSettingsComponent implements OnInit {
   readonly saved = signal(false);
   readonly error = signal<string | null>(null);
 
-  readonly form = this.fb.group({
+  readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(200)]],
     logoUrl: [''],
     primaryContactEmail: ['', Validators.email],
@@ -45,7 +45,7 @@ export class TenantSettingsComponent implements OnInit {
     this.error.set(null);
 
     this.tenantSvc.updateSettings({
-      name: name!,
+      name,
       logoUrl: logoUrl || null,
       primaryContactEmail: primaryContactEmail || null,
     }).subscribe({

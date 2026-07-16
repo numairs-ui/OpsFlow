@@ -1,4 +1,5 @@
 @use '../shared/admin.scss' as *;
+@use '../shared/admin-listing.scss' as *;
 
 .filters {
   display: flex;
@@ -11,6 +12,12 @@
 
 .template-name {
   font-weight: 500;
+}
+
+// Region/store names can run long — wrap instead of stretching the row.
+.col--location {
+  max-width: 200px;
+  word-break: break-word;
 }
 
 .cell-primary {

@@ -9,7 +9,16 @@
   }
 
   @if (loading()) {
-    <div class="loading">Loading...</div>
+    <div class="table-skeleton">
+      @for (i of [1,2,3,4,5]; track i) {
+        <div class="table-skeleton__row">
+          <div class="table-skeleton__cell table-skeleton__cell--wide"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--wide"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+          <div class="table-skeleton__cell table-skeleton__cell--narrow"></div>
+        </div>
+      }
+    </div>
   } @else if (assignments().length === 0) {
     <div class="empty">No recurring assignments yet. Create one to automate task generation.</div>
   } @else {
@@ -17,24 +26,24 @@
       <table class="table">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Checklist</th>
-            <th>Store</th>
-            <th>Schedule</th>
-            <th>Starts</th>
-            <th>Ends</th>
-            <th>Tasks</th>
-            <th>Assignee</th>
-            <th>Status</th>
-            <th>Actions</th>
+            <th scope="col">Name</th>
+            <th scope="col">Checklist</th>
+            <th scope="col">Store</th>
+            <th scope="col">Schedule</th>
+            <th scope="col">Starts</th>
+            <th scope="col">Ends</th>
+            <th scope="col">Tasks</th>
+            <th scope="col">Assignee</th>
+            <th scope="col">Status</th>
+            <th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody>
           @for (a of assignments(); track a.id) {
             <tr [class.row--paused]="a.isPaused">
               <td class="cell-name">{{ a.name }}</td>
-              <td>{{ a.checklistName }}</td>
-              <td>{{ a.storeName }}</td>
+              <td class="cell-wrap">{{ a.checklistName }}</td>
+              <td class="cell-wrap">{{ a.storeName }}</td>
               <td><code class="cron-badge">{{ a.cronExpression }}</code></td>
               <td>{{ a.startsAt | date:'mediumDate' }}</td>
               <td>{{ a.endsAt ? (a.endsAt | date:'mediumDate') : '—' }}</td>
@@ -55,6 +64,34 @@
           }
         </tbody>
       </table>
+    </div>
+
+    <div class="list-cards">
+      @for (a of assignments(); track a.id) {
+        <div class="list-card" [class.list-card--inactive]="a.isPaused">
+          <div class="list-card__head">
+            <span class="list-card__title">{{ a.name }}</span>
+            <span class="badge" [class]="a.isPaused ? 'badge--paused' : 'badge--active'">
+              {{ a.isPaused ? 'Paused' : 'Active' }}
+            </span>
+          </div>
+          <dl class="list-card__fields">
+            <div class="list-card__field"><dt>Checklist</dt><dd>{{ a.checklistName }}</dd></div>
+            <div class="list-card__field"><dt>Store</dt><dd>{{ a.storeName }}</dd></div>
+            <div class="list-card__field"><dt>Schedule</dt><dd><code class="cron-badge">{{ a.cronExpression }}</code></dd></div>
+            <div class="list-card__field"><dt>Starts</dt><dd>{{ a.startsAt | date:'mediumDate' }}</dd></div>
+            <div class="list-card__field"><dt>Ends</dt><dd>{{ a.endsAt ? (a.endsAt | date:'mediumDate') : '—' }}</dd></div>
+            <div class="list-card__field"><dt>Tasks</dt><dd>{{ a.taskInstanceCount }}</dd></div>
+            <div class="list-card__field"><dt>Assignee</dt><dd>{{ a.assignedToUserName ?? '—' }}</dd></div>
+          </dl>
+          <div class="list-card__actions">
+            <button class="btn btn--sm btn--ghost" (click)="togglePause(a)">
+              {{ a.isPaused ? 'Resume' : 'Pause' }}
+            </button>
+            <button class="btn btn--sm btn--danger" (click)="deleteAssignment(a)">Delete</button>
+          </div>
+        </div>
+      }
     </div>
   }
 </div>

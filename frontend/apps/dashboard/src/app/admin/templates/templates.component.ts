@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
@@ -46,7 +46,7 @@ export class TemplatesComponent implements OnInit {
 
   readonly currentUser = this.auth.currentUser;
 
-  readonly form = this.fb.group({
+  readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, noWhitespace]],
     description: [''],
     category: ['', Validators.required],
@@ -87,6 +87,17 @@ export class TemplatesComponent implements OnInit {
   }
 
   applyFilters(): void { this.load(); }
+
+  readonly hasActiveFilters = computed(() =>
+    !!this.filterSearch() || (!this.systemOnly() && !!this.filterScope()) || this.filterActive() !== true
+  );
+
+  clearFilters(): void {
+    this.filterSearch.set('');
+    if (!this.systemOnly()) this.filterScope.set('');
+    this.filterActive.set(true);
+    this.load();
+  }
 
   openCreate(): void {
     this.editingTemplate.set(null);
@@ -135,14 +146,14 @@ export class TemplatesComponent implements OnInit {
 
     if (editing) {
       this.templateSvc.updateTemplate(editing.id, {
-        name: name!, description: description ?? undefined, category: category!, fieldsJson,
+        name, description, category, fieldsJson,
       }).subscribe({
         next: () => { this.saving.set(false); this.saved.set(true); setTimeout(() => this.saved.set(false), 2500); this.closeForm(); this.load(); },
         error: () => { this.error.set('Failed to save template.'); this.saving.set(false); },
       });
     } else {
       this.templateSvc.createTemplate({
-        name: name!, description: description ?? undefined, category: category!,
+        name, description, category,
         scope: scope as TemplateScope,
         regionId: regionId || undefined,
         storeId: storeId || undefined,

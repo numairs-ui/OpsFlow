@@ -17,7 +17,8 @@ internal static class StoreSettingsEndpoints
         {
             await m.Send(new UpdateStoreSettingsCommand(
                 storeId, body.TillABase, body.TillBBase,
-                body.DoughNeedTargets, body.TimezoneId, body.OverdueGraceMinutes));
+                body.DoughNeedTargets, body.TimezoneId, body.OverdueGraceMinutes,
+                body.DepositDeadlineLocalTime));
             return Results.NoContent();
         });
 
@@ -30,5 +31,6 @@ internal sealed record UpdateStoreSettingsBody(
     decimal? TillBBase,
     Dictionary<string, DoughNeedTargetDto> DoughNeedTargets,
     string TimezoneId,
-    int OverdueGraceMinutes
+    int OverdueGraceMinutes,
+    TimeOnly? DepositDeadlineLocalTime
 );
