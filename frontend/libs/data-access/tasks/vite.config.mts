@@ -4,14 +4,14 @@ import angular from '@analogjs/vite-plugin-angular';
 
 export default defineConfig(() => ({
   root: __dirname,
-  cacheDir: '../../../node_modules/.vite/libs/data-access/org',
+  cacheDir: '../../../node_modules/.vite/libs/data-access/tasks',
   plugins: [angular()],
   // Uncomment this if you are using workers.
   // worker: {
   //  plugins: [],
   // },
   test: {
-    name: 'data-access-org',
+    name: 'data-access-tasks',
     watch: false,
     globals: true,
     environment: 'jsdom',
