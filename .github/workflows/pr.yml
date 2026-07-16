@@ -46,6 +46,12 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          # nx affected diffs against origin/main below — a shallow (default) checkout doesn't
+          # fetch that ref at all, which makes every run of this job fail with "ambiguous
+          # argument 'origin/main'" regardless of what the PR actually changes (confirmed on a
+          # docs-only PR). Full history makes origin/main resolvable.
+          fetch-depth: 0
 
       - name: Setup Node 20
         uses: actions/setup-node@v4

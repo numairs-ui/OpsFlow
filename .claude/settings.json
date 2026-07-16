@@ -1,4 +1,17 @@
 {
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-dangerous-git.sh"
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Bash(NX_IGNORE_UNSUPPORTED_TS_SETUP=true node node_modules/.bin/nx generate @nx/js:library --name=util-models --directory=libs/util/models --bundler=tsc --no-interactive)",
