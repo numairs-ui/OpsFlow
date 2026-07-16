@@ -174,7 +174,7 @@ export class ChecklistsComponent implements OnInit {
 
   allowedScopes(): TemplateScope[] {
     const role = this.currentUser()?.role ?? '';
-    if (role === 'admin') return ['System', 'Regional', 'Store'];
+    if (role === 'super_admin' || role === 'admin') return ['System', 'Regional', 'Store'];
     if (role === 'supervisor') return ['Regional', 'Store'];
     return ['Store'];
   }

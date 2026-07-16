@@ -174,14 +174,14 @@ export class TemplatesComponent implements OnInit {
 
   canEditScope(scope: string): boolean {
     const role = this.currentUser()?.role ?? '';
-    if (scope === 'System') return role === 'admin';
-    if (scope === 'Regional') return role === 'admin' || role === 'supervisor';
+    if (scope === 'System') return role === 'super_admin' || role === 'admin';
+    if (scope === 'Regional') return role === 'super_admin' || role === 'admin' || role === 'supervisor';
     return true;
   }
 
   allowedScopes(): TemplateScope[] {
     const role = this.currentUser()?.role ?? '';
-    if (role === 'admin') return ['System', 'Regional', 'Store'];
+    if (role === 'super_admin' || role === 'admin') return ['System', 'Regional', 'Store'];
     if (role === 'supervisor') return ['Regional', 'Store'];
     return ['Store'];
   }
