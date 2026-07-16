@@ -11,6 +11,10 @@ internal sealed class CreateFormTemplateHandler(
     TenantDbContextFactory factory,
     IHttpContextAccessor httpContextAccessor) : IRequestHandler<CreateFormTemplateCommand, Guid>
 {
+    // Frontend reads approvalStepsJson with a plain JSON.parse (no case-insensitivity), so the
+    // stored JSON must use camelCase property names, not the default PascalCase C# serialization.
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
     public async Task<Guid> Handle(CreateFormTemplateCommand cmd, CancellationToken ct)
     {
         var user = httpContextAccessor.HttpContext!.User;
@@ -32,7 +36,7 @@ internal sealed class CreateFormTemplateHandler(
             RegionId = cmd.RegionId,
             StoreId = cmd.StoreId,
             PropagationType = cmd.PropagationType,
-            ApprovalStepsJson = JsonSerializer.Serialize(cmd.ApprovalSteps),
+            ApprovalStepsJson = JsonSerializer.Serialize(cmd.ApprovalSteps, JsonOptions),
             FieldsJson = cmd.FieldsJson,
             CreatedByUserId = userId,
         };

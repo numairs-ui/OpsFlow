@@ -10,6 +10,10 @@ internal sealed class UpdateFormTemplateHandler(
     TenantDbContextFactory factory,
     IHttpContextAccessor httpContextAccessor) : IRequestHandler<UpdateFormTemplateCommand>
 {
+    // Frontend reads approvalStepsJson with a plain JSON.parse (no case-insensitivity), so the
+    // stored JSON must use camelCase property names, not the default PascalCase C# serialization.
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
     public async Task Handle(UpdateFormTemplateCommand cmd, CancellationToken ct)
     {
         var spec = httpContextAccessor.HttpContext!.User.ToCaller().Scope();
@@ -23,7 +27,7 @@ internal sealed class UpdateFormTemplateHandler(
         template.Name = cmd.Name;
         template.Description = cmd.Description;
         template.PropagationType = cmd.PropagationType;
-        template.ApprovalStepsJson = JsonSerializer.Serialize(cmd.ApprovalSteps);
+        template.ApprovalStepsJson = JsonSerializer.Serialize(cmd.ApprovalSteps, JsonOptions);
         if (cmd.FieldsJson != null) template.FieldsJson = cmd.FieldsJson;
 
         await db.SaveChangesAsync(ct);
