@@ -19,39 +19,84 @@
           <p class="page__subtitle">{{ t.description }}</p>
         }
       </div>
-      <span class="pill" [class]="t.isActive ? 'pill--completed' : 'pill--inactive'">
-        {{ t.isActive ? 'Active' : 'Inactive' }}
-      </span>
+      <div class="page__header-actions">
+        <span class="pill" [class]="t.isActive ? 'pill--completed' : 'pill--inactive'">
+          {{ t.isActive ? 'Active' : 'Inactive' }}
+        </span>
+        @if (canEdit() && !editing()) {
+          <button class="btn btn--primary btn--sm" (click)="openEdit()">Edit</button>
+        }
+      </div>
     </div>
 
-    <div class="card template-view">
-      <p class="card-eyebrow">{{ fields().length }} field{{ fields().length !== 1 ? 's' : '' }}</p>
-      @for (field of fields(); track field.id) {
-        <div class="field-row">
-          <div class="field-row__main">
-            <span class="field-row__label">
-              {{ field.label }}
-              @if (field.required) { <span class="field-row__required">*</span> }
-            </span>
-            <span class="field-row__type">{{ field.type }}</span>
+    @if (saved()) {
+      <div class="alert alert--success">&#10003; Template saved successfully.</div>
+    }
+
+    @if (!editing()) {
+      <div class="card template-view">
+        <p class="card-eyebrow">{{ fields().length }} field{{ fields().length !== 1 ? 's' : '' }}</p>
+        @for (field of fields(); track field.id) {
+          <div class="field-row">
+            <div class="field-row__main">
+              <span class="field-row__label">
+                {{ field.label }}
+                @if (field.required) { <span class="field-row__required">*</span> }
+              </span>
+              <span class="field-row__type">{{ field.type }}</span>
+            </div>
+            @if (field.type === 'Numeric' && (field.rangeMin !== undefined || field.rangeMax !== undefined)) {
+              <p class="field-row__meta">Range: {{ field.rangeMin ?? '—' }} to {{ field.rangeMax ?? '—' }}</p>
+            }
+            @if (field.type === 'Numeric' && field.correctiveActionText) {
+              <p class="field-row__meta">Corrective action: {{ field.correctiveActionText }}</p>
+            }
+            @if (field.type === 'Checklist' && field.subItems?.length) {
+              <ul class="sub-items">
+                @for (sub of field.subItems; track sub.id) {
+                  <li>{{ sub.label }}{{ sub.required ? ' *' : '' }}</li>
+                }
+              </ul>
+            }
           </div>
-          @if (field.type === 'Numeric' && (field.rangeMin !== undefined || field.rangeMax !== undefined)) {
-            <p class="field-row__meta">Range: {{ field.rangeMin ?? '—' }} to {{ field.rangeMax ?? '—' }}</p>
-          }
-          @if (field.type === 'Numeric' && field.correctiveActionText) {
-            <p class="field-row__meta">Corrective action: {{ field.correctiveActionText }}</p>
-          }
-          @if (field.type === 'Checklist' && field.subItems?.length) {
-            <ul class="sub-items">
-              @for (sub of field.subItems; track sub.id) {
-                <li>{{ sub.label }}{{ sub.required ? ' *' : '' }}</li>
-              }
-            </ul>
+        } @empty {
+          <p class="text-muted">No fields configured for this template.</p>
+        }
+      </div>
+    } @else {
+      @if (saveError(); as serr) {
+        <div class="alert alert--error">{{ serr }}</div>
+      }
+      <form class="card form-card" [formGroup]="form" (ngSubmit)="onSubmit()">
+        <div class="field">
+          <label class="label" for="tdName">Name *</label>
+          <input id="tdName" class="input" formControlName="name" />
+          @if (form.controls['name'].invalid && form.controls['name'].touched) {
+            <span class="field__error">Name is required.</span>
           }
         </div>
-      } @empty {
-        <p class="text-muted">No fields configured for this template.</p>
-      }
-    </div>
+        <div class="field">
+          <label class="label" for="tdDesc">Description</label>
+          <textarea id="tdDesc" class="input" formControlName="description" rows="2"></textarea>
+        </div>
+        <div class="field">
+          <label class="label" for="tdCat">Category *</label>
+          <select id="tdCat" class="input" formControlName="category">
+            <option value="">Select…</option>
+            @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+          </select>
+        </div>
+        <div class="field">
+          <span class="label">Fields</span>
+          <lib-field-builder [initialFields]="editFields()" (fieldsChange)="onFieldsChange($event)" />
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn--ghost" (click)="cancelEdit()">Cancel</button>
+          <button type="submit" class="btn btn--primary" [disabled]="form.invalid || saving()">
+            {{ saving() ? 'Saving…' : 'Save Changes' }}
+          </button>
+        </div>
+      </form>
+    }
   }
 </div>

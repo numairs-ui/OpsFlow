@@ -1,9 +1,11 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { AuthService } from '@org/data-access-auth';
 import { OrgService } from '@org/data-access-org';
 import { TaskService } from '@org/data-access-tasks';
-import type { TaskInstanceDto, TaskStatus } from '@org/data-access-tasks';
+import type { TaskInstanceDto, TaskStatsDto, TaskStatus } from '@org/data-access-tasks';
+import { StatTileComponent, StatsStripComponent } from '@org/ui-core';
 
 export type TaskFilter = 'open' | 'upcoming' | 'overdue';
 
@@ -27,24 +29,32 @@ const FILTER_SUBTITLE: Record<TaskFilter, string> = {
 
 @Component({
   selector: 'app-tasks',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, StatTileComponent, StatsStripComponent],
   templateUrl: './tasks.component.html',
   styleUrl: './tasks.component.scss',
 })
 export class TasksComponent implements OnInit {
   private readonly taskSvc = inject(TaskService);
   private readonly orgSvc = inject(OrgService);
+  private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   readonly filter = signal<TaskFilter>('open');
   readonly tasks = signal<TaskInstanceDto[]>([]);
+  readonly stats = signal<TaskStatsDto | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   private readonly userNames = signal<Map<string, string>>(new Map());
 
   readonly title = computed(() => FILTER_LABEL[this.filter()]);
   readonly subtitle = computed(() => FILTER_SUBTITLE[this.filter()]);
+
+  // Reused as-is under both /admin and /supervisor — the store deep-link (admin-only,
+  // since supervisors have no Stores page) also gates on this.
+  readonly basePath = computed(() =>
+    this.auth.currentUser()?.role === 'supervisor' ? '/supervisor' : '/admin'
+  );
 
   // "Open" matches the dashboard stat card, which rolls up today's due tasks. "Overdue"
   // deliberately ignores the date window — a task is overdue precisely because its due
@@ -59,6 +69,8 @@ export class TasksComponent implements OnInit {
     this.orgSvc.getUsers({ activeOnly: false }).subscribe({
       next: (users) => this.userNames.set(new Map(users.map((u) => [u.userId, u.displayName]))),
     });
+
+    this.taskSvc.getTaskStats().subscribe({ next: (s) => this.stats.set(s) });
 
     this.route.queryParams.subscribe((params) => {
       const raw = params['filter'];
@@ -82,7 +94,7 @@ export class TasksComponent implements OnInit {
   // link doesn't also bubble up and double-navigate via the row's own routerLink.
   onRowKeydown(event: Event, taskId: string): void {
     if (event.target !== event.currentTarget) return;
-    this.router.navigate(['/admin/tasks', taskId]);
+    this.router.navigate([this.basePath(), 'tasks', taskId]);
   }
 
   private load(f: TaskFilter): void {

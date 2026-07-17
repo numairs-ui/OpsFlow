@@ -1,0 +1,59 @@
+<div class="page">
+  <div class="page__header">
+    <div>
+      <p class="page__eyebrow">{{ eyebrow() }}</p>
+      <h1 class="page__title">Recurring Health</h1>
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert--error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="state-loading">Loading recurring assignment health…</div>
+  } @else if (data(); as d) {
+    <app-stats-strip>
+      <app-stat-tile [value]="d.activeCount" label="Active" tone="ok" />
+      <app-stat-tile [value]="d.pausedCount" label="Paused" />
+      <app-stat-tile [value]="d.instancesGeneratedThisWeek" label="Generated This Week" />
+      <app-stat-tile [value]="d.staleCount" label="Stale" [tone]="d.staleCount > 0 ? 'danger' : 'neutral'" />
+    </app-stats-strip>
+
+    <div class="card">
+      <p class="card-eyebrow">Assignments (stale first)</p>
+      @if (d.assignments.length === 0) {
+        <p class="text-muted">No recurring assignments in scope.</p>
+      } @else {
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Name</th><th>Store</th><th>Checklist</th><th>Status</th>
+              <th>Next Fire</th><th>Last Generated</th><th>This Week</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (a of d.assignments; track a.id) {
+              <tr [class.row--stale]="a.isStale">
+                <td class="cell-primary">
+                  {{ a.name }}
+                  @if (a.isStale) { <span class="stale-badge">Stale</span> }
+                </td>
+                <td class="text-muted">{{ a.storeName }}</td>
+                <td class="text-muted">{{ a.checklistName }}</td>
+                <td>
+                  <span class="pill" [class.pill--paused]="a.isPaused" [class.pill--active]="!a.isPaused">
+                    {{ a.isPaused ? 'Paused' : 'Active' }}
+                  </span>
+                </td>
+                <td class="text-muted">{{ a.nextFireAt ? (a.nextFireAt | date:'short') : '—' }}</td>
+                <td class="text-muted">{{ a.lastGeneratedAt ? (a.lastGeneratedAt | date:'short') : 'Never' }}</td>
+                <td class="text-muted">{{ a.instancesThisWeek }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  }
+</div>

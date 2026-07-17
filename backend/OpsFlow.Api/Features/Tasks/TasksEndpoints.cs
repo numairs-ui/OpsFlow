@@ -7,6 +7,7 @@ using OpsFlow.Api.Features.Tasks.CreateTask;
 using OpsFlow.Api.Features.Tasks.DeferTask;
 using OpsFlow.Api.Features.Tasks.GetTask;
 using OpsFlow.Api.Features.Tasks.GetTasks;
+using OpsFlow.Api.Features.Tasks.GetTaskStats;
 using OpsFlow.Api.Features.Tasks.GetPhotoUploadUrl;
 using OpsFlow.Api.Features.Tasks.GetTodayTasks;
 using OpsFlow.Api.Features.Tasks.StartTask;
@@ -25,6 +26,9 @@ internal static class TasksEndpoints
             var statusList = statuses?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             return Results.Ok(await m.Send(new GetTasksQuery(storeId, status, from, to, statusList)));
         });
+
+        group.MapGet("/stats", async (IMediator m) =>
+            Results.Ok(await m.Send(new GetTaskStatsQuery())));
 
         group.MapGet("/{id:guid}", async (Guid id, IMediator m) =>
             Results.Ok(await m.Send(new GetTaskQuery(id))));

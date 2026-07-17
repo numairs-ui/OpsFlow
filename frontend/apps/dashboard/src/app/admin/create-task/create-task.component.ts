@@ -1,6 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { AuthService } from '@org/data-access-auth';
 import { OrgService, type Store, type StoreEmployee } from '@org/data-access-org';
 import { TemplateService, type TemplateDto } from '@org/data-access-templates';
 import { TaskService, type CreateTaskRequest } from '@org/data-access-tasks';
@@ -18,7 +19,13 @@ export class CreateTaskComponent implements OnInit {
   private readonly orgSvc = inject(OrgService);
   private readonly templateSvc = inject(TemplateService);
   private readonly taskSvc = inject(TaskService);
+  private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+
+  // Reused as-is under both /admin and /supervisor.
+  readonly basePath = computed(() =>
+    this.auth.currentUser()?.role === 'supervisor' ? '/supervisor' : '/admin'
+  );
 
   readonly stores = signal<Store[]>([]);
   readonly templates = signal<TemplateDto[]>([]);
@@ -80,12 +87,12 @@ export class CreateTaskComponent implements OnInit {
     this.saving.set(true);
     this.error.set(null);
     this.taskSvc.createTask(body).subscribe({
-      next: () => { this.saving.set(false); this.router.navigate(['/admin/tasks']); },
+      next: () => { this.saving.set(false); this.router.navigate([this.basePath(), 'tasks']); },
       error: () => { this.error.set('Failed to create task.'); this.saving.set(false); },
     });
   }
 
-  cancel(): void { this.router.navigate(['/admin/tasks']); }
+  cancel(): void { this.router.navigate([this.basePath(), 'tasks']); }
 
   private defaultDueAt(): string {
     // Default to end of today, local time, formatted for datetime-local input.

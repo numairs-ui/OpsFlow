@@ -14,7 +14,34 @@
   &:hover { color: var(--indigo); }
 }
 
+.page__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .template-view { margin-bottom: 1.25rem; }
+
+.form-card {
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
+}
+
+textarea.input {
+  height: auto;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 4px;
+}
 
 .field-row {
   padding: 0.7rem 0;

@@ -133,6 +133,17 @@
         }
       }
     </div>
+
+    @if (templates().length > 0) {
+      <div class="pager">
+        <span class="pager__count">Showing {{ templates().length }} of {{ totalCount() }}</span>
+        @if (hasMore()) {
+          <button type="button" class="btn btn--ghost btn--sm" [disabled]="loadingMore()" (click)="loadMore()">
+            {{ loadingMore() ? 'Loading…' : 'Load more' }}
+          </button>
+        }
+      </div>
+    }
   }
 </div>
 

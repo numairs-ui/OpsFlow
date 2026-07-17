@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { AuthService } from '@org/data-access-auth';
 import { OrgService, type StoreEmployee } from '@org/data-access-org';
 import { TaskService } from '@org/data-access-tasks';
 import type { TaskDetailDto, TaskTemplateItemDto } from '@org/data-access-tasks';
@@ -28,6 +29,12 @@ export class TaskDetailComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly taskSvc = inject(TaskService);
   private readonly orgSvc = inject(OrgService);
+  private readonly auth = inject(AuthService);
+
+  // Reused as-is under both /admin and /supervisor.
+  readonly basePath = computed(() =>
+    this.auth.currentUser()?.role === 'supervisor' ? '/supervisor' : '/admin'
+  );
 
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
@@ -74,7 +81,12 @@ export class TaskDetailComponent implements OnInit {
       next: (t) => {
         this.task.set(t);
         this.loading.set(false);
-        this.orgSvc.getStoreEmployees(t.storeId).subscribe({ next: (e) => this.employees.set(e) });
+        this.orgSvc.getStoreEmployees(t.storeId).subscribe({
+          next: (e) => {
+            this.employees.set(e);
+            this.assigningTo.set(t.assignedToUserId ?? '');
+          },
+        });
         this.orgSvc.getUsers({ activeOnly: false }).subscribe({
           next: (users) => this.userNames.set(new Map(users.map((u) => [u.userId, u.displayName]))),
         });
@@ -154,6 +166,6 @@ export class TaskDetailComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/admin/tasks']);
+    this.router.navigate([this.basePath(), 'tasks']);
   }
 }

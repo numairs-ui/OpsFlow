@@ -107,11 +107,10 @@
         @if (canAssign()) {
           <div class="assign-row">
             <select class="input-field assign-row__select"
-              [value]="assigningTo()"
               (change)="assigningTo.set($any($event.target).value)">
-              <option value="">— Unassigned —</option>
+              <option value="" [selected]="!assigningTo()">— Unassigned —</option>
               @for (e of employees(); track e.userId) {
-                <option [value]="e.userId">{{ e.displayName }}</option>
+                <option [value]="e.userId" [selected]="e.userId === assigningTo()">{{ e.displayName }}</option>
               }
             </select>
             <button class="btn btn-ink" [disabled]="assigning()" (click)="assign()">

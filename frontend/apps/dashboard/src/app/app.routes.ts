@@ -46,6 +46,20 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'checklist-completions',
+        loadComponent: () =>
+          import('./shared/checklist-completions/checklist-completions.component.js').then(
+            (m) => m.ChecklistCompletionsComponent
+          ),
+      },
+      {
+        path: 'recurring-performance',
+        loadComponent: () =>
+          import('./shared/recurring-performance/recurring-performance.component.js').then(
+            (m) => m.RecurringPerformanceComponent
+          ),
+      },
+      {
         path: 'regions',
         loadComponent: () =>
           import('./admin/regions/regions.component.js').then(
@@ -188,6 +202,48 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'tasks',
+        loadComponent: () =>
+          import('./admin/tasks/tasks.component.js').then(
+            (m) => m.TasksComponent
+          ),
+      },
+      {
+        path: 'create-task',
+        loadComponent: () =>
+          import('./admin/create-task/create-task.component.js').then(
+            (m) => m.CreateTaskComponent
+          ),
+      },
+      {
+        path: 'tasks/:id',
+        loadComponent: () =>
+          import('./admin/task-detail/task-detail.component.js').then(
+            (m) => m.TaskDetailComponent
+          ),
+      },
+      {
+        path: 'recurring',
+        loadComponent: () =>
+          import('./admin/recurring-assignments/recurring-assignments.component.js').then(
+            (m) => m.RecurringAssignmentsComponent
+          ),
+      },
+      {
+        path: 'checklist-completions',
+        loadComponent: () =>
+          import('./shared/checklist-completions/checklist-completions.component.js').then(
+            (m) => m.ChecklistCompletionsComponent
+          ),
+      },
+      {
+        path: 'recurring-performance',
+        loadComponent: () =>
+          import('./shared/recurring-performance/recurring-performance.component.js').then(
+            (m) => m.RecurringPerformanceComponent
+          ),
+      },
+      {
         path: 'submissions',
         loadComponent: () =>
           import('./shared/form-submissions/form-submissions.component.js').then(
@@ -224,6 +280,20 @@ export const appRoutes: Route[] = [
         loadComponent: () =>
           import('./manager/deposit/deposit.component.js').then(
             (m) => m.DepositComponent
+          ),
+      },
+      {
+        path: 'checklist-completions',
+        loadComponent: () =>
+          import('./shared/checklist-completions/checklist-completions.component.js').then(
+            (m) => m.ChecklistCompletionsComponent
+          ),
+      },
+      {
+        path: 'recurring-performance',
+        loadComponent: () =>
+          import('./shared/recurring-performance/recurring-performance.component.js').then(
+            (m) => m.RecurringPerformanceComponent
           ),
       },
       {

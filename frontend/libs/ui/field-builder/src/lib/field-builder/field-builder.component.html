@@ -11,9 +11,9 @@
           </span>
           <span class="fb__field-label">{{ field.label || '(untitled field)' }}</span>
           <div class="fb__field-actions" (click)="$event.stopPropagation()">
-            <button class="fb__icon-btn" [disabled]="i === 0" (click)="moveUp(i)" title="Move up">&#8593;</button>
-            <button class="fb__icon-btn" [disabled]="i === fields().length - 1" (click)="moveDown(i)" title="Move down">&#8595;</button>
-            <button class="fb__icon-btn fb__icon-btn--danger" (click)="removeField(field.id)" title="Remove">&#10005;</button>
+            <button type="button" class="fb__icon-btn" [disabled]="i === 0" (click)="moveUp(i)" title="Move up">&#8593;</button>
+            <button type="button" class="fb__icon-btn" [disabled]="i === fields().length - 1" (click)="moveDown(i)" title="Move down">&#8595;</button>
+            <button type="button" class="fb__icon-btn fb__icon-btn--danger" (click)="removeField(field.id)" title="Remove">&#10005;</button>
           </div>
           <span class="fb__chevron" [class.fb__chevron--open]="expandedFieldId() === field.id">&#8250;</span>
         </div>
@@ -80,7 +80,7 @@
                   <div class="fb__sub-item fb__sub-item--committed">
                     <span class="fb__sub-item-bullet">&#10003;</span>
                     <span class="fb__sub-item-label">{{ sub.label }}</span>
-                    <button class="fb__icon-btn fb__icon-btn--danger"
+                    <button type="button" class="fb__icon-btn fb__icon-btn--danger"
                       (click)="removeSubItem(field.id, sub.id)" title="Remove">&#10005;</button>
                   </div>
                 }
@@ -93,7 +93,7 @@
                     (ngModelChange)="setDraft(field.id, $event)"
                     (keydown)="onSubItemKeydown($event, field.id)"
                     placeholder="Type item name and press Enter…" />
-                  <button class="fb__add-sub-btn"
+                  <button type="button" class="fb__add-sub-btn"
                     [disabled]="!getDraft(field.id).trim()"
                     (click)="commitSubItem(field.id)">Add</button>
                 </div>
@@ -118,7 +118,7 @@
   <div class="fb__toolbar">
     <span class="fb__toolbar-label">Add field type:</span>
     @for (type of fieldTypes; track type) {
-      <button class="fb__add-btn fb__add-btn--{{ type.toLowerCase() }}" (click)="addField(type)" title="Add {{ type }} field">
+      <button type="button" class="fb__add-btn fb__add-btn--{{ type.toLowerCase() }}" (click)="addField(type)" title="Add {{ type }} field">
         + {{ type }}
       </button>
     }
