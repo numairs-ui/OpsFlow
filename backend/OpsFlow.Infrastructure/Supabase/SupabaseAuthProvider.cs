@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using OpsFlow.Domain.Authorization;
 using OpsFlow.Domain.Interfaces;
 using Supabase.Gotrue;
+using Supabase.Gotrue.Exceptions;
 
 namespace OpsFlow.Infrastructure.Supabase;
 
@@ -13,7 +14,19 @@ internal sealed class SupabaseAuthProvider(
 
     public async Task<AuthResult?> AuthenticateAsync(string email, string password, string tenantId, CancellationToken ct = default)
     {
-        var session = await supabase.Auth.SignIn(email, password);
+        Session? session;
+        try
+        {
+            session = await supabase.Auth.SignIn(email, password);
+        }
+        catch (GotrueException ex) when (IsInvalidCredentials(ex))
+        {
+            // Wrong password, unrecognized email, or an unconfirmed account all surface identically
+            // as "invalid credentials" (401) — LoginHandler throws UnauthorizedAccessException for a
+            // null result. Without this, Gotrue's exception went unhandled and every rejected login
+            // (not just server faults) surfaced to the user as a generic 500.
+            return null;
+        }
         if (session?.User is null) return null;
 
         var meta = session.User.UserMetadata;
@@ -28,6 +41,14 @@ internal sealed class SupabaseAuthProvider(
             RegionIds: ParseRegionIds(meta)
         );
     }
+
+    private static bool IsInvalidCredentials(GotrueException ex) => ex.Reason is
+        FailureHint.Reason.UserBadPassword or
+        FailureHint.Reason.UserBadLogin or
+        FailureHint.Reason.UserBadMultiple or
+        FailureHint.Reason.UserEmailNotConfirmed or
+        FailureHint.Reason.UserBadEmailAddress or
+        FailureHint.Reason.UserBadPhoneNumber;
 
     // Region scope is stored as a comma-separated "region_ids" string (admin: many, supervisor: one),
     // falling back to the legacy single "region_id" key for pre-multi-region accounts.
