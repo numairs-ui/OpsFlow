@@ -42,7 +42,7 @@ export class KioskComponent implements OnInit, OnDestroy, AfterViewChecked {
   });
 
   readonly pendingCount = computed(() =>
-    this.filteredGroups().reduce((sum, g) => sum + g.tasks.filter(t => t.status === 'Pending' || t.status === 'Overdue').length, 0)
+    this.filteredGroups().reduce((sum, g) => sum + g.tasks.filter(t => this.isAvailable(t)).length, 0)
   );
 
   // Shift progress for the shared station — "X of Y done today", computed from the same
@@ -137,7 +137,7 @@ export class KioskComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   isAvailable(t: TaskBoardItemDto): boolean {
-    return (t.status === 'Pending' || t.status === 'Overdue') && !t.assignedToUserId;
+    return (t.status === 'Pending' || t.status === 'Overdue' || t.status === 'CorrectiveActionRaised') && !t.assignedToUserId;
   }
 
   progressPct(group: TaskGroupDto): number {

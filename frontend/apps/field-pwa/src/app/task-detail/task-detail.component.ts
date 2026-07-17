@@ -84,7 +84,7 @@ export class TaskDetailComponent implements OnInit {
 
   readonly canComplete = computed(() => {
     const t = this.task();
-    return t !== null && (t.status === 'Pending' || t.status === 'InProgress' || t.status === 'Overdue');
+    return t !== null && (t.status === 'Pending' || t.status === 'InProgress' || t.status === 'Overdue' || t.status === 'CorrectiveActionRaised');
   });
   readonly canVerify = computed(() => this.task()?.status === 'Completed' && this.isManager());
   readonly canCancel = computed(() => {
@@ -96,10 +96,10 @@ export class TaskDetailComponent implements OnInit {
     return this.isManager() && s !== undefined && !['Completed', 'Verified', 'Cancelled', 'Deferred'].includes(s);
   });
   readonly canAssign = computed(() => this.isManager() &&
-    ['Pending', 'InProgress', 'Overdue'].includes(this.task()?.status ?? ''));
+    ['Pending', 'InProgress', 'Overdue', 'CorrectiveActionRaised'].includes(this.task()?.status ?? ''));
   readonly canClaim = computed(() => !this.isManager() &&
     !this.task()?.assignedToUserId &&
-    ['Pending', 'InProgress', 'Overdue'].includes(this.task()?.status ?? ''));
+    ['Pending', 'InProgress', 'Overdue', 'CorrectiveActionRaised'].includes(this.task()?.status ?? ''));
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
