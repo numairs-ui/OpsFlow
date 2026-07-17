@@ -27,25 +27,38 @@ internal sealed class GenerateTaskInstancesJob(IServiceScopeFactory scopeFactory
 
         foreach (var assignment in assignments)
         {
-            var cron = new CronExpression(assignment.CronExpression);
-            var nextFire = cron.GetNextValidTimeAfter(now);
-            if (nextFire == null || nextFire > windowEnd) continue;
-
-            var dueAt = nextFire.Value;
-            var exists = await db.TaskInstances.AnyAsync(
-                t => t.RecurringAssignmentId == assignment.Id && t.DueAt == dueAt, ct);
-
-            if (!exists)
+            try
             {
-                db.TaskInstances.Add(new TaskInstance
+                var cron = new CronExpression(assignment.CronExpression);
+                var nextFire = cron.GetNextValidTimeAfter(now);
+                if (nextFire == null || nextFire > windowEnd) continue;
+
+                var dueAt = nextFire.Value;
+                var exists = await db.TaskInstances.AnyAsync(
+                    t => t.RecurringAssignmentId == assignment.Id && t.DueAt == dueAt, ct);
+
+                if (!exists)
                 {
-                    TenantId = tenantId,
-                    RecurringAssignmentId = assignment.Id,
-                    ChecklistId = assignment.ChecklistId,
-                    StoreId = assignment.StoreId,
-                    DueAt = dueAt,
-                    CreatedByUserId = "system",
-                });
+                    db.TaskInstances.Add(new TaskInstance
+                    {
+                        TenantId = tenantId,
+                        RecurringAssignmentId = assignment.Id,
+                        ChecklistId = assignment.ChecklistId,
+                        StoreId = assignment.StoreId,
+                        DueAt = dueAt,
+                        CreatedByUserId = "system",
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                // A single malformed CronExpression must not abort generation for every other
+                // assignment in the tenant — it previously did, because this loop had no
+                // per-iteration guard (see incident where one bad 5-field cron silently stalled
+                // task generation tenant-wide for ~4 weeks).
+                logger.LogError(ex,
+                    "Failed to process recurring assignment {AssignmentId} ({Name}) for tenant {TenantId}; skipping it this tick.",
+                    assignment.Id, assignment.Name, tenantId);
             }
         }
 
