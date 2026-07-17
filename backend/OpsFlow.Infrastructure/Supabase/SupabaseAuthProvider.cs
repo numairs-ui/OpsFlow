@@ -45,6 +45,10 @@ internal sealed class SupabaseAuthProvider(
         {
             Email = request.Email,
             Password = request.Password,
+            // Accounts are created directly by an admin (not via self-serve signup), so there is
+            // no confirmation email to click — without this, Supabase leaves the user unconfirmed
+            // and every login attempt fails with "Email not confirmed".
+            EmailConfirm = true,
             UserMetadata = new Dictionary<string, object>
             {
                 ["tenant_id"] = request.TenantId,
@@ -77,6 +81,8 @@ internal sealed class SupabaseAuthProvider(
 
         await admin.UpdateUserById(request.UserId, new AdminUserAttributes
         {
+            // Defensive: an admin editing a user should never leave them stuck unconfirmed.
+            EmailConfirm = true,
             UserMetadata = metadata.ToDictionary(kv => kv.Key, kv => kv.Value!),
         });
     }
