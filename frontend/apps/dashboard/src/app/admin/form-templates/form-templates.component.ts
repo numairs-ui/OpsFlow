@@ -28,6 +28,11 @@ export class FormTemplatesComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
 
   readonly templates = signal<FormTemplateDto[]>([]);
+  readonly totalCount = signal(0);
+  readonly loadingMore = signal(false);
+  private readonly pageSize = 20;
+  private page = 1;
+  readonly hasMore = computed(() => this.templates().length < this.totalCount());
   readonly regions = signal<Region[]>([]);
   readonly stores = signal<Store[]>([]);
   readonly loading = signal(false);
@@ -66,15 +71,35 @@ export class FormTemplatesComponent implements OnInit {
   }
 
   private load(): void {
+    this.page = 1;
     this.loading.set(true);
-    this.templateSvc.getFormTemplates({
+    this.templateSvc.getFormTemplates({ ...this.currentFilter(), page: 1, pageSize: this.pageSize }).subscribe({
+      next: (r) => { this.templates.set(r.items); this.totalCount.set(r.totalCount); this.loading.set(false); },
+      error: () => { this.error.set('Failed to load form templates.'); this.loading.set(false); },
+    });
+  }
+
+  loadMore(): void {
+    if (this.loadingMore() || !this.hasMore()) return;
+    const nextPage = this.page + 1;
+    this.loadingMore.set(true);
+    this.templateSvc.getFormTemplates({ ...this.currentFilter(), page: nextPage, pageSize: this.pageSize }).subscribe({
+      next: (r) => {
+        this.templates.update((list) => [...list, ...r.items]);
+        this.totalCount.set(r.totalCount);
+        this.page = nextPage;
+        this.loadingMore.set(false);
+      },
+      error: () => { this.error.set('Failed to load more form templates.'); this.loadingMore.set(false); },
+    });
+  }
+
+  private currentFilter() {
+    return {
       scope: (this.filterScope() as TemplateScope) || undefined,
       isActive: this.filterActive(),
       search: this.filterSearch() || undefined,
-    }).subscribe({
-      next: (r) => { this.templates.set(r.items); this.loading.set(false); },
-      error: () => { this.error.set('Failed to load form templates.'); this.loading.set(false); },
-    });
+    };
   }
 
   applyFilters(): void { this.load(); }

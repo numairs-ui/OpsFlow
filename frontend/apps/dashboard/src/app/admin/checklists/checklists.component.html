@@ -11,6 +11,16 @@
     <div class="alert alert--success">&#10003; Checklist saved successfully.</div>
   }
 
+  <div class="filters">
+    <label class="sr-only" for="checklistsSearch">Search checklists</label>
+    <input id="checklistsSearch" class="input filters__search" placeholder="Search checklists…"
+      [value]="filterSearch()" (input)="filterSearch.set($any($event.target).value); applyFilters()" />
+  </div>
+
+  @if (!loading() && checklists().length > 0) {
+    <p class="list-count">{{ checklists().length }} checklist{{ checklists().length === 1 ? '' : 's' }}</p>
+  }
+
   @if (loading()) {
     <div class="table-skeleton">
       @for (i of [1,2,3,4,5]; track i) {
@@ -23,7 +33,14 @@
       }
     </div>
   } @else if (checklists().length === 0) {
-    <div class="empty">No checklists found. Create one to get started.</div>
+    @if (filterSearch()) {
+      <div class="empty">
+        No checklists match "{{ filterSearch() }}".
+        <button type="button" class="btn btn--sm btn--ghost" (click)="clearFilters()">Clear search</button>
+      </div>
+    } @else {
+      <div class="empty">No checklists found. Create one to get started.</div>
+    }
   } @else {
     <div class="table-wrap">
       <table class="table">
@@ -190,6 +207,12 @@
       <div class="field">
         <span class="label">Template Items</span>
         <div class="item-picker">
+          <input
+            class="input item-picker__search"
+            placeholder="Search templates by name…"
+            [value]="templateSearch()"
+            (input)="onTemplateSearchChange($any($event.target).value)"
+          />
           <select
             class="input item-picker__select"
             [value]="selectedTemplateId()"

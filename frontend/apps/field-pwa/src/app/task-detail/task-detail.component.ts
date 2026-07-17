@@ -126,13 +126,27 @@ export class TaskDetailComponent implements OnInit {
           }
           this.fieldValues.set(prePopulated);
         }
+        // Loaded for every viewer (not just managers) — the resolved employee list also
+        // backs assigneeName(), used in the read-only "Assigned" row everyone sees.
         const storeId = this.auth.currentUser()?.storeId;
-        if (storeId && this.isManager()) {
-          this.orgSvc.getStoreEmployees(storeId).subscribe({ next: e => this.employees.set(e) });
+        if (storeId) {
+          this.orgSvc.getStoreEmployees(storeId).subscribe({
+            next: (e) => {
+              this.employees.set(e);
+              // Seeded here, not on task-load — the <select>'s [value] binding can only select
+              // a userId once the matching <option> (from this list) actually exists in the DOM.
+              this.assigningTo.set(t.assignedToUserId ?? '');
+            },
+          });
         }
       },
       error: () => { this.error.set('Failed to load task.'); this.loading.set(false); },
     });
+  }
+
+  assigneeName(userId: string | undefined): string {
+    if (!userId) return 'Unassigned';
+    return this.employees().find(e => e.userId === userId)?.displayName ?? userId;
   }
 
   parseFields(template: TaskTemplateItemDto): ParsedField[] {

@@ -1,6 +1,20 @@
 @use '../shared/admin.scss' as *;
 @use '../shared/admin-listing.scss' as *;
 
+.filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+
+  &__search { flex: 1; }
+}
+
+.list-count {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: -8px 0 12px;
+}
+
 .cell-primary {
   font-weight: 500;
   color: var(--indigo);
@@ -51,8 +65,10 @@
   gap: 8px;
   align-items: center;
   margin-bottom: 12px;
+  flex-wrap: wrap;
 
-  &__select { flex: 1; }
+  &__search { flex: 1 1 160px; min-width: 140px; }
+  &__select { flex: 2 1 220px; }
 }
 
 .item-list {

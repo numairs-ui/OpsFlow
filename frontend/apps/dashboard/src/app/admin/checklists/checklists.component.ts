@@ -40,6 +40,9 @@ export class ChecklistsComponent implements OnInit {
   readonly scopes: TemplateScope[] = ['System', 'Regional', 'Store'];
   readonly selectedScope = signal<string>('System');
 
+  readonly filterSearch = signal('');
+  readonly templateSearch = signal('');
+
   readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, noWhitespace]],
     description: [''],
@@ -50,7 +53,7 @@ export class ChecklistsComponent implements OnInit {
 
   ngOnInit(): void {
     this.load();
-    this.templateSvc.getTemplates({ isActive: true, pageSize: 100 }).subscribe({ next: (r) => this.templates.set(r.items) });
+    this.loadTemplates();
     this.orgSvc.getRegions(true).subscribe({ next: (r) => this.regions.set(r) });
     this.orgSvc.getStores(undefined, true).subscribe({ next: (s) => this.stores.set(s) });
     this.form.controls['scope'].valueChanges.subscribe((v) => this.selectedScope.set(v ?? 'System'));
@@ -58,16 +61,38 @@ export class ChecklistsComponent implements OnInit {
 
   private load(): void {
     this.loading.set(true);
-    this.checklistSvc.getChecklists(undefined, undefined).subscribe({
+    this.checklistSvc.getChecklists(undefined, undefined, this.filterSearch() || undefined).subscribe({
       next: (data) => { this.checklists.set(data); this.loading.set(false); },
       error: () => { this.error.set('Failed to load checklists.'); this.loading.set(false); },
     });
+  }
+
+  applyFilters(): void { this.load(); }
+
+  clearFilters(): void {
+    this.filterSearch.set('');
+    this.load();
+  }
+
+  // Up to 100 active templates for the item-picker — search re-queries the backend rather than
+  // relying on the initial fetch, so a template past the 100th is still reachable by name.
+  private loadTemplates(): void {
+    this.templateSvc.getTemplates({
+      isActive: true, pageSize: 100, search: this.templateSearch() || undefined,
+    }).subscribe({ next: (r) => this.templates.set(r.items) });
+  }
+
+  onTemplateSearchChange(value: string): void {
+    this.templateSearch.set(value);
+    this.loadTemplates();
   }
 
   openCreate(): void {
     this.editingChecklist.set(null);
     this.items.set([]);
     this.selectedTemplateId.set('');
+    this.templateSearch.set('');
+    this.loadTemplates();
     this.form.reset({ scope: 'System' });
     this.selectedScope.set('System');
     this.showForm.set(true);
@@ -79,6 +104,8 @@ export class ChecklistsComponent implements OnInit {
         this.editingChecklist.set(detail);
         this.items.set([...detail.items]);
         this.selectedTemplateId.set('');
+        this.templateSearch.set('');
+        this.loadTemplates();
         this.form.patchValue({
           name: detail.name, description: detail.description ?? '',
           scope: detail.scope, regionId: detail.regionId ?? '', storeId: detail.storeId ?? '',

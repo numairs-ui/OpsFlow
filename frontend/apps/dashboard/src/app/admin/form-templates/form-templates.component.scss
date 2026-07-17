@@ -10,6 +10,15 @@
   &__scope, &__active { width: 160px; }
 }
 
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+
+  &__count { font-size: 0.78rem; color: #64748b; }
+}
+
 .template-name {
   font-weight: 500;
 }

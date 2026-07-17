@@ -98,7 +98,7 @@
         <div class="meta-row"><span class="meta-label">Store</span><span class="meta-value">{{ t.storeName }}</span></div>
         <div class="meta-row"><span class="meta-label">Due</span><span class="meta-value">{{ t.dueAt | date:'h:mm a, MMM d' }}</span></div>
         @if (t.assignedToUserId) {
-          <div class="meta-row"><span class="meta-label">Assigned</span><span class="meta-value">{{ t.assignedToUserId }}</span></div>
+          <div class="meta-row"><span class="meta-label">Assigned</span><span class="meta-value">{{ assigneeName(t.assignedToUserId) }}</span></div>
         }
         @if (t.isAdHoc) {
           <div class="meta-row"><span class="meta-label">Type</span><span class="meta-value">Ad Hoc</span></div>
@@ -285,11 +285,10 @@
       @if (canAssign()) {
         <div class="assign-row">
           <select class="input-select"
-            [value]="assigningTo()"
             (change)="assigningTo.set($any($event.target).value)">
-            <option value="">— unassigned —</option>
+            <option value="" [selected]="!assigningTo()">— unassigned —</option>
             @for (e of employees(); track e.userId) {
-              <option [value]="e.userId">{{ e.displayName }}</option>
+              <option [value]="e.userId" [selected]="e.userId === assigningTo()">{{ e.displayName }}</option>
             }
           </select>
           <button class="btn btn--secondary" [disabled]="assigning()" (click)="assign()">
