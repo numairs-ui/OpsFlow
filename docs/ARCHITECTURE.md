@@ -1,10 +1,14 @@
 # OpsFlow — Product & Architecture Overview
 
-> **Status:** Current as of 2026-07-16. Supersedes the architecture sections of `docs/PROJECT_STATE.md`. This is the canonical reference — please correct it in place as the system evolves rather than starting a new doc.
+> **Status:** Current as of 2026-07-17. Supersedes the architecture sections of `docs/PROJECT_STATE.md`. This is the canonical reference — please correct it in place as the system evolves rather than starting a new doc.
 >
 > **2026-07-14 release:** the post-PRD-audit release (task nucleus + 6 targeted fixes, minus multi-store recurring which was deferred) is **live in production**. See `docs/product/OpsFlow_PRD_V2.md` (current as-built PRD, supersedes V1) and `docs/product/OpsFlow_Release_Notes_2026-07.md`. §7 below reflects the post-release state.
 >
-> **What's actually deployed right now, verified (2026-07-16):** the Azure Container App's active revision runs an image tagged `a5ddb8c` — traced via `az acr repository show-manifests` — which **is** commit `a5ddb8c` on `main` (the PR #90 squash-merge). Both Vercel frontends were last deployed the same day. If you're ever unsure whether prod matches `main` or some other branch, verify like this rather than guessing from branch-divergence size alone — a large diff between `main` and an open PR's branch usually just means real, not-yet-merged work, not a deploy-source mismatch.
+> **2026-07-17: role-scoped mini-dashboards for Tasks/Checklists/Recurring, plus a dozen small fixes (PRs #93–#104), are also live.** See §7 for the full list. This includes a fix for a real production data-integrity bug — one recurring assignment's malformed cron expression was silently blocking scheduled-checklist generation tenant-wide for about a month (§7, §8).
+>
+> **What's actually deployed right now, verified (2026-07-17):** the Azure Container App's active revision is `opsflow-app--0000014` (deployed 2026-07-17T15:50 UTC, image digest `sha256:471ac36f...`), which corresponds to `main` at commit `d0fe61c` (PR #104 merge). The dashboard's Vercel deploy was last pushed the same day and matches the same commit. If you're ever unsure whether prod matches `main` or some other branch, verify like this rather than guessing from branch-divergence size alone — a large diff between `main` and an open PR's branch usually just means real, not-yet-merged work, not a deploy-source mismatch.
+>
+> **Known gap this update closed:** a meaningful amount of work described as "shipped"/"live" in prior session notes (several bug fixes plus the mini-dashboards feature) had been deployed directly from a local working tree and was never actually committed to git — production and `main` had quietly diverged. It's now been committed and merged as PR #104. If a future session finds deployed behavior that doesn't match any commit, don't assume the docs are wrong before checking whether this has recurred — deploy from a clean, committed checkout going forward.
 
 ---
 
@@ -77,7 +81,7 @@ InventorySnapshot        feeds MDOG (dough/cheese prep planning)
 
 ### 2.3 Feature domains
 
-Multi-tenancy/provisioning · Auth & Authorization · Store/Region/User management · Task Templates · Checklists (with scoring) · Recurring Assignments (single-store) · Task Board (Field PWA, incl. standalone tasks) · Store Kiosk · Task Completion & Verification · Corrective Actions (incl. auto-generated follow-up tasks) · MDOG & Inventory · Safe/Till/Deposit Log (incl. missed-deposit dashboard flag) · Notifications (SignalR only — no FCM/push is implemented) · Role-scoped Dashboards (real for every role since 2026-07-14) · Admin Panel (incl. unified Create entry point) · Form Templates · Form Submission/Approval engine.
+Multi-tenancy/provisioning · Auth & Authorization · Store/Region/User management · Task Templates · Checklists (with scoring) · Recurring Assignments (single-store) · Task Board (Field PWA, incl. standalone tasks) · Store Kiosk · Task Completion & Verification · Corrective Actions (incl. auto-generated follow-up tasks) · MDOG & Inventory · Safe/Till/Deposit Log (incl. missed-deposit dashboard flag) · Notifications (SignalR only — no FCM/push is implemented) · Role-scoped Dashboards (real for every role since 2026-07-14; Tasks/Checklists/Recurring gained their own mini-dashboards on 2026-07-17, matching what Forms already had) · Admin Panel (incl. unified Create entry point) · Form Templates · Form Submission/Approval engine.
 
 ---
 
@@ -133,7 +137,7 @@ Backend and both frontends deploy independently; the API is stateless per-reques
 
 **Authorization** ([ADR-0002](adr/0002-scope-authorizer-pure-module.md)) lives entirely in `OpsFlow.Domain/Authorization/`: `ScopeSpec` is a pure, DI-free class built from a `Caller {Role, StoreId, RegionIds}`, exposing `IsGlobal`/`IsRegionScoped`/`IsStoreScoped` and assertion methods (`AssertCanViewRegion`, `AssertCanManageStore`, `AssertCanWriteScope`, etc.). `ScopeQueryExtensions` supplies EF-translatable `IQueryable` filters via key-selectors so handlers stay thin. Handlers call this module directly rather than re-deriving rules — deliberately no `IScopeAuthorizer` interface, since there's exactly one implementation.
 
-**Background jobs** (Quartz.NET, `OpsFlow.Api/Jobs/`): `GenerateTaskInstancesJob` (recurring assignments → dated task instances), `ActivateDeferredTasksJob`, `OverduePromotionJob`, `DepositEscalationJob` (new 2026-07-14 — daily, flags stores past their local deposit deadline into `MissedDepositFlag`), and `TenantIteratingJob` (base helper fanning a job out across all tenants).
+**Background jobs** (Quartz.NET, `OpsFlow.Api/Jobs/`): `GenerateTaskInstancesJob` (recurring assignments → dated task instances), `ActivateDeferredTasksJob`, `OverduePromotionJob`, `DepositEscalationJob` (new 2026-07-14 — daily, flags stores past their local deposit deadline into `MissedDepositFlag`), and `TenantIteratingJob` (base helper fanning a job out across all tenants). **`GenerateTaskInstancesJob`'s per-assignment loop is now wrapped in its own try/catch (fixed 2026-07-17)** — `TenantIteratingJob` only catches at the whole-tenant level, so a single `RecurringAssignment` with a malformed `CronExpression` used to throw and silently abort generation for every *other* assignment in that tenant on every tick. Found via the new Recurring dashboard (§7): one assignment had a 5-field Unix-style cron (invalid for Quartz's 6/7-field format), which had been blocking real stores' scheduled checklists for about a month. The bad cron was corrected directly in `bajco-dev`; the loop guard prevents recurrence for any future bad row.
 
 **Multi-tenancy:** every tenant table carries `TenantId`; a `MasterDbContext` holds the tenant registry, a `TenantDbContext` (resolved per-request) holds the actual data.
 
@@ -178,7 +182,7 @@ Both apps proxy `/api/*` → the backend (stripping the prefix) and `/hubs/*` fo
 
 | Component | Where it actually runs | Notes |
 |---|---|---|
-| Backend API | **Azure Container Apps** (`opsflow-app`, resource group `opsflow_dev`), image in ACR `opsflowacr.azurecr.io/opsflow-backend` | Deployed manually by digest (`az acr build` → `az containerapp update --image ...@sha256:...`); Azure won't cut a new revision on an unchanged `:latest` tag. Live revision as of 2026-07-14: `opsflow-app--0000008`. |
+| Backend API | **Azure Container Apps** (`opsflow-app`, resource group `opsflow_dev`), image in ACR `opsflowacr.azurecr.io/opsflow-backend` | Deployed manually by digest (`az acr build` → `az containerapp update --image ...@sha256:...`); Azure won't cut a new revision on an unchanged `:latest` tag. Live revision as of 2026-07-17: `opsflow-app--0000014`. |
 | Dashboard | Vercel project `opsflow-dashboard` (`opsflow-dashboard-gamma.vercel.app`) | **Manual deploy only** — see note below |
 | Field PWA | Vercel project `opsflow-field-pwa` (`opsflow-field-pwa.vercel.app`) | **Manual deploy only** — see note below |
 | Database | PostgreSQL on **Supabase** (`bajco-dev` tenant) | Also the auth provider (Supabase Auth) |
@@ -225,6 +229,16 @@ Build from a clean checkout of `origin/main` (e.g. a `git worktree`), not a work
 - **Photo upload is fully wired** (was a placeholder) — signed-URL, direct-to-storage upload
 - Real dashboards for admin (region-scoped, not just super_admin), store employee, and kiosk roles
 - **Deferred out of this release:** multi-store recurring broadcast (would have required a live column drop) — `RecurringAssignment` stays single-store; see the 2026-07-14 note in §2.2
+
+**Shipped 2026-07-16/17 (PRs #93–#104, live in prod):**
+- **Role-scoped mini-dashboards for Tasks, Checklists, and Recurring** (PR #104) — same treatment the Forms page already had: a stats strip on Tasks, and new dedicated Checklist Performance / Recurring Health pages for Checklists/Recurring, all scoped server-side by role (org/region/store) with no schema changes. See §2.3, §4.
+- **Fixed a real production bug** (PR #104): a malformed recurring-assignment cron expression was silently blocking scheduled task generation tenant-wide for ~4 weeks; see the `GenerateTaskInstancesJob` note in §4.
+- Auth error handling fixed — rejected logins (bad password, unconfirmed account) no longer surface as a generic 500 (PR #104)
+- Supervisor task-create/detail routing fixed; assign-to dropdown no longer shows "unassigned" for tasks that do have an assignee (PR #104)
+- Checklists' template picker and Form Templates listing gained real search + pagination past their first page/100 rows (PR #104)
+- Template detail: full-row-click + in-page edit; "Task Templates" tab renamed to "Tasks" (PR #104)
+- Field-builder: fixed a bug where adding a field mid-edit implicitly submitted the form and kicked the user back to read-only view before they could fill it in (PR #104)
+- A round of smaller fixes from an onboarding walkthrough (PRs #96–#103): admin Tasks list gained an "Upcoming" tab; super_admin can create/edit System and Regional scope templates; `FormTemplate` approval steps serialize as camelCase JSON; admin-created Supabase users are auto-confirmed; field-pwa no longer hides escalated (`CorrectiveActionRaised`) tasks; deposit-amount input no longer crashes on every keystroke; super_admin sees the org-wide Form Submissions view; broken row-divider lines and decorative sidebar dots cleaned up.
 
 **Open gaps:**
 - Overdue-task push notifications (FCM was never built — SignalR only, confirmed pre-existing, not part of the above release)
@@ -278,3 +292,12 @@ A parallel session ran an unstashed, forceful branch reset from the repo root an
 - **Guardrail hook installed** (see §9 above) specifically to prevent a repeat of the incident that prompted this.
 
 If you're a future session and something here looks stale again, it means someone (agent or human) made an uncommitted or unreconciled change since — don't assume the previous state was wrong without checking `git log`/`git status` first.
+
+---
+
+## 11. Repo Hygiene (2026-07-17)
+
+A second instance of the §10 problem turned up: several sessions' worth of already-deployed work (the onboarding-walkthrough fixes, template-cleanup UX, and this session's new mini-dashboards feature) had been built and pushed to production directly from a local working tree, but never actually committed. `git status` on `feat/track-b-post-prd-audit` showed ~44 modified/untracked files with no corresponding commits — production and `main` had quietly diverged for at least a day.
+
+- All of it was reviewed, grouped into 6 logically-scoped commits, pushed, and merged as [PR #104](https://github.com/numairs-ui/OpsFlow/pull/104) — see that PR's commit list for the individual pieces.
+- **Lesson:** `az acr build`/`vercel --prod` deploy whatever is on disk, committed or not. After any manual deploy, commit and push before ending the session — don't let "verified live" substitute for "committed." If a future session finds `git status` dirty with features that match what's supposedly already live, that's this exact situation recurring, not a false alarm.

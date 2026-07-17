@@ -1,6 +1,6 @@
 # OpsFlow — Project State & Decision Log
 
-> Last updated: 2026-07-16 · Moved here from the repo root (was `/PROJECT_STATE.md`) on 2026-07-14.
+> Last updated: 2026-07-17 · Moved here from the repo root (was `/PROJECT_STATE.md`) on 2026-07-14.
 >
 > **This is a running log, not the spec.** It records what shipped, when, and why. For the
 > authoritative current picture, use:
@@ -27,7 +27,16 @@ OpsFlow is a multi-tenant **operational-compliance platform for multi-store food
 - **Latest release (PRs #90/#91/#92, ✅ live in production as of 2026-07-14):** standalone/notes-only tasks, scored checklists with auto-generated corrective tasks (replaces the never-built "Manager Walk"), a single unified "+ Create" entry point, working photo upload, admin-triggered password reset, missed-deposit alerting, real dashboards for every role, and kiosk sessions that no longer drop after ~15 minutes. Backed by one additive migration (`SafeReleaseSchema`), applied to `bajco-dev`; smoke-tested directly against prod. Full detail: [release notes](product/OpsFlow_Release_Notes_2026-07.md).
 - **Deferred out of that release:** multi-store recurring broadcast (would require dropping a live `StoreId` column — too risky, single-store recurring is unaffected), self-service email password reset, and the one-time walk→scored-checklist data migration (`execution/migrate_flat_walks_to_checklists.py`) hasn't run against production yet. `execution/` seed scripts were updated 2026-07-15 to emit the scored-checklist shape (one atomic, scored `ChecklistTemplateItem` per check, matching `ImportTemplatesHandler`'s `ImportChecklist`) instead of the old flat-template shape.
 - **Found during go-live, fixed:** an unclaimed Nx Cloud workspace was hard-failing CI (`nxCloudId` removed from `frontend/nx.json`, PR #91). **Found, not yet fixed:** `VERCEL_TOKEN`/`VERCEL_ORG_ID`/`VERCEL_PROJECT_ID_*` were never configured as repo secrets, so `deploy.yml`'s Vercel auto-deploy has never actually worked — every frontend deploy so far has been manual via the Vercel CLI (recipe: [ARCHITECTURE.md §6](ARCHITECTURE.md)).
-- **In review, not yet live (PR #93, `feat/track-b-post-prd-audit` → `main`):** a separate, later "Admin UI/UX overhaul" — IA restructure, org-wide tenant defaults (additive migration), the pre-existing supervisor `regionId`/`regionIds` bug fix, `RecordDeposit` scope fix, 404-vs-500 fix, WCAG pass across admin listing pages. Its own branch reused the `feat/track-b-post-prd-audit` name after PR #90 merged, so a large diff against `main` here is expected (it's real, new, unmerged work) — not a sign anything is out of sync. This branch also carries a recovered `email`-JWT-claim auth refactor (see the decision table below) and the 2026-07-16 repo hygiene pass (§10 of `ARCHITECTURE.md`).
+- **Live since 2026-07-16 (PR #93 and its predecessor, `feat/track-b-post-prd-audit` → `main`):** a separate "Admin UI/UX overhaul" — IA restructure, org-wide tenant defaults (additive migration), the pre-existing supervisor `regionId`/`regionIds` bug fix, `RecordDeposit` scope fix, 404-vs-500 fix, WCAG pass across admin listing pages, a recovered `email`-JWT-claim auth refactor (see the decision table below), and the 2026-07-16 repo hygiene pass (§10 of `ARCHITECTURE.md`).
+- **Live since 2026-07-17 (PRs #95–#104, same branch):** a dozen small fixes found during an onboarding walkthrough (admin Tasks "Upcoming" tab, super_admin template create/edit, camelCase form-approval JSON, auto-confirmed admin-created users, un-hid escalated field-pwa tasks, deposit-input crash, org-wide Forms Submissions view for super_admin, cosmetic list cleanup), plus a bundle of everything below in **PR #104**:
+  - Login errors now surface correctly (401, not a generic 500) for bad password / unconfirmed account
+  - Supervisor task-create/detail routing fixed; assign-to dropdown bug fixed
+  - Checklists template picker + Form Templates listing gained real search/pagination
+  - Template detail: full-row-click + in-page edit; "Task Templates" tab renamed to "Tasks"
+  - Field-builder premature-submit bug fixed (see §5)
+  - **New feature:** role-scoped mini-dashboards for Tasks, Checklists, and Recurring — same treatment the Forms page already had (stats strip / dedicated page), scoped server-side by role, no schema changes
+  - **Fixed a real production bug:** a malformed recurring-assignment cron expression was silently blocking scheduled checklist generation tenant-wide for ~4 weeks (see §5)
+  - A meaningful chunk of this had been deployed to production directly from an uncommitted working tree across multiple prior sessions; it's now been committed and merged retroactively (see `ARCHITECTURE.md` §11) — don't assume "verified live" means "in git" without checking.
 
 ---
 
@@ -82,6 +91,8 @@ Landed early in the build; kept as a record since the root causes are non-obviou
 **"No store assigned" instead of redirect on expired session** — `tasks.component.ts` showed a confusing error instead of bouncing to `/login`. Fixed with an explicit `if (!storeId) { router.navigate(['/login']); return; }` guard.
 
 More recently: a scope-authz audit (2026-07-06) found and fixed 11 `GetChecklistHandler`-class bugs where region-scoped `admin`/`supervisor` callers were checked as if they had a single `StoreId`/`RegionId` instead of a set — see §2 and [ADR-0002](adr/0002-scope-authorizer-pure-module.md).
+
+**`GenerateTaskInstancesJob`'s per-assignment loop had no error handling (2026-07-17)** — `TenantIteratingJob` only catches exceptions at the whole-tenant level, so one `RecurringAssignment` with an invalid `CronExpression` threw and silently aborted generation for every other assignment in that tenant, on every 15-minute tick. Found while validating the new Recurring dashboard: one assignment ("Daily Cash Management") had a 5-field Unix-style cron (`"0 8 * * *"`), invalid for Quartz's 6/7-field format — this had been blocking real stores' scheduled checklists for about a month. Fixed by wrapping the per-assignment body in its own try/catch (logs and skips the bad row, tenant continues) and correcting that one cron directly in `bajco-dev` to `"0 0 8 * * ?"`.
 
 ---
 
