@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
 import { OrgService, type Region, type Store } from '@org/data-access-org';
 import { noWhitespace } from '@org/ui-core';
@@ -24,8 +24,14 @@ export class TemplatesComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   readonly templates = signal<TemplateDto[]>([]);
+  readonly totalCount = signal(0);
+  readonly loadingMore = signal(false);
+  private readonly pageSize = 20;
+  private page = 1;
+  readonly hasMore = computed(() => this.templates().length < this.totalCount());
   readonly regions = signal<Region[]>([]);
   readonly stores = signal<Store[]>([]);
   readonly loading = signal(false);
@@ -75,15 +81,43 @@ export class TemplatesComponent implements OnInit {
   }
 
   private load(): void {
+    this.page = 1;
     this.loading.set(true);
-    this.templateSvc.getTemplates({
+    this.templateSvc.getTemplates({ ...this.currentFilter(), page: 1, pageSize: this.pageSize }).subscribe({
+      next: (r) => { this.templates.set(r.items); this.totalCount.set(r.totalCount); this.loading.set(false); },
+      error: () => { this.error.set('Failed to load templates.'); this.loading.set(false); },
+    });
+  }
+
+  loadMore(): void {
+    if (this.loadingMore() || !this.hasMore()) return;
+    const nextPage = this.page + 1;
+    this.loadingMore.set(true);
+    this.templateSvc.getTemplates({ ...this.currentFilter(), page: nextPage, pageSize: this.pageSize }).subscribe({
+      next: (r) => {
+        this.templates.update((list) => [...list, ...r.items]);
+        this.totalCount.set(r.totalCount);
+        this.page = nextPage;
+        this.loadingMore.set(false);
+      },
+      error: () => { this.error.set('Failed to load more templates.'); this.loadingMore.set(false); },
+    });
+  }
+
+  private currentFilter() {
+    return {
       scope: (this.filterScope() as TemplateScope) || undefined,
       isActive: this.filterActive(),
       search: this.filterSearch() || undefined,
-    }).subscribe({
-      next: (r) => { this.templates.set(r.items); this.loading.set(false); },
-      error: () => { this.error.set('Failed to load templates.'); this.loading.set(false); },
-    });
+    };
+  }
+
+  // The row uses [routerLink] directly (no native keyboard support), and also contains a nested
+  // <a> and action buttons with their own click handling — guard so Enter/Space on those doesn't
+  // also bubble up and double-navigate via the row's own routerLink.
+  onRowKeydown(event: Event, templateId: string): void {
+    if (event.target !== event.currentTarget) return;
+    this.router.navigate(['/admin/task-templates', templateId]);
   }
 
   applyFilters(): void { this.load(); }
