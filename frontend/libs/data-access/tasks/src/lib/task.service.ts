@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import type {
   CancelTaskRequest, CompleteTaskRequest, CompleteTaskResponse,
   CreateTaskRequest, DeferTaskRequest,
-  TaskDetailDto, TaskInstanceDto, TaskStatus, TodayTasksDto,
+  TaskDetailDto, TaskInstanceDto, TaskStatsDto, TaskStatus, TodayTasksDto,
 } from './task.models.js';
 
 @Injectable({ providedIn: 'root' })
@@ -18,6 +18,10 @@ export class TaskService {
 
   getTask(taskId: string): Observable<TaskDetailDto> {
     return this.http.get<TaskDetailDto>(`${this.base}/tasks/${taskId}`);
+  }
+
+  getTaskStats(): Observable<TaskStatsDto> {
+    return this.http.get<TaskStatsDto>(`${this.base}/tasks/stats`);
   }
 
   getTasks(

@@ -2,7 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type {
-  ChecklistDetailDto, ChecklistDto, ChecklistItemInput, CreateChecklistRequest, UpdateChecklistRequest,
+  ChecklistDetailDto, ChecklistDto, ChecklistItemInput, ChecklistPerformanceDto,
+  CreateChecklistRequest, UpdateChecklistRequest,
 } from './checklist.models.js';
 
 @Injectable({ providedIn: 'root' })
@@ -20,6 +21,12 @@ export class ChecklistService {
 
   getChecklist(id: string): Observable<ChecklistDetailDto> {
     return this.http.get<ChecklistDetailDto>(`${this.base}/checklists/${id}`);
+  }
+
+  getChecklistPerformance(days = 30): Observable<ChecklistPerformanceDto> {
+    return this.http.get<ChecklistPerformanceDto>(`${this.base}/checklists/performance`, {
+      params: new HttpParams().set('days', days),
+    });
   }
 
   createChecklist(body: CreateChecklistRequest): Observable<{ id: string }> {

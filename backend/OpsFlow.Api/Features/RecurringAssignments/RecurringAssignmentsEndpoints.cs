@@ -2,6 +2,7 @@ using MediatR;
 using OpsFlow.Api.Features.RecurringAssignments.CreateRecurringAssignment;
 using OpsFlow.Api.Features.RecurringAssignments.DeleteRecurringAssignment;
 using OpsFlow.Api.Features.RecurringAssignments.GetRecurringAssignments;
+using OpsFlow.Api.Features.RecurringAssignments.GetRecurringHealth;
 using OpsFlow.Api.Features.RecurringAssignments.PauseRecurringAssignment;
 
 namespace OpsFlow.Api.Features.RecurringAssignments;
@@ -14,6 +15,9 @@ internal static class RecurringAssignmentsEndpoints
 
         group.MapGet("/", async (IMediator m, Guid? storeId, bool? isPaused) =>
             Results.Ok(await m.Send(new GetRecurringAssignmentsQuery(storeId, isPaused))));
+
+        group.MapGet("/health", async (IMediator m) =>
+            Results.Ok(await m.Send(new GetRecurringHealthQuery())));
 
         group.MapPost("/", async (CreateRecurringAssignmentCommand cmd, IMediator m) =>
         {

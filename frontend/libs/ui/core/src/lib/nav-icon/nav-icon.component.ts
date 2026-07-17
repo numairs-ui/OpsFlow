@@ -8,7 +8,10 @@ export type NavIconName =
   | 'more'
   | 'roster'
   | 'deposit'
-  | 'submissions';
+  | 'submissions'
+  | 'tasks'
+  | 'checklists'
+  | 'recurring';
 
 /**
  * Minimal inline-SVG icon set for the mobile bottom tab bars. Scoped to just the
@@ -73,6 +76,28 @@ export type NavIconName =
           <path d="M7 3.5h7l4 4v13H7z" stroke-linejoin="round" />
           <path d="M14 3.5V8h4" stroke-linejoin="round" />
           <path d="M9.5 12.5l2 2 3-3.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      }
+      @case ('tasks') {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="4.5" y="4.5" width="15" height="15" rx="2" />
+          <path d="M8.5 12l2 2 4.5-4.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      }
+      @case ('checklists') {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M7 3.5h10a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1Z" stroke-linejoin="round" />
+          <path d="M9 2.5h6v2H9z" stroke-linejoin="round" />
+          <path d="M8.5 10.5l1.3 1.3L12.5 9M8.5 15.5l1.3 1.3L12.5 14" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M14.5 10h2M14.5 15h2" stroke-linecap="round" />
+        </svg>
+      }
+      @case ('recurring') {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M4.5 12a7.5 7.5 0 0 1 12.6-5.5" stroke-linecap="round" />
+          <path d="M19.5 12a7.5 7.5 0 0 1-12.6 5.5" stroke-linecap="round" />
+          <path d="M17.5 3.5v3.3h-3.3" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M6.5 20.5v-3.3h3.3" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       }
     }

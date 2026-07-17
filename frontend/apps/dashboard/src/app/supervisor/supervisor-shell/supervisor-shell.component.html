@@ -10,6 +10,23 @@
       <li>
         <a routerLink="overview" routerLinkActive="active" class="sidebar__link">Regional Dashboard</a>
       </li>
+      <li class="sidebar__section-label">Tasks</li>
+      <li>
+        <a routerLink="tasks" routerLinkActive="active" class="sidebar__link">Task List</a>
+      </li>
+      <li>
+        <a routerLink="create-task" routerLinkActive="active" class="sidebar__link">New Task</a>
+      </li>
+      <li>
+        <a routerLink="recurring" routerLinkActive="active" class="sidebar__link">Recurring Assignments</a>
+      </li>
+      <li class="sidebar__section-label">Performance</li>
+      <li>
+        <a routerLink="checklist-completions" routerLinkActive="active" class="sidebar__link">Checklists</a>
+      </li>
+      <li>
+        <a routerLink="recurring-performance" routerLinkActive="active" class="sidebar__link">Recurring</a>
+      </li>
       <li class="sidebar__section-label">Forms</li>
       <li>
         <a routerLink="submissions" routerLinkActive="active" class="sidebar__link">Forms</a>
@@ -34,6 +51,18 @@
     <a routerLink="overview" routerLinkActive="active" class="tabbar__link">
       <app-nav-icon name="overview" />
       <span>Dashboard</span>
+    </a>
+    <a routerLink="tasks" routerLinkActive="active" class="tabbar__link">
+      <app-nav-icon name="tasks" />
+      <span>Tasks</span>
+    </a>
+    <a routerLink="checklist-completions" routerLinkActive="active" class="tabbar__link">
+      <app-nav-icon name="checklists" />
+      <span>Checklists</span>
+    </a>
+    <a routerLink="recurring-performance" routerLinkActive="active" class="tabbar__link">
+      <app-nav-icon name="recurring" />
+      <span>Recurring</span>
     </a>
     <a routerLink="submissions" routerLinkActive="active" class="tabbar__link">
       <app-nav-icon name="submissions" />

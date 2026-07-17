@@ -135,6 +135,15 @@ export interface CompleteTaskResponse {
   spawnedCorrectiveTaskIds?: string[] | null;
 }
 
+export interface TaskStatsDto {
+  openToday: number;
+  upcomingCount: number;
+  overdueCount: number;
+  correctiveActionCount: number;
+  completedToday: number;
+  completionRateToday: number;
+}
+
 export interface CancelTaskRequest {
   reason: string;
 }

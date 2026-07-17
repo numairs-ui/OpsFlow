@@ -1,12 +1,22 @@
 <div class="page">
   <div class="page__header">
     <div>
-      <p class="page__eyebrow">Admin · Task List</p>
+      <p class="page__eyebrow">Task List</p>
       <h1 class="page__title">{{ title() }}</h1>
       <p class="page__subtitle">{{ subtitle() }}</p>
     </div>
-    <a class="btn btn--primary" routerLink="/admin/create-task">+ New One-Time Task</a>
+    <a class="btn btn--primary" [routerLink]="basePath() + '/create-task'">+ New One-Time Task</a>
   </div>
+
+  @if (stats(); as s) {
+    <app-stats-strip>
+      <app-stat-tile [value]="s.openToday" label="Open Today" />
+      <app-stat-tile [value]="s.upcomingCount" label="Upcoming" />
+      <app-stat-tile [value]="s.overdueCount" label="Overdue" tone="danger" />
+      <app-stat-tile [value]="s.correctiveActionCount" label="Corrective Actions" tone="danger" />
+      <app-stat-tile [value]="s.completedToday" label="Completed Today" tone="ok" />
+    </app-stats-strip>
+  }
 
   <div class="filter-toggle">
     <button
@@ -62,15 +72,19 @@
         </thead>
         <tbody>
           @for (task of tasks(); track task.id) {
-            <tr [routerLink]="['/admin/tasks', task.id]"
+            <tr [routerLink]="[basePath(), 'tasks', task.id]"
               tabindex="0" role="button" [attr.aria-label]="'View task for ' + task.checklistName"
               (keydown.enter)="onRowKeydown($event, task.id)"
               (keydown.space)="$event.preventDefault(); onRowKeydown($event, task.id)">
               <td class="td--name">
-                <a [routerLink]="['/admin/stores']" [queryParams]="{ detail: task.storeId }" (click)="$event.stopPropagation()">{{ task.storeName }}</a>
+                @if (basePath() === '/admin') {
+                  <a [routerLink]="['/admin/stores']" [queryParams]="{ detail: task.storeId }" (click)="$event.stopPropagation()">{{ task.storeName }}</a>
+                } @else {
+                  {{ task.storeName }}
+                }
               </td>
               <td class="td--name">
-                <a [routerLink]="['/admin/tasks', task.id]" (click)="$event.stopPropagation()">{{ task.checklistName }}</a>
+                <a [routerLink]="[basePath(), 'tasks', task.id]" (click)="$event.stopPropagation()">{{ task.checklistName }}</a>
               </td>
               <td class="text-muted">{{ task.dueAt | date:'short' }}</td>
               <td>
@@ -86,18 +100,24 @@
     <div class="list-cards">
       @for (task of tasks(); track task.id) {
         <div class="list-card list-card--clickable"
-          [routerLink]="['/admin/tasks', task.id]"
+          [routerLink]="[basePath(), 'tasks', task.id]"
           tabindex="0" role="button" [attr.aria-label]="'View task for ' + task.checklistName"
           (keydown.enter)="onRowKeydown($event, task.id)"
           (keydown.space)="$event.preventDefault(); onRowKeydown($event, task.id)">
           <div class="list-card__head">
-            <a class="list-card__title cell-primary" [routerLink]="['/admin/tasks', task.id]" (click)="$event.stopPropagation()">{{ task.checklistName }}</a>
+            <a class="list-card__title cell-primary" [routerLink]="[basePath(), 'tasks', task.id]" (click)="$event.stopPropagation()">{{ task.checklistName }}</a>
             <span class="pill {{ statusPillClass(task.status) }}">{{ task.status }}</span>
           </div>
           <dl class="list-card__fields">
             <div class="list-card__field">
               <dt>Store</dt>
-              <dd><a [routerLink]="['/admin/stores']" [queryParams]="{ detail: task.storeId }" (click)="$event.stopPropagation()">{{ task.storeName }}</a></dd>
+              <dd>
+                @if (basePath() === '/admin') {
+                  <a [routerLink]="['/admin/stores']" [queryParams]="{ detail: task.storeId }" (click)="$event.stopPropagation()">{{ task.storeName }}</a>
+                } @else {
+                  {{ task.storeName }}
+                }
+              </dd>
             </div>
             <div class="list-card__field"><dt>Due</dt><dd>{{ task.dueAt | date:'short' }}</dd></div>
             <div class="list-card__field"><dt>Assigned to</dt><dd>{{ assigneeName(task.assignedToUserId) }}</dd></div>

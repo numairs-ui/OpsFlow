@@ -1,0 +1,110 @@
+<div class="page">
+  <div class="page__header">
+    <div>
+      <p class="page__eyebrow">{{ eyebrow() }} · Last 30 Days</p>
+      <h1 class="page__title">Checklist Performance</h1>
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert--error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="state-loading">Loading checklist performance…</div>
+  } @else if (data(); as d) {
+    <app-stats-strip>
+      <app-stat-tile [value]="d.averageScorePercent + '%'" label="Average Score" [tone]="scoreTone(d.averageScorePercent)" />
+      <app-stat-tile [value]="d.scoredCompletionCount" label="Scored Completions" />
+      <app-stat-tile [value]="d.failingCompletionCount" label="Failing (&lt;70%)" [tone]="d.failingCompletionCount > 0 ? 'danger' : 'neutral'" />
+      <app-stat-tile [value]="d.totalCompletionCount" label="Total Completions" />
+    </app-stats-strip>
+
+    @if (d.scoreTrend.length > 0) {
+      <div class="card">
+        <p class="card-eyebrow">Score trend</p>
+        <div class="trend">
+          @for (day of d.scoreTrend; track day.date) {
+            <div class="trend__bar-wrap" [title]="(day.averageScorePercent | number:'1.0-0') + '% · ' + day.completionCount + ' completions'">
+              <div class="trend__bar" [style.height.%]="day.averageScorePercent"></div>
+              <span class="trend__date">{{ day.date | date:'M/d' }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    @if (tier() === 'network' && d.regionBreakdown.length > 0) {
+      <div class="card">
+        <p class="card-eyebrow">By region</p>
+        <table class="table">
+          <thead>
+            <tr><th>Region</th><th>Stores</th><th>Avg Score</th><th>Failing</th><th>Completions</th></tr>
+          </thead>
+          <tbody>
+            @for (r of d.regionBreakdown; track r.regionId) {
+              <tr>
+                <td class="cell-primary">{{ r.regionName }}</td>
+                <td class="text-muted">{{ r.storeCount }}</td>
+                <td><span class="score-pill score-pill--{{ scoreTone(r.averageScorePercent) }}">{{ r.averageScorePercent }}%</span></td>
+                <td class="text-muted">{{ r.failingCount }}</td>
+                <td class="text-muted">{{ r.completionCount }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @if ((tier() === 'network' || tier() === 'region') && d.storeBreakdown.length > 0) {
+      <div class="card">
+        <p class="card-eyebrow">By store</p>
+        <table class="table">
+          <thead>
+            <tr><th>Store</th><th>Avg Score</th><th>Completions</th><th>Failing</th><th>Last Completed</th></tr>
+          </thead>
+          <tbody>
+            @for (s of d.storeBreakdown; track s.storeId) {
+              <tr>
+                <td class="cell-primary">{{ s.storeName }}</td>
+                <td><span class="score-pill score-pill--{{ scoreTone(s.averageScorePercent) }}">{{ s.averageScorePercent }}%</span></td>
+                <td class="text-muted">{{ s.completionCount }}</td>
+                <td class="text-muted">{{ s.failingCount }}</td>
+                <td class="text-muted">{{ s.lastCompletedAt ? (s.lastCompletedAt | date:'short') : '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <div class="card">
+      <p class="card-eyebrow">Recent completions</p>
+      @if (d.recentCompletions.length === 0) {
+        <p class="text-muted">No checklist completions in the last 30 days.</p>
+      } @else {
+        <table class="table">
+          <thead>
+            <tr><th>Checklist</th><th>Store</th><th>Score</th><th>Completed</th></tr>
+          </thead>
+          <tbody>
+            @for (c of d.recentCompletions; track c.taskInstanceId) {
+              <tr>
+                <td class="cell-primary">{{ c.checklistName }}</td>
+                <td class="text-muted">{{ c.storeName }}</td>
+                <td>
+                  @if (c.scorePercent !== null && c.scorePercent !== undefined) {
+                    <span class="score-pill score-pill--{{ scoreTone(c.scorePercent) }}">{{ c.scorePercent }}%</span>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td class="text-muted">{{ c.completedAt | date:'short' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  }
+</div>

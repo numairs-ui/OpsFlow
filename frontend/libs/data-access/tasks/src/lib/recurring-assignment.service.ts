@@ -1,7 +1,9 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import type { CreateRecurringAssignmentRequest, RecurringAssignmentDto } from './recurring-assignment.models.js';
+import type {
+  CreateRecurringAssignmentRequest, RecurringAssignmentDto, RecurringHealthDto,
+} from './recurring-assignment.models.js';
 
 @Injectable({ providedIn: 'root' })
 export class RecurringAssignmentService {
@@ -13,6 +15,10 @@ export class RecurringAssignmentService {
     if (storeId) params = params.set('storeId', storeId);
     if (isPaused !== undefined) params = params.set('isPaused', isPaused);
     return this.http.get<RecurringAssignmentDto[]>(`${this.base}/recurring-assignments`, { params });
+  }
+
+  getRecurringHealth(): Observable<RecurringHealthDto> {
+    return this.http.get<RecurringHealthDto>(`${this.base}/recurring-assignments/health`);
   }
 
   createRecurringAssignment(body: CreateRecurringAssignmentRequest): Observable<{ id: string }> {

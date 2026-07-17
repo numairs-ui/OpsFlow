@@ -59,3 +59,48 @@ export interface UpdateChecklistRequest {
   regionId?: string;
   storeId?: string;
 }
+
+export interface DailyScoreDto {
+  date: string;
+  averageScorePercent: number;
+  completionCount: number;
+}
+
+export interface RegionChecklistScoreDto {
+  regionId: string;
+  regionName: string;
+  storeCount: number;
+  averageScorePercent: number;
+  failingCount: number;
+  completionCount: number;
+}
+
+export interface StoreChecklistScoreDto {
+  storeId: string;
+  storeName: string;
+  averageScorePercent: number;
+  completionCount: number;
+  failingCount: number;
+  lastCompletedAt?: string;
+}
+
+export interface RecentCompletionDto {
+  taskInstanceId: string;
+  storeId: string;
+  storeName: string;
+  checklistName: string;
+  scorePercent?: number | null;
+  completedAt: string;
+  completedByUserId?: string;
+}
+
+export interface ChecklistPerformanceDto {
+  averageScorePercent: number;
+  scoredCompletionCount: number;
+  totalCompletionCount: number;
+  failingCompletionCount: number;
+  scoreTrend: DailyScoreDto[];
+  regionBreakdown: RegionChecklistScoreDto[];
+  storeBreakdown: StoreChecklistScoreDto[];
+  recentCompletions: RecentCompletionDto[];
+}

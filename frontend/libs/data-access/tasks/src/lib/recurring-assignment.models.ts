@@ -24,3 +24,25 @@ export interface CreateRecurringAssignmentRequest {
   endsAt?: string;
   assignedToUserId?: string;
 }
+
+export interface RecurringAssignmentHealthDto {
+  id: string;
+  name: string;
+  storeId: string;
+  storeName: string;
+  checklistName: string;
+  isPaused: boolean;
+  cronExpression: string;
+  nextFireAt?: string;
+  lastGeneratedAt?: string;
+  instancesThisWeek: number;
+  isStale: boolean;
+}
+
+export interface RecurringHealthDto {
+  activeCount: number;
+  pausedCount: number;
+  instancesGeneratedThisWeek: number;
+  staleCount: number;
+  assignments: RecurringAssignmentHealthDto[];
+}

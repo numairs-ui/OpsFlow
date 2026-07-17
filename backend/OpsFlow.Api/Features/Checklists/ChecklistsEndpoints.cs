@@ -2,6 +2,7 @@ using MediatR;
 using OpsFlow.Api.Features.Checklists.CreateChecklist;
 using OpsFlow.Api.Features.Checklists.DeactivateChecklist;
 using OpsFlow.Api.Features.Checklists.GetChecklist;
+using OpsFlow.Api.Features.Checklists.GetChecklistPerformance;
 using OpsFlow.Api.Features.Checklists.GetChecklists;
 using OpsFlow.Api.Features.Checklists.UpdateChecklist;
 using OpsFlow.Api.Features.Checklists.UpdateItems;
@@ -16,6 +17,9 @@ internal static class ChecklistsEndpoints
 
         group.MapGet("/", async (IMediator m, string? scope, bool? isActive, string? search) =>
             Results.Ok(await m.Send(new GetChecklistsQuery(scope, isActive, search))));
+
+        group.MapGet("/performance", async (IMediator m, int? days) =>
+            Results.Ok(await m.Send(new GetChecklistPerformanceQuery(days ?? 30))));
 
         group.MapGet("/{id:guid}", async (Guid id, IMediator m) =>
             Results.Ok(await m.Send(new GetChecklistQuery(id))));
