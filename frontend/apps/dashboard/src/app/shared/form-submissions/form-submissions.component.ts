@@ -36,7 +36,7 @@ export class FormSubmissionsComponent implements OnInit {
 
   readonly isAdminOrSupervisor = computed(() => {
     const role = this.currentUser()?.role;
-    return role === 'admin' || role === 'supervisor';
+    return role === 'super_admin' || role === 'admin' || role === 'supervisor';
   });
 
   readonly mySubmissions = signal<MySubmissionDto[]>([]);
