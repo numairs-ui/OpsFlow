@@ -49,7 +49,8 @@ export class TasksComponent implements OnInit, OnDestroy {
   /** Unclaimed store tasks still needing action — the shared "grab one" pool. */
   readonly openStoreTasks = computed<TaskBoardItemDto[]>(() =>
     this.allTasks().filter(t =>
-      !t.assignedToUserId && (t.status === 'Pending' || t.status === 'InProgress' || t.status === 'Overdue')
+      !t.assignedToUserId &&
+      (t.status === 'Pending' || t.status === 'InProgress' || t.status === 'Overdue' || t.status === 'CorrectiveActionRaised')
     )
   );
 
