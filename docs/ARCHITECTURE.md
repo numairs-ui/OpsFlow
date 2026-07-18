@@ -220,7 +220,7 @@ Build from a clean checkout of `origin/main` (e.g. a `git worktree`), not a work
 
 **Secrets:** backend secrets (`SUPABASE_SERVICE_ROLE_KEY`, `MASTER_DB_CONNECTION_STRING`, `JWT_SECRET`, etc.) are not committed — injected via the hosting platform's secret store. `appsettings.json` only holds non-secret defaults. Frontend has no `NG_APP_*`/environment files checked in beyond the `env.js` runtime-config pattern above.
 
-### Backups — current posture (reviewed 2026-07-18)
+### Backups — current posture (reviewed 2026-07-18, DB gap closed same day)
 
 What's actually backed up today, per component:
 
@@ -229,9 +229,11 @@ What's actually backed up today, per component:
 | **Code** (backend + both frontends) | Full history on GitHub (`origin`, `numairs-ui/OpsFlow`) — this *is* the backup; a local machine loss loses nothing already pushed | The recurring real risk here isn't "no backup," it's **uncommitted work never reaching GitHub** — this has happened twice already (§10, §11 below) after deploying straight from a working tree. The fix is discipline (commit+push after every deploy), not more infra. |
 | **Backend container image** | Azure Container Registry (`opsflowacr`) keeps every tagged/digested image ever pushed | Rebuildable from git + Dockerfile at any time regardless; the registry history is a convenience, not the safety net |
 | **Frontend deploys** | Vercel keeps full deployment history per project indefinitely, and `vercel rollback <url>` reverts production to any prior deployment in seconds (confirmed working 2026-07-18, used to recover from a deploy mistake) | None — this is a solid, already-working safety net |
-| **Database** (Postgres on Supabase, `bajco-dev`) | **Not verified.** Supabase's automatic-backup and point-in-time-recovery (PITR) availability depends on the project's pricing tier — Free-tier projects get very limited (or no) automated backups; Pro tier and above adds daily backups, and PITR is a separate paid add-on. Nobody has confirmed which tier `bajco-dev` is on or whether backups/PITR are actually enabled. | **This is the real gap.** Unlike code/images/frontend builds, the database holds real tenant data (tasks, completions, deposits, users) that cannot be regenerated from git if lost. Check the Supabase dashboard → Project Settings → Add-ons / Database → Backups for `bajco-dev` and confirm daily backups (ideally PITR) are on. If not available on the current plan, consider a scheduled `pg_dump` (or Supabase's own backup CLI) to separate storage (e.g. an Azure Blob container) as a second, platform-independent layer — cheap insurance for a system now carrying real beta-customer data. |
+| **Database** (Postgres on Supabase, `bajco-dev`) | **Confirmed via the Supabase Management API (2026-07-18): Free tier, `pitr_enabled: false`, zero backups on record.** No native backup existed. **Closed the same day**: `.github/workflows/backup-db.yml` (PRs #108/#109) runs a daily `pg_dump` (03:17 UTC, plus on-demand via `workflow_dispatch`) to a new, independent Azure Storage account (`opsflowdbbackups`, resource group `opsflow_dev`, container `db-backups`), custom format (`-Fc`), 30-day retention pruning. First run verified end-to-end 2026-07-18 (a real ~560KB dump landed in the container). | None currently — this is now a real, working, independent safety net. **Still worth doing separately**: consider upgrading the Supabase plan for native PITR (this pg_dump approach gives daily-granularity recovery, not point-in-time) — that's a billing decision, not an engineering blocker, and this backup stays valuable as a second independent layer even after upgrading. |
 
-**How to apply:** before treating any of the above as "handled," verify the Supabase backup/PITR setting directly in the dashboard rather than assuming — this doc can't confirm it without dashboard access. If you're an agent picking this up, ask the user for Supabase dashboard access or have them confirm the setting rather than guessing.
+**Restoring from a backup:** download the desired `.dump` blob from the `db-backups` container, then `pg_restore --no-owner --no-privileges -d <target-connection-string> <file>.dump` (custom format supports selective/parallel restore — see `pg_restore --help`).
+
+**Credentials note:** the backup workflow's DB/storage credentials live only as GitHub Actions repo secrets (`BACKUP_DB_HOST`/`_PORT`/`_NAME`/`_USER`/`_PASSWORD`, `AZURE_BACKUP_STORAGE_CONNECTION_STRING`) — same non-committed-secret discipline as the app's own secrets above.
 
 ---
 
@@ -276,7 +278,7 @@ What's actually backed up today, per component:
 - Design-system rollout — §5's drift list is now clean as of 2026-07-18 (see that section's update note); no other known drifted screens at this time
 - Multi-store recurring broadcast (deferred, see above) — needs a non-destructive schema design
 - Vercel CI secrets (`VERCEL_TOKEN` etc.) were never configured — CI cannot currently deploy either frontend; all deploys are manual (see §6)
-- Supabase database backup/PITR status for `bajco-dev` has not been confirmed — see the new Backups note in §6
+- ~~Supabase database backup/PITR status for `bajco-dev` has not been confirmed~~ — confirmed (Free tier, no native backups) and closed via a daily `pg_dump` GitHub Actions workflow, see §6 Backups. Native PITR itself is still a possible future upgrade (billing decision, not blocking).
 - "Morning" recurring-assignment instance generation is still stuck (evening assignments generate fine) despite the cron-expression + per-assignment try/catch fixes from 2026-07-17 — flagged 2026-07-18, not yet root-caused; hypothesis is that `SaveChangesAsync` running once per tenant-tick (not per-assignment) means one bad row can still lose other assignments' generated instances for that tick even though it no longer crashes the whole job
 
 ---
