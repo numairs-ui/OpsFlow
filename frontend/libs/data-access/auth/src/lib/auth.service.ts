@@ -10,6 +10,7 @@ export class AuthService {
   private readonly router = inject(Router);
 
   private readonly _accessToken = signal<string | null>(null);
+  private inFlightRefresh: Promise<boolean> | null = null;
 
   readonly accessToken: Signal<string | null> = this._accessToken.asReadonly();
 
@@ -31,19 +32,33 @@ export class AuthService {
     this._accessToken.set(response.accessToken);
   }
 
-  async refresh(): Promise<boolean> {
-    try {
-      const response = await firstValueFrom(
-        this.http.post<LoginResponse>('/api/auth/refresh', null, {
-          withCredentials: true,
-        })
-      );
-      this._accessToken.set(response.accessToken);
-      return true;
-    } catch {
-      this._accessToken.set(null);
-      return false;
-    }
+  // Every parallel API call that 401s on a cold page load (empty in-memory access token)
+  // independently lands here via the interceptor. The refresh token ROTATES on use, so if each
+  // call issued its own request, only the first would succeed — the rest would reuse an
+  // already-rotated (and therefore rejected) token and force a redirect to /login, even though
+  // the session was in fact successfully refreshed by their sibling call. Share one in-flight
+  // request across all concurrent callers so only a single POST /auth/refresh ever goes out.
+  refresh(): Promise<boolean> {
+    if (this.inFlightRefresh) return this.inFlightRefresh;
+
+    this.inFlightRefresh = (async () => {
+      try {
+        const response = await firstValueFrom(
+          this.http.post<LoginResponse>('/api/auth/refresh', null, {
+            withCredentials: true,
+          })
+        );
+        this._accessToken.set(response.accessToken);
+        return true;
+      } catch {
+        this._accessToken.set(null);
+        return false;
+      } finally {
+        this.inFlightRefresh = null;
+      }
+    })();
+
+    return this.inFlightRefresh;
   }
 
   async logout(): Promise<void> {
