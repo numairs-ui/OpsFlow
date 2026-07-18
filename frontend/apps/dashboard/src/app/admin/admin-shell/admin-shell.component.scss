@@ -290,12 +290,17 @@
       display: flex;
       align-items: center;
       gap: 0.6rem;
+      width: 100%;
       padding: 0.7rem 1.25rem;
+      background: none;
+      border: none;
       color: rgba(245, 239, 224, 0.75);
       text-decoration: none;
+      text-align: left;
       font-family: var(--sans);
       font-size: 0.9rem;
       font-weight: 500;
+      cursor: pointer;
 
       app-nav-icon {
         opacity: 0.6;

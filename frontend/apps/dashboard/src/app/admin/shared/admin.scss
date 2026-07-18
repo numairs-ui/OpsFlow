@@ -310,6 +310,13 @@
   }
 }
 
+@media (max-width: 640px) {
+  .slide-over {
+    left: 0;
+    width: 100vw;
+  }
+}
+
 // ─── Form fields (slide-over forms) ──────────────────────────────────────────
 .field {
   display: flex;

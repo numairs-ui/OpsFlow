@@ -98,11 +98,19 @@
 
 // The 230px/1fr/1fr/210px column grid assumes desktop width — below that, the fixed columns
 // alone (440px) already exceed most phone viewports, clipping the rightmost card entirely.
-// Collapse to a single stacked column and let cards flow in source order instead.
+// Below 860px: gauge/actions/leaderboard stay full-width (highest information density), while
+// the 4 single-stat cards go 2-up instead of stacking 4-deep — halves that section's scroll
+// height and reads as modular tiles instead of one long list of near-identical cards.
 @media (max-width: 860px) {
-  .dash-grid { grid-template-columns: 1fr; }
-  .gauge-card, .stat-open, .stat-overdue, .stat-deposits, .stat-stores,
-  .actions-card, .leaderboard-card { grid-area: auto; }
+  .dash-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  .stat-open, .stat-overdue, .stat-deposits, .stat-stores { grid-area: auto; }
+  .gauge-card, .actions-card, .leaderboard-card {
+    grid-area: auto;
+    grid-column: 1 / -1;
+  }
 }
 
 // ─── Gauge card ───────────────────────────────────────────────────────────────
@@ -597,4 +605,49 @@
   padding: 0.875rem 1.25rem;
   font-size: 0.9rem;
   margin-bottom: 1rem;
+}
+
+// ─── Mobile density pass ──────────────────────────────────────────────────────
+// Same 860px breakpoint as the grid reflow above, kept as its own block (and last
+// in the file) so these overrides always win the cascade over the unconditional
+// card/stat/action rules defined earlier — the grid reflow alone still left every
+// card at full desktop padding/type size, which read as "too wide and big" even
+// once stacked correctly.
+@media (max-width: 860px) {
+  .dash-card { padding: 1rem 1.1rem; }
+
+  .gauge-card { padding: 1.1rem 1rem 0.85rem; }
+  .gauge-wrap { max-width: 132px; }
+  .gauge-num { font-size: 38px; }
+  .gauge-sym { font-size: 10px; }
+  .gauge-caption { font-size: 0.72rem; margin-top: 0.4rem; }
+
+  .stat-eyebrow { font-size: 0.56rem; margin-bottom: 0.3rem; }
+  .stat-val { font-size: 1.85rem; margin-bottom: 0.3rem; }
+  .stat-sub { font-size: 0.72rem; }
+  .stat-nav-hint { display: none; } // hover-reveal hint has no touch equivalent; was still reserving bottom padding unseen
+
+  .actions-card { padding: 1rem 1.1rem 1.1rem; }
+
+  .actions-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+
+  .action-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    border-left: 3px solid transparent;
+
+    &:last-child { border-bottom: 1px solid var(--line); }
+    &:hover { border-left-color: var(--indigo); background: var(--indigo-glow); }
+  }
+
+  .action-arr { display: none; }
 }

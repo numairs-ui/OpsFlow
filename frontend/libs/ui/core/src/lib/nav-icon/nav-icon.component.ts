@@ -11,7 +11,9 @@ export type NavIconName =
   | 'submissions'
   | 'tasks'
   | 'checklists'
-  | 'recurring';
+  | 'recurring'
+  | 'regions'
+  | 'settings';
 
 /**
  * Minimal inline-SVG icon set for the mobile bottom tab bars. Scoped to just the
@@ -98,6 +100,18 @@ export type NavIconName =
           <path d="M19.5 12a7.5 7.5 0 0 1-12.6 5.5" stroke-linecap="round" />
           <path d="M17.5 3.5v3.3h-3.3" stroke-linecap="round" stroke-linejoin="round" />
           <path d="M6.5 20.5v-3.3h3.3" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      }
+      @case ('regions') {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M12 3.5c-3.3 0-6 2.6-6 6.2 0 4.4 6 10.8 6 10.8s6-6.4 6-10.8c0-3.6-2.7-6.2-6-6.2Z" stroke-linejoin="round" />
+          <circle cx="12" cy="9.7" r="2.2" />
+        </svg>
+      }
+      @case ('settings') {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5M17.8 6.2l-1.6 1.6M7.8 16.2l-1.6 1.6M17.8 17.8l-1.6-1.6M7.8 7.8 6.2 6.2" stroke-linecap="round" />
         </svg>
       }
     }

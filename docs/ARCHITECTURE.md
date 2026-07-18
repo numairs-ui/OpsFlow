@@ -1,12 +1,14 @@
 # OpsFlow — Product & Architecture Overview
 
-> **Status:** Current as of 2026-07-17. Supersedes the architecture sections of `docs/PROJECT_STATE.md`. This is the canonical reference — please correct it in place as the system evolves rather than starting a new doc.
+> **Status:** Current as of 2026-07-18. Supersedes the architecture sections of `docs/PROJECT_STATE.md`. This is the canonical reference — please correct it in place as the system evolves rather than starting a new doc.
 >
 > **2026-07-14 release:** the post-PRD-audit release (task nucleus + 6 targeted fixes, minus multi-store recurring which was deferred) is **live in production**. See `docs/product/OpsFlow_PRD_V2.md` (current as-built PRD, supersedes V1) and `docs/product/OpsFlow_Release_Notes_2026-07.md`. §7 below reflects the post-release state.
 >
 > **2026-07-17: role-scoped mini-dashboards for Tasks/Checklists/Recurring, plus a dozen small fixes (PRs #93–#104), are also live.** See §7 for the full list. This includes a fix for a real production data-integrity bug — one recurring assignment's malformed cron expression was silently blocking scheduled-checklist generation tenant-wide for about a month (§7, §8).
 >
 > **What's actually deployed right now, verified (2026-07-17):** the Azure Container App's active revision is `opsflow-app--0000014` (deployed 2026-07-17T15:50 UTC, image digest `sha256:471ac36f...`), which corresponds to `main` at commit `d0fe61c` (PR #104 merge). The dashboard's Vercel deploy was last pushed the same day and matches the same commit. If you're ever unsure whether prod matches `main` or some other branch, verify like this rather than guessing from branch-divergence size alone — a large diff between `main` and an open PR's branch usually just means real, not-yet-merged work, not a deploy-source mismatch.
+>
+> **2026-07-18: mobile design sprint (commit `9dfca3f`, branch `feat/track-b-post-prd-audit`, dashboard-only, no backend changes) is live.** Fixed 7 mobile UX bugs found during a live pass (Checklists/Recurring runtime tables overflowing + missing create buttons, Overview dashboard not modular, Store/User/Region detail drawers clipping text, Templates tabs wrapping to 2 lines, template cards not fully clickable, More-sheet "+ Create" rendering as an unstyled white block, missing nav icons) and completed the cream re-skin of Settings/Roster/Deposit — see §5's "Known drift" note below for what's now clean. **Also found and fixed: the entire supervisor and manager shell chrome (sidebar, tabbar, page background) was hardcoded to an unrelated slate-blue Tailwind palette (`#f8f9fa`/`#1e293b`/`#3b82f6`), byte-identical in both files — almost certainly copy-pasted from the same non-cream starter template and never touched since. Both now use the cream/ink/amber tokens matching admin-shell.** See the design system skill for the shell-chrome convention now documented so this doesn't recur a third time (e.g. if a new role shell is added).
 >
 > **Known gap this update closed:** a meaningful amount of work described as "shipped"/"live" in prior session notes (several bug fixes plus the mini-dashboards feature) had been deployed directly from a local working tree and was never actually committed to git — production and `main` had quietly diverged. It's now been committed and merged as PR #104. If a future session finds deployed behavior that doesn't match any commit, don't assume the docs are wrong before checking whether this has recurred — deploy from a clean, committed checkout going forward.
 
@@ -153,6 +155,8 @@ POST /auth/refresh → read cookie → validate + rotate RefreshToken (mark old 
 ```
 `Secure` cookie flag is conditional on environment (`!IsDevelopment()`), since browsers drop `Secure` cookies over plain `http://localhost`.
 
+**Refresh-token reuse grace period (added 2026-07-18):** `RefreshToken` gained `UsedAt`/`ReplacedByTokenId` (migration `AddRefreshTokenReuseGrace`). If a rotated-away token is presented again within **15 seconds** of its own rotation, `RefreshHandler` treats it as a benign race — two near-simultaneous page loads (e.g. the post-login hard reload's own app-initializer call racing a second reload) both presenting the same pre-rotation cookie — rather than a stolen/replayed token, and walks `ReplacedByTokenId` to mint from the current valid token instead of hard-failing. Reuse outside the 15s window still fails exactly as before; this narrows a specific race, it doesn't weaken replay protection. This closed a real bug: mobile page reloads (common — backgrounded tabs reload constantly) had a ~90-100% chance of logging the user out even mid-session. See `docs/PROJECT_STATE.md`'s 2026-07-18 entry for the full diagnosis.
+
 ---
 
 ## 5. Frontend (`frontend/`)
@@ -172,7 +176,9 @@ Both apps proxy `/api/*` → the backend (stripping the prefix) and `/hubs/*` fo
 
 **Design system:** bespoke (not Ant Design/ng-zorro — that path was tried and fully reverted). Documented in `.claude/skills/opsflow-design-system/SKILL.md`; implemented as CSS custom properties + utility classes duplicated across each app's `styles.scss` (`apps/dashboard`, `apps/field-pwa`). Aesthetic: warm "operations desk" — cream/paper background, near-black ink, one indigo accent for action, amber/rust/green reserved for fixed status meanings (amber = paused, rust = error/overdue, green = success). Type: **Inter** for both sans and serif roles, **JetBrains Mono** as the structural/label voice (eyebrows, table headers, pills). Pill-shaped buttons, 14px base radius.
 
-> ⚠️ **Known drift:** the two apps' stylesheets are hand-duplicated with a history of drifting out of sync. The documented fix — extract a shared SCSS partial into `frontend/libs/ui` — has not been done yet. Several admin screens (Stores, Users, Checklists, Templates, Regions, Form Submissions) still use the pre-redesign HTML class structure rather than the current design system.
+> ⚠️ **Known drift:** the two apps' stylesheets are hand-duplicated with a history of drifting out of sync. The documented fix — extract a shared SCSS partial into `frontend/libs/ui` — has not been done yet.
+>
+> **Update (2026-07-18):** the admin-screen drift list above is stale — reconciled during a mobile design/re-skin sprint. Stores, Users, Checklists, Templates, Regions, and Form Submissions all render on the current cream design system now (verified by reading each component's SCSS directly, not just visually). What was actually still drifted, found and fixed this pass: Settings, Roster, and Deposit (component-local hardcoded hex colors, e.g. `#e5e7eb`/`#6b7280`/`#fef2f2`, swapped for the token set below) — **and, more significantly, the entire supervisor and manager shell chrome** (sidebar/tabbar/page background), which had never been on the design system at all — see the note in the file header above. If a future pass finds another screen that looks "off," check for hardcoded hex first; it's been the root cause both times.
 
 **Runtime config:** each app reads `public/env.js` → `window.__OPSFLOW_ENV__.apiOrigin`. A fresh `nx build` resets this to the committed default (`''`) — it must be manually repatched to the live API URL before every deploy, or the deployed app silently can't reach the backend.
 
@@ -199,6 +205,11 @@ npx vercel --prod --yes
 ```
 Build from a clean checkout of `origin/main` (e.g. a `git worktree`), not a working directory that may have uncommitted changes — both apps consume shared `frontend/libs/*`, so uncommitted lib changes elsewhere in the repo can leak into a production build. Setting up the missing secrets so CI can actually deploy is an open follow-up (`docs/product/OpsFlow_PRD_V2.md` §9) — not urgent, since the manual path works, but `merge → live` does not currently hold.
 
+**⚠️ Deploy-directory gotcha (found 2026-07-18):** always `cd` into the actual build output directory (`dist/apps/<app>/browser`) *before* running `vercel link`/`vercel --prod` — never from the `frontend/` workspace root. Two failure modes observed the same session:
+1. Linking/deploying from `frontend/` (not the build output) causes Vercel to run its own remote build against the whole workspace instead of serving the prebuilt static files, producing an unrelated/broken deployment (404s from Vercel's platform-level error page).
+2. `nx build` wipes and regenerates `dist/apps/<app>/browser` on every run, **including any `.vercel/` link inside it.** Running `vercel --prod` in that directory with no valid link present causes the Vercel CLI to auto-create/attach a project named after the directory itself (`browser`) rather than failing loudly — silently deploying the build to a *different, unrelated Vercel project* that happens to already exist under that name. This actually happened once and was caught only by comparing bundle hashes after deploy; recovered via `vercel rollback <last-good-deployment-url>`.
+**Always re-run `vercel link --project <opsflow-dashboard|opsflow-field-pwa> --yes` immediately after every fresh `nx build`, from inside the build output directory, before `vercel --prod`** — don't assume a link from earlier in the session still exists. After deploying, verify by comparing the live `main-*.js` bundle hash (`curl`) against the local one, not just an HTTP 200.
+
 **CI (`.github/workflows/pr.yml`, on PR to `main`):**
 - `dotnet` job — restores/builds `backend/OpsFlow.sln`, runs `OpsFlow.Tests.Unit` + `OpsFlow.Tests.Integration`, uploads `.trx` results.
 - `angular` job — Node 20, `npm ci`, `nx affected --target=lint`, `nx affected --target=test --ci`, production builds of both apps.
@@ -208,6 +219,21 @@ Build from a clean checkout of `origin/main` (e.g. a `git worktree`), not a work
 **⚠️ That fix unmasked a real, pre-existing gap — don't assume `Angular Tests` is green now.** `Test (affected)` never used to actually execute (the checkout flake always failed first); now that it runs, it fails on `dashboard`/`field-pwa` (`'ci' is not found in schema` — their test executor doesn't support the `--ci` flag `pr.yml` passes) and on `data-access-auth`/`data-access-org`/`data-access-tasks`/`util-guards` (empty placeholder `.spec.ts` files with zero tests, `No test suite found`). Confirmed pre-existing — reproduced locally against a commit that predates this fix — not a regression from anything in this release, but genuinely unfixed. Production builds (`nx build`) are unaffected; this is specifically the `test` target.
 
 **Secrets:** backend secrets (`SUPABASE_SERVICE_ROLE_KEY`, `MASTER_DB_CONNECTION_STRING`, `JWT_SECRET`, etc.) are not committed — injected via the hosting platform's secret store. `appsettings.json` only holds non-secret defaults. Frontend has no `NG_APP_*`/environment files checked in beyond the `env.js` runtime-config pattern above.
+
+### Backups — current posture (reviewed 2026-07-18, DB gap closed same day)
+
+What's actually backed up today, per component:
+
+| Component | Backup mechanism | Gap |
+|---|---|---|
+| **Code** (backend + both frontends) | Full history on GitHub (`origin`, `numairs-ui/OpsFlow`) — this *is* the backup; a local machine loss loses nothing already pushed | The recurring real risk here isn't "no backup," it's **uncommitted work never reaching GitHub** — this has happened twice already (§10, §11 below) after deploying straight from a working tree. The fix is discipline (commit+push after every deploy), not more infra. |
+| **Backend container image** | Azure Container Registry (`opsflowacr`) keeps every tagged/digested image ever pushed | Rebuildable from git + Dockerfile at any time regardless; the registry history is a convenience, not the safety net |
+| **Frontend deploys** | Vercel keeps full deployment history per project indefinitely, and `vercel rollback <url>` reverts production to any prior deployment in seconds (confirmed working 2026-07-18, used to recover from a deploy mistake) | None — this is a solid, already-working safety net |
+| **Database** (Postgres on Supabase, `bajco-dev`) | **Confirmed via the Supabase Management API (2026-07-18): Free tier, `pitr_enabled: false`, zero backups on record.** No native backup existed. **Closed the same day**: `.github/workflows/backup-db.yml` (PRs #108/#109) runs a daily `pg_dump` (03:17 UTC, plus on-demand via `workflow_dispatch`) to a new, independent Azure Storage account (`opsflowdbbackups`, resource group `opsflow_dev`, container `db-backups`), custom format (`-Fc`), 30-day retention pruning. First run verified end-to-end 2026-07-18 (a real ~560KB dump landed in the container). | None currently — this is now a real, working, independent safety net. **Still worth doing separately**: consider upgrading the Supabase plan for native PITR (this pg_dump approach gives daily-granularity recovery, not point-in-time) — that's a billing decision, not an engineering blocker, and this backup stays valuable as a second independent layer even after upgrading. |
+
+**Restoring from a backup:** download the desired `.dump` blob from the `db-backups` container, then `pg_restore --no-owner --no-privileges -d <target-connection-string> <file>.dump` (custom format supports selective/parallel restore — see `pg_restore --help`).
+
+**Credentials note:** the backup workflow's DB/storage credentials live only as GitHub Actions repo secrets (`BACKUP_DB_HOST`/`_PORT`/`_NAME`/`_USER`/`_PASSWORD`, `AZURE_BACKUP_STORAGE_CONNECTION_STRING`) — same non-committed-secret discipline as the app's own secrets above.
 
 ---
 
@@ -230,6 +256,10 @@ Build from a clean checkout of `origin/main` (e.g. a `git worktree`), not a work
 - Real dashboards for admin (region-scoped, not just super_admin), store employee, and kiosk roles
 - **Deferred out of this release:** multi-store recurring broadcast (would have required a live column drop) — `RecurringAssignment` stays single-store; see the 2026-07-14 note in §2.2
 
+**Shipped 2026-07-18 (commits `e150f20`/`89037e7`/`9dfca3f`, live in prod):**
+- **Fixed a real, previously-undiagnosed production auth bug:** refresh-token rotation race causing frequent random logouts on mobile — see the §4 Auth flow note above for the fix, `docs/PROJECT_STATE.md` for the full root-cause diagnosis.
+- 5 real mobile CSS/layout bugs (stat-tile clipping, Overview grid not collapsing, Templates/Form-Templates filter squeeze, stale heading, raw-GUID display) plus a mobile design sprint: Checklists/Recurring runtime overflow + create buttons, Overview modularized for mobile, detail-drawer left-clip fix, Templates tab/card-click/button-text fixes, More-sheet fixes, and a cream-design re-skin of Settings/Roster/Deposit **and the supervisor/manager shell chrome** (previously on an unrelated hardcoded palette). See §5's "Known drift" update and the design system skill.
+
 **Shipped 2026-07-16/17 (PRs #93–#104, live in prod):**
 - **Role-scoped mini-dashboards for Tasks, Checklists, and Recurring** (PR #104) — same treatment the Forms page already had: a stats strip on Tasks, and new dedicated Checklist Performance / Recurring Health pages for Checklists/Recurring, all scoped server-side by role (org/region/store) with no schema changes. See §2.3, §4.
 - **Fixed a real production bug** (PR #104): a malformed recurring-assignment cron expression was silently blocking scheduled task generation tenant-wide for ~4 weeks; see the `GenerateTaskInstancesJob` note in §4.
@@ -245,9 +275,11 @@ Build from a clean checkout of `origin/main` (e.g. a `git worktree`), not a work
 - Per-store manager task board view
 - Seeding real (non-placeholder) checklist content into stores beyond the flagship location — a migration script (`execution/migrate_flat_walks_to_checklists.py`) exists and is self-tested but has not been run against any database
 - Form submission approval UI
-- Design-system rollout to the admin screens listed in §5
+- Design-system rollout — §5's drift list is now clean as of 2026-07-18 (see that section's update note); no other known drifted screens at this time
 - Multi-store recurring broadcast (deferred, see above) — needs a non-destructive schema design
 - Vercel CI secrets (`VERCEL_TOKEN` etc.) were never configured — CI cannot currently deploy either frontend; all deploys are manual (see §6)
+- ~~Supabase database backup/PITR status for `bajco-dev` has not been confirmed~~ — confirmed (Free tier, no native backups) and closed via a daily `pg_dump` GitHub Actions workflow, see §6 Backups. Native PITR itself is still a possible future upgrade (billing decision, not blocking).
+- "Morning" recurring-assignment instance generation is still stuck (evening assignments generate fine) despite the cron-expression + per-assignment try/catch fixes from 2026-07-17 — flagged 2026-07-18, not yet root-caused; hypothesis is that `SaveChangesAsync` running once per tenant-tick (not per-assignment) means one bad row can still lose other assignments' generated instances for that tick even though it no longer crashes the whole job
 
 ---
 
