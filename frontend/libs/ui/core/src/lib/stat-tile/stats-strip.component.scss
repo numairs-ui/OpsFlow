@@ -2,10 +2,22 @@
 
 .stats-strip {
   display: flex;
+  flex-wrap: wrap;
   gap: 1px;
   background: var(--line);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   overflow: hidden;
   margin-bottom: 1.5rem;
+}
+
+// Below this width, 4-5 tiles no longer fit on one line — wrapping is correct, but each
+// tile still needs a minimum width or it can compress to the point of clipping its own text.
+// StatTileComponent's host is `display: contents` (so it lays out as a direct flex child of
+// .stats-strip already), meaning the actual flex item to size here is its inner .stat-tile div.
+@media (max-width: 640px) {
+  .stats-strip ::ng-deep .stat-tile {
+    flex: 1 1 45%;
+    min-width: 45%;
+  }
 }

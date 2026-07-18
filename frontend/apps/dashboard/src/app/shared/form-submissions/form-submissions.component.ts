@@ -44,6 +44,7 @@ export class FormSubmissionsComponent implements OnInit {
   readonly allSubmissions = signal<FormSubmissionSummaryDto[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  private readonly userNames = signal<Map<string, string>>(new Map());
 
   readonly piles: Pile[] = ['All', 'Draft', 'PendingApproval', 'Returned', 'Rejected', 'Approved', 'Recorded'];
 
@@ -91,7 +92,14 @@ export class FormSubmissionsComponent implements OnInit {
     if (this.isAdminOrSupervisor()) {
       this.loadAll();
       this.activeTab.set('all');
+      this.orgSvc.getUsers({ activeOnly: false }).subscribe({
+        next: (users) => this.userNames.set(new Map(users.map((u) => [u.userId, u.displayName]))),
+      });
     }
+  }
+
+  submittedByName(userId: string): string {
+    return this.userNames().get(userId) ?? userId;
   }
 
   switchTab(tab: Tab): void {

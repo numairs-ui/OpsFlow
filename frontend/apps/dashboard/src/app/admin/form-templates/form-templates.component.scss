@@ -3,11 +3,21 @@
 
 .filters {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 16px;
 
-  &__search { flex: 1; }
+  &__search { flex: 1 1 200px; }
   &__scope, &__active { width: 160px; }
+}
+
+// Below this width, search + two 160px selects no longer fit on one line — without a wrap
+// point, the search input was shrinking to ~40px (an unusable, unlabeled-looking sliver).
+@media (max-width: 560px) {
+  .filters {
+    &__search { flex-basis: 100%; }
+    &__scope, &__active { flex: 1; width: auto; }
+  }
 }
 
 .pager {
