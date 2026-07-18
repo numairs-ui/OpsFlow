@@ -1,0 +1,67 @@
+name: Database Backup
+
+# Daily pg_dump of the Supabase Postgres database (bajco-dev's tenant data + the master tenant
+# registry share one physical DB — see docs/ARCHITECTURE.md §6) to an Azure Blob Storage container
+# fully independent of Supabase. Added 2026-07-18 after confirming via the Supabase Management API
+# that the project is on the Free tier with zero backups and PITR disabled — this is the actual
+# safety net until/unless a paid Supabase plan adds native backups.
+
+on:
+  schedule:
+    - cron: '17 3 * * *' # 03:17 UTC daily — off-peak, deliberately not top-of-hour
+  workflow_dispatch: {} # allows a manual/on-demand backup run
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Dump & upload
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CONTAINER: db-backups
+      RETENTION_DAYS: 30
+    steps:
+      - name: Install postgresql-client 17 (matches the Supabase server's Postgres 17)
+        run: |
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+          echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Dump database
+        env:
+          BACKUP_DB_CONNECTION_STRING: ${{ secrets.BACKUP_DB_CONNECTION_STRING }}
+        run: |
+          set -euo pipefail
+          FILE="opsflow-db-$(date -u +%Y-%m-%dT%H%M%SZ).dump"
+          echo "FILE=$FILE" >> "$GITHUB_ENV"
+          pg_dump "$BACKUP_DB_CONNECTION_STRING" -Fc --no-owner --no-privileges -f "$FILE"
+          ls -lh "$FILE"
+
+      - name: Upload to Azure Blob Storage
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_BACKUP_STORAGE_CONNECTION_STRING }}
+        run: |
+          set -euo pipefail
+          az storage blob upload \
+            --container-name "$CONTAINER" \
+            --file "$FILE" \
+            --name "$FILE" \
+            --overwrite false
+
+      - name: Prune backups older than ${{ env.RETENTION_DAYS }} days
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_BACKUP_STORAGE_CONNECTION_STRING }}
+        run: |
+          set -euo pipefail
+          CUTOFF=$(date -u -d "-${RETENTION_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)
+          az storage blob list --container-name "$CONTAINER" \
+            --query "[?properties.lastModified < '${CUTOFF}'].name" -o tsv | \
+          while IFS= read -r name; do
+            [ -z "$name" ] && continue
+            echo "Deleting old backup: $name"
+            az storage blob delete --container-name "$CONTAINER" --name "$name"
+          done
