@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
 import { noWhitespace } from '@org/ui-core';
 import { OrgService, type Region, type Store } from '@org/data-access-org';
@@ -22,6 +22,8 @@ export class ChecklistsComponent implements OnInit {
   private readonly orgSvc = inject(OrgService);
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   readonly checklists = signal<ChecklistDto[]>([]);
   readonly templates = signal<TemplateDto[]>([]);
@@ -57,6 +59,7 @@ export class ChecklistsComponent implements OnInit {
     this.orgSvc.getRegions(true).subscribe({ next: (r) => this.regions.set(r) });
     this.orgSvc.getStores(undefined, true).subscribe({ next: (s) => this.stores.set(s) });
     this.form.controls['scope'].valueChanges.subscribe((v) => this.selectedScope.set(v ?? 'System'));
+    if (this.route.snapshot.queryParamMap.has('create')) this.openCreate();
   }
 
   private load(): void {
@@ -65,6 +68,11 @@ export class ChecklistsComponent implements OnInit {
       next: (data) => { this.checklists.set(data); this.loading.set(false); },
       error: () => { this.error.set('Failed to load checklists.'); this.loading.set(false); },
     });
+  }
+
+  onRowKeydown(event: Event, checklistId: string): void {
+    if (event.target !== event.currentTarget) return;
+    this.router.navigate(['/admin/checklists', checklistId]);
   }
 
   applyFilters(): void { this.load(); }

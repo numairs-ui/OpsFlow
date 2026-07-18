@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
 import { OrgService, type Store, type StoreEmployee } from '@org/data-access-org';
 import { ChecklistService, type ChecklistDto } from '@org/data-access-templates';
@@ -23,6 +24,7 @@ export class RecurringAssignmentsComponent implements OnInit {
   private readonly orgSvc = inject(OrgService);
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
+  private readonly route = inject(ActivatedRoute);
 
   readonly assignments = signal<RecurringAssignmentDto[]>([]);
   readonly checklists = signal<ChecklistDto[]>([]);
@@ -50,6 +52,7 @@ export class RecurringAssignmentsComponent implements OnInit {
     this.load();
     this.checklistSvc.getChecklists(undefined, true).subscribe({ next: (r) => this.checklists.set(r) });
     this.orgSvc.getStores(undefined, true).subscribe({ next: (s) => this.stores.set(s) });
+    if (this.route.snapshot.queryParamMap.has('create')) this.openCreate();
   }
 
   private load(): void {

@@ -4,6 +4,9 @@
       <p class="page__eyebrow">{{ eyebrow() }}</p>
       <h1 class="page__title">Recurring Health</h1>
     </div>
+    @if (createLink(); as link) {
+      <a class="btn btn--primary" [routerLink]="link" [queryParams]="{ create: 1 }">+ New Assignment</a>
+    }
   </div>
 
   @if (error()) {
@@ -25,34 +28,36 @@
       @if (d.assignments.length === 0) {
         <p class="text-muted">No recurring assignments in scope.</p>
       } @else {
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Name</th><th>Store</th><th>Checklist</th><th>Status</th>
-              <th>Next Fire</th><th>Last Generated</th><th>This Week</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (a of d.assignments; track a.id) {
-              <tr [class.row--stale]="a.isStale">
-                <td class="cell-primary">
-                  {{ a.name }}
-                  @if (a.isStale) { <span class="stale-badge">Stale</span> }
-                </td>
-                <td class="text-muted">{{ a.storeName }}</td>
-                <td class="text-muted">{{ a.checklistName }}</td>
-                <td>
-                  <span class="pill" [class.pill--paused]="a.isPaused" [class.pill--active]="!a.isPaused">
-                    {{ a.isPaused ? 'Paused' : 'Active' }}
-                  </span>
-                </td>
-                <td class="text-muted">{{ a.nextFireAt ? (a.nextFireAt | date:'short') : '—' }}</td>
-                <td class="text-muted">{{ a.lastGeneratedAt ? (a.lastGeneratedAt | date:'short') : 'Never' }}</td>
-                <td class="text-muted">{{ a.instancesThisWeek }}</td>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Name</th><th>Store</th><th>Checklist</th><th>Status</th>
+                <th>Next Fire</th><th>Last Generated</th><th>This Week</th>
               </tr>
-            }
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              @for (a of d.assignments; track a.id) {
+                <tr [class.row--stale]="a.isStale">
+                  <td class="cell-primary">
+                    {{ a.name }}
+                    @if (a.isStale) { <span class="stale-badge">Stale</span> }
+                  </td>
+                  <td class="text-muted">{{ a.storeName }}</td>
+                  <td class="text-muted">{{ a.checklistName }}</td>
+                  <td>
+                    <span class="pill" [class.pill--paused]="a.isPaused" [class.pill--active]="!a.isPaused">
+                      {{ a.isPaused ? 'Paused' : 'Active' }}
+                    </span>
+                  </td>
+                  <td class="text-muted">{{ a.nextFireAt ? (a.nextFireAt | date:'short') : '—' }}</td>
+                  <td class="text-muted">{{ a.lastGeneratedAt ? (a.lastGeneratedAt | date:'short') : 'Never' }}</td>
+                  <td class="text-muted">{{ a.instancesThisWeek }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
       }
     </div>
   }

@@ -1,5 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
 import { ChecklistService, type ChecklistPerformanceDto } from '@org/data-access-templates';
 import { StatTileComponent, StatsStripComponent } from '@org/ui-core';
@@ -8,7 +9,7 @@ type Tier = 'network' | 'region' | 'store';
 
 @Component({
   selector: 'app-checklist-completions',
-  imports: [DatePipe, DecimalPipe, StatTileComponent, StatsStripComponent],
+  imports: [DatePipe, DecimalPipe, RouterLink, StatTileComponent, StatsStripComponent],
   templateUrl: './checklist-completions.component.html',
   styleUrl: './checklist-completions.component.scss',
 })
@@ -34,6 +35,13 @@ export class ChecklistCompletionsComponent implements OnInit {
       case 'region': return 'Your Region(s)';
       default: return 'Your Store';
     }
+  });
+
+  // Checklist definitions are only manageable from the admin shell today —
+  // supervisor/store_manager have no route to that CRUD page.
+  readonly createLink = computed(() => {
+    const role = this.currentUser()?.role ?? '';
+    return role === 'super_admin' || role === 'admin' ? '/admin/templates/checklists' : null;
   });
 
   ngOnInit(): void {

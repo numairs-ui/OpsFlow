@@ -5,20 +5,28 @@
 }
 
 .roster-count {
-  font-size: 13px;
-  color: #94a3b8;
-  margin-top: 12px;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-top: 0.75rem;
 }
 
 .role-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  background: #f1f5f9;
-  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 100px;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--line);
+  background: var(--cream-deep);
+  color: var(--muted);
 
-  &--store_manager { background: #fef9c3; color: #92400e; }
-  &--store_employee { background: #f0fdf4; color: #15803d; }
+  &--store_manager { background: rgba(251,190,61,0.12); color: var(--amber-deep); border-color: var(--amber); }
+  &--store_employee { background: rgba(42,127,79,0.1); color: var(--green); border-color: var(--green); }
 }

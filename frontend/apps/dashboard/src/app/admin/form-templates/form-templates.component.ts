@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '@org/data-access-auth';
 import { OrgService, type Region, type Store } from '@org/data-access-org';
 import { noWhitespace } from '@org/ui-core';
@@ -26,6 +26,7 @@ export class FormTemplatesComponent implements OnInit {
   private readonly orgSvc = inject(OrgService);
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
+  private readonly router = inject(Router);
 
   readonly templates = signal<FormTemplateDto[]>([]);
   readonly totalCount = signal(0);
@@ -100,6 +101,11 @@ export class FormTemplatesComponent implements OnInit {
       isActive: this.filterActive(),
       search: this.filterSearch() || undefined,
     };
+  }
+
+  onRowKeydown(event: Event, templateId: string): void {
+    if (event.target !== event.currentTarget) return;
+    this.router.navigate(['/admin/form-templates', templateId]);
   }
 
   applyFilters(): void { this.load(); }

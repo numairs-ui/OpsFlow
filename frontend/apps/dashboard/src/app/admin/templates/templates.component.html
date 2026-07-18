@@ -8,7 +8,7 @@
       @if (currentUser()?.role === 'super_admin') {
         <a class="btn btn--ghost" routerLink="/admin/template-import">Import</a>
       }
-      <button class="btn btn--primary" (click)="openCreate()">+ New Template</button>
+      <button class="btn btn--primary" (click)="openCreate()">+ New Task</button>
     </div>
   </div>
 
@@ -50,7 +50,7 @@
     </div>
   } @else {
     <div class="table-wrap">
-      <table class="table">
+      <table class="table table--clickable">
         <thead>
           <tr>
             <th scope="col">Name</th>
@@ -109,9 +109,13 @@
 
     <div class="list-cards">
       @for (t of templates(); track t.id) {
-        <div class="list-card" [class.list-card--inactive]="!t.isActive">
+        <div class="list-card list-card--clickable" [class.list-card--inactive]="!t.isActive"
+          [routerLink]="['/admin/task-templates', t.id]"
+          tabindex="0" role="button" [attr.aria-label]="'View template ' + t.name"
+          (keydown.enter)="onRowKeydown($event, t.id)"
+          (keydown.space)="$event.preventDefault(); onRowKeydown($event, t.id)">
           <div class="list-card__head">
-            <a class="list-card__title cell-primary" [routerLink]="['/admin/task-templates', t.id]">{{ t.name }}</a>
+            <a class="list-card__title cell-primary" [routerLink]="['/admin/task-templates', t.id]" (click)="$event.stopPropagation()">{{ t.name }}</a>
             <span class="badge" [class.badge--active]="t.isActive" [class.badge--inactive]="!t.isActive">
               {{ t.isActive ? 'Active' : 'Inactive' }}
             </span>
@@ -124,9 +128,9 @@
           </dl>
           @if (canEditScope(t.scope)) {
             <div class="list-card__actions">
-              <button class="btn btn--sm btn--ghost" (click)="openEdit(t)">Edit</button>
+              <button class="btn btn--sm btn--ghost" (click)="$event.stopPropagation(); openEdit(t)">Edit</button>
               <button class="btn btn--sm" [class]="t.isActive ? 'btn--danger-ghost' : 'btn--success-ghost'"
-                (click)="toggleActive(t)">
+                (click)="$event.stopPropagation(); toggleActive(t)">
                 {{ t.isActive ? 'Deactivate' : 'Activate' }}
               </button>
             </div>

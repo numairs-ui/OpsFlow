@@ -43,7 +43,7 @@
     }
   } @else {
     <div class="table-wrap">
-      <table class="table">
+      <table class="table table--clickable">
         <thead>
           <tr>
             <th scope="col">Name</th>
@@ -56,9 +56,13 @@
         </thead>
         <tbody>
           @for (c of checklists(); track c.id) {
-            <tr [class.table__row--inactive]="!c.isActive">
+            <tr [class.table__row--inactive]="!c.isActive"
+              [routerLink]="['/admin/checklists', c.id]"
+              tabindex="0" role="button" [attr.aria-label]="'View checklist ' + c.name"
+              (keydown.enter)="onRowKeydown($event, c.id)"
+              (keydown.space)="$event.preventDefault(); onRowKeydown($event, c.id)">
               <td>
-                <a class="cell-primary" [routerLink]="['/admin/checklists', c.id]">{{ c.name }}</a>
+                <a class="cell-primary" [routerLink]="['/admin/checklists', c.id]" (click)="$event.stopPropagation()">{{ c.name }}</a>
                 @if (c.description) {
                   <div class="cell-sub">{{ c.description }}</div>
                 }
@@ -84,11 +88,11 @@
               </td>
               <td>
                 <div class="table__actions">
-                  <button class="btn btn--sm btn--ghost" (click)="openEdit(c)">Edit Items</button>
+                  <button class="btn btn--sm btn--ghost" (click)="$event.stopPropagation(); openEdit(c)">Edit Items</button>
                   <button
                     class="btn btn--sm"
                     [class]="c.isActive ? 'btn--danger' : 'btn--success'"
-                    (click)="toggleActive(c)"
+                    (click)="$event.stopPropagation(); toggleActive(c)"
                   >
                     {{ c.isActive ? 'Deactivate' : 'Activate' }}
                   </button>
@@ -102,10 +106,14 @@
 
     <div class="list-cards">
       @for (c of checklists(); track c.id) {
-        <div class="list-card" [class.list-card--inactive]="!c.isActive">
+        <div class="list-card list-card--clickable" [class.list-card--inactive]="!c.isActive"
+          [routerLink]="['/admin/checklists', c.id]"
+          tabindex="0" role="button" [attr.aria-label]="'View checklist ' + c.name"
+          (keydown.enter)="onRowKeydown($event, c.id)"
+          (keydown.space)="$event.preventDefault(); onRowKeydown($event, c.id)">
           <div class="list-card__head">
             <div>
-              <a class="list-card__title cell-primary" [routerLink]="['/admin/checklists', c.id]">{{ c.name }}</a>
+              <a class="list-card__title cell-primary" [routerLink]="['/admin/checklists', c.id]" (click)="$event.stopPropagation()">{{ c.name }}</a>
               @if (c.description) {
                 <div class="list-card__sub">{{ c.description }}</div>
               }
@@ -135,11 +143,11 @@
             }
           </dl>
           <div class="list-card__actions">
-            <button class="btn btn--sm btn--ghost" (click)="openEdit(c)">Edit Items</button>
+            <button class="btn btn--sm btn--ghost" (click)="$event.stopPropagation(); openEdit(c)">Edit Items</button>
             <button
               class="btn btn--sm"
               [class]="c.isActive ? 'btn--danger' : 'btn--success'"
-              (click)="toggleActive(c)"
+              (click)="$event.stopPropagation(); toggleActive(c)"
             >
               {{ c.isActive ? 'Deactivate' : 'Activate' }}
             </button>
