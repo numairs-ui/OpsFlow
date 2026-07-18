@@ -82,7 +82,7 @@
               (keydown.space)="openSummary(s)">
               <td class="cell--form">{{ s.formTemplateName ?? '—' }}</td>
               <td class="text-muted">{{ s.storeName ?? s.storeId }}</td>
-              <td class="text-muted mono-id">{{ s.submittedByUserId }}</td>
+              <td class="text-muted">{{ submittedByName(s.submittedByUserId) }}</td>
               <td>
                 <span class="status-badge status-badge--{{ s.status.toLowerCase() }}">
                   {{ pileLabel(s.status) }}

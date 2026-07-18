@@ -96,6 +96,15 @@
 .actions-card    { grid-area: 1 / 4 / 3 / 5; animation-delay: 60ms; }
 .leaderboard-card { grid-area: 3 / 1 / 4 / 5; animation-delay: 180ms; }
 
+// The 230px/1fr/1fr/210px column grid assumes desktop width — below that, the fixed columns
+// alone (440px) already exceed most phone viewports, clipping the rightmost card entirely.
+// Collapse to a single stacked column and let cards flow in source order instead.
+@media (max-width: 860px) {
+  .dash-grid { grid-template-columns: 1fr; }
+  .gauge-card, .stat-open, .stat-overdue, .stat-deposits, .stat-stores,
+  .actions-card, .leaderboard-card { grid-area: auto; }
+}
+
 // ─── Gauge card ───────────────────────────────────────────────────────────────
 .gauge-card {
   // Dot-grid texture — nods to the graph-paper forms used in restaurant ops
