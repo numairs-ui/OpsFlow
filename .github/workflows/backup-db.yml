@@ -33,12 +33,17 @@ jobs:
 
       - name: Dump database
         env:
-          BACKUP_DB_CONNECTION_STRING: ${{ secrets.BACKUP_DB_CONNECTION_STRING }}
+          PGHOST: ${{ secrets.BACKUP_DB_HOST }}
+          PGPORT: ${{ secrets.BACKUP_DB_PORT }}
+          PGDATABASE: ${{ secrets.BACKUP_DB_NAME }}
+          PGUSER: ${{ secrets.BACKUP_DB_USER }}
+          PGPASSWORD: ${{ secrets.BACKUP_DB_PASSWORD }}
+          PGSSLMODE: require
         run: |
           set -euo pipefail
           FILE="opsflow-db-$(date -u +%Y-%m-%dT%H%M%SZ).dump"
           echo "FILE=$FILE" >> "$GITHUB_ENV"
-          pg_dump "$BACKUP_DB_CONNECTION_STRING" -Fc --no-owner --no-privileges -f "$FILE"
+          pg_dump -Fc --no-owner --no-privileges -f "$FILE"
           ls -lh "$FILE"
 
       - name: Upload to Azure Blob Storage
