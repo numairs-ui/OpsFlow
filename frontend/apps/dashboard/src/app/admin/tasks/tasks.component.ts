@@ -7,25 +7,30 @@ import { TaskService } from '@org/data-access-tasks';
 import type { TaskInstanceDto, TaskStatsDto, TaskStatus } from '@org/data-access-tasks';
 import { StatTileComponent, StatsStripComponent } from '@org/ui-core';
 
-export type TaskFilter = 'open' | 'upcoming' | 'overdue';
+export type TaskFilter = 'open' | 'upcoming' | 'overdue' | 'completed';
 
 const FILTER_STATUSES: Record<TaskFilter, TaskStatus[]> = {
   open: ['Pending', 'InProgress'],
   upcoming: ['Pending', 'InProgress'],
   overdue: ['Overdue', 'CorrectiveActionRaised'],
+  completed: ['Completed', 'Verified'],
 };
 
 const FILTER_LABEL: Record<TaskFilter, string> = {
   open: 'Open Tasks',
   upcoming: 'Upcoming Tasks',
   overdue: 'Overdue Tasks',
+  completed: 'Completed Tasks',
 };
 
 const FILTER_SUBTITLE: Record<TaskFilter, string> = {
   open: 'Tasks due today, across every store you can see.',
   upcoming: 'Tasks due after today, across every store you can see.',
   overdue: 'Tasks past their due date and not yet resolved, across every store you can see.',
+  completed: 'Completed tasks due in the last 30 days, across every store you can see.',
 };
+
+const COMPLETED_WINDOW_DAYS = 30;
 
 @Component({
   selector: 'app-tasks',
@@ -74,7 +79,7 @@ export class TasksComponent implements OnInit {
 
     this.route.queryParams.subscribe((params) => {
       const raw = params['filter'];
-      const f: TaskFilter = raw === 'overdue' || raw === 'upcoming' ? raw : 'open';
+      const f: TaskFilter = raw === 'overdue' || raw === 'upcoming' || raw === 'completed' ? raw : 'open';
       this.filter.set(f);
       this.load(f);
     });
@@ -103,10 +108,13 @@ export class TasksComponent implements OnInit {
 
     // "Upcoming" starts right where "Open" ends (today's window), and — like "Overdue" —
     // has no upper bound, so any future-dated one-time task is always visible somewhere.
+    // "Completed" is the one filter that could otherwise grow unbounded forever, so it gets
+    // its own rolling 30-day window instead of being open-ended like Overdue.
     const from = f === 'open' ? this.todayStart.toISOString()
       : f === 'upcoming' ? new Date(this.todayEnd.getTime() + 1).toISOString()
+      : f === 'completed' ? new Date(this.todayEnd.getTime() - COMPLETED_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString()
       : undefined;
-    const to = f === 'open' ? this.todayEnd.toISOString() : undefined;
+    const to = f === 'open' || f === 'completed' ? this.todayEnd.toISOString() : undefined;
 
     // No storeId filter — GetTasksQuery already scopes results via WhereStoreInScope,
     // so both super_admin (all stores) and region-scoped admin (their regions only) work here.
