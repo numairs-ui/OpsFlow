@@ -8,6 +8,9 @@
   background: var(--cream-deep);
   border-radius: 100px;
   margin-bottom: 1.5rem;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 
   &__btn {
     padding: 0.45rem 1.1rem;
@@ -20,10 +23,26 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s var(--ease);
+    white-space: nowrap;
+    flex-shrink: 0;
 
     &.active {
       background: var(--ink);
       color: var(--cream);
+    }
+  }
+}
+
+// 4 pills (Open/Upcoming/Overdue/Completed) — shrink instead of wrapping/overflowing on
+// small phones, same convention as the Templates type toggle.
+@media (max-width: 480px) {
+  .filter-toggle {
+    gap: 0.2rem;
+    padding: 0.25rem;
+
+    &__btn {
+      padding: 0.4rem 0.75rem;
+      font-size: 0.75rem;
     }
   }
 }

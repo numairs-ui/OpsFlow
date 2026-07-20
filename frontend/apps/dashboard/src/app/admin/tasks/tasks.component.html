@@ -37,6 +37,12 @@
       (click)="setFilter('overdue')">
       Overdue
     </button>
+    <button
+      class="filter-toggle__btn"
+      [class.active]="filter() === 'completed'"
+      (click)="setFilter('completed')">
+      Completed
+    </button>
   </div>
 
   @if (error()) {
